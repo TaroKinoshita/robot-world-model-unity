@@ -16,6 +16,14 @@ public class RobotFreeCapture : MonoBehaviour
     public PerceptionCamera perceptionCamera;
     public Transform robotRoot;              // ur3_with_gripper を入れる
 
+    [Header("Scene objects")]
+    [Tooltip("撮影中は物体のRigidbodyを固定する(レンダリング検証専用)。物理で押す実行ではオフにする")]
+    public bool freezeObjectsDuringCapture = true;
+    public Transform objectsRoot;            // Objects を入れる。空なら名前 "Objects" で探す
+    Rigidbody[] frozenBodies;
+    bool[] originalKinematic;
+    CollisionDetectionMode[] originalCollisionMode;
+
     [Header("Timing (frames)")]
     public int framesBeforeStart = 30;       // ドライブが落ち着くまで待つ
     public int hideSettleFrames = 1;         // 非表示にしてから撮影までの待ち
@@ -73,6 +81,9 @@ public class RobotFreeCapture : MonoBehaviour
         originalForceOff = new bool[robotRenderers.Length];
         for (int i = 0; i < robotRenderers.Length; i++)
             originalForceOff[i] = robotRenderers[i].forceRenderingOff;
+
+        // 物体を固定(撮影中に腕が当たっても動かないように)
+        if (freezeObjectsDuringCapture) FreezeObjects();
 
         // 自由度のある関節だけ記録対象にする
         var jointList = new List<ArticulationBody>();
@@ -186,9 +197,53 @@ public class RobotFreeCapture : MonoBehaviour
         log.WriteLine(row.ToString());
     }
 
+    // ---------- scene objects ----------
+
+    void FreezeObjects()
+    {
+        if (objectsRoot == null)
+        {
+            var go = GameObject.Find("Objects");
+            if (go != null) objectsRoot = go.transform;
+        }
+        if (objectsRoot == null)
+        {
+            Debug.LogWarning("[RobotFreeCapture] objectsRoot が見つからない。物体は固定しない");
+            return;
+        }
+
+        frozenBodies = objectsRoot.GetComponentsInChildren<Rigidbody>(true);
+        originalKinematic = new bool[frozenBodies.Length];
+        originalCollisionMode = new CollisionDetectionMode[frozenBodies.Length];
+        for (int i = 0; i < frozenBodies.Length; i++)
+        {
+            var rb = frozenBodies[i];
+            originalKinematic[i] = rb.isKinematic;
+            originalCollisionMode[i] = rb.collisionDetectionMode;
+            // kinematic は ContinuousSpeculative しか使えないので先に切り替える
+            rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            rb.isKinematic = true;
+        }
+        Debug.Log($"[RobotFreeCapture] 物体を固定: {frozenBodies.Length} bodies");
+    }
+
+    void RestoreObjects()
+    {
+        if (frozenBodies == null) return;
+        for (int i = 0; i < frozenBodies.Length; i++)
+        {
+            var rb = frozenBodies[i];
+            if (rb == null) continue;
+            rb.isKinematic = originalKinematic[i];
+            rb.collisionDetectionMode = originalCollisionMode[i];
+        }
+        frozenBodies = null;
+    }
+
     void OnDestroy()
     {
         if (robotRenderers != null) SetRobotVisible(true);
+        RestoreObjects();
         if (log != null) { log.Flush(); log.Close(); }
     }
 }
