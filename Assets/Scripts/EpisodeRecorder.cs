@@ -73,6 +73,13 @@ public class EpisodeRecorder : MonoBehaviour
     public int postSettleSteps = 50;
     [Tooltip("リセット後、物体を固定したまま待つステップ数")]
     public int resetHoldSteps = 3;
+    [Header("Final / labels (6. 最終結果)")]
+    [Tooltip("ゴール領域の中心(world、XZ だけ使う)。仮の値: ターゲットを -X に 10cm 動かした位置")]
+    public Vector3 goalCenter = new Vector3(-0.10f, 0f, 0.30f);
+    public float goalRadius = 0.03f;
+    public float fallDropThreshold = 0.02f;
+    public Color32 targetMaskColor = new Color32(255, 0, 0, 255);
+    string runSoloDir;
 
     Renderer[] robotRenderers;
     bool[] originalForceOff;
@@ -184,6 +191,7 @@ public class EpisodeRecorder : MonoBehaviour
         // ---- SOLO から画像をコピー ----
         string soloDir = null;
         yield return FindSoloDir(d => soloDir = d);
+        runSoloDir = soloDir;
         bool okWith = false, okFree = false;
         if (soloDir != null)
         {
@@ -625,7 +633,101 @@ public class EpisodeRecorder : MonoBehaviour
 
         Debug.Log($"[EpisodeRecorder] {p.cid} 実行完了: {total} steps, reset err {resetErr:E1}, 追従誤差 最大 {maxJointErr * Mathf.Rad2Deg:F2}° / TCP 最大 {maxTcpErr * 1000f:F1} mm(RMS {rmsTcp * 1000f:F1} mm), " +
                   $"接触: robot-target 初回 step {firstRobotTarget}({robotTargetSteps} steps), target-物体 初回 {firstTargetOther}, robot-他物体 初回 {firstRobotOther}, robot-環境 初回 {firstRobotEnv}");
+
+        yield return SaveFinal(p, firstRobotTarget, robotTargetSteps, firstTargetOther, firstRobotOther);
     }
+
+    // ---------- 6. final ----------
+
+    IEnumerator SaveFinal(PlanResult p, int firstRobotTarget, int robotTargetSteps, int firstTargetOther, int firstRobotOther)
+    {
+        string fDir = Path.Combine(p.dir, "final");
+        Directory.CreateDirectory(fDir);
+
+        // 撮影中に動かないよう固定してから、最終姿勢を記録
+        for (int i = 0; i < bodies.Length; i++) bodies[i].isKinematic = true;
+        var finalPos = bodies.Select(b => b.position).ToArray();
+        var finalRot = bodies.Select(b => b.rotation).ToArray();
+
+        int stepWith = captureIndex;
+        yield return CaptureOne();
+        SetRobotVisible(false);
+        for (int i = 0; i < hideSettleFrames; i++) yield return null;
+        int stepFree = captureIndex;
+        yield return CaptureOne();
+        SetRobotVisible(true);
+
+        bool okWith = false, okFree = false;
+        if (runSoloDir != null)
+        {
+            yield return CopyStep(runSoloDir, stepWith, Path.Combine(fDir, "with_robot"), r => okWith = r);
+            yield return CopyStep(runSoloDir, stepFree, Path.Combine(fDir, "robot_free"), r => okFree = r);
+        }
+        int maskPixels = -1;
+        string sem = Path.Combine(fDir, "robot_free", "semantic.png");
+        if (okFree && File.Exists(sem)) maskPixels = WriteTargetMask(sem, Path.Combine(fDir, "target_mask.png"));
+
+        // ---- ラベル ----
+        int ti = Array.FindIndex(bodies, b => b.name == targetObjectName);
+        Vector3 t1 = finalPos[ti];
+        float goalDist = new Vector2(t1.x - goalCenter.x, t1.z - goalCenter.z).magnitude;
+        bool fell = t1.y < settledPos[ti].y - fallDropThreshold;
+        bool goal = goalDist <= goalRadius && !fell;
+        bool targetContact = firstRobotTarget >= 0;
+        bool secondary = firstTargetOther >= 0 || firstRobotOther >= 0;
+
+        var objs = new List<string>();
+        for (int i = 0; i < bodies.Length; i++)
+        {
+            objs.Add("    {" +
+                $"\"name\": {Q(bodies[i].name)}, " +
+                $"\"initial_position_world\": {Vec(settledPos[i])}, \"initial_rotation_world_xyzw\": {Quat(settledRot[i])}, " +
+                $"\"final_position_world\": {Vec(finalPos[i])}, \"final_rotation_world_xyzw\": {Quat(finalRot[i])}, " +
+                $"\"displacement_m\": {N(Vector3.Distance(finalPos[i], settledPos[i]))}, " +
+                $"\"rotation_deg\": {N(Quaternion.Angle(settledRot[i], finalRot[i]))}}}");
+        }
+
+        string json = "{\n" +
+            "  \"schema\": \"final_state_v1\",\n" +
+            $"  \"scene_id\": {Q(p.sceneId)},\n" +
+            $"  \"candidate_id\": {Q(p.cid)},\n" +
+            "  \"measured_after\": \"end of post_settle steps (objects frozen for the final capture)\",\n" +
+            "  \"objects\": [\n" + string.Join(",\n", objs) + "\n  ],\n" +
+            $"  \"goal\": {{\"center_world\": {Vec(goalCenter)}, \"radius_m\": {N(goalRadius)}, \"definition\": \"target final center within radius of goal center in XZ, and not fallen\"}},\n" +
+            "  \"labels\": {" +
+            $"\"goal_reached\": {B(goal)}, \"goal_distance_m\": {N(goalDist)}, \"target_fell\": {B(fell)}, " +
+            $"\"target_contact\": {B(targetContact)}, \"first_robot_target_step\": {firstRobotTarget}, \"robot_target_contact_rows\": {robotTargetSteps}, " +
+            $"\"secondary_collision\": {B(secondary)}, \"first_target_secondary_step\": {firstTargetOther}, \"first_robot_secondary_step\": {firstRobotOther}}},\n" +
+            $"  \"label_params\": {{\"fall_drop_threshold_m\": {N(fallDropThreshold)}}},\n" +
+            $"  \"target_mask\": {{\"file\": \"target_mask.png\", \"pixels\": {maskPixels}, \"semantic_color_rgb\": [{targetMaskColor.r}, {targetMaskColor.g}, {targetMaskColor.b}], \"encoding\": \"8-bit gray, 255 = target\"}},\n" +
+            $"  \"capture\": {{\"step_with_robot\": {stepWith}, \"step_robot_free\": {stepFree}, \"copied_with_robot\": {B(okWith)}, \"copied_robot_free\": {B(okFree)}}},\n" +
+            "  \"files\": {\"robot_free\": {\"rgb\": \"robot_free/rgb.png\", \"depth\": \"robot_free/depth.exr\", \"semantic\": \"robot_free/semantic.png\"}, " +
+            "\"with_robot\": {\"rgb\": \"with_robot/rgb.png\", \"depth\": \"with_robot/depth.exr\", \"semantic\": \"with_robot/semantic.png\"}, \"target_mask\": \"target_mask.png\"}\n" +
+            "}\n";
+        File.WriteAllText(Path.Combine(fDir, "final_state.json"), json, new UTF8Encoding(false));
+
+        for (int i = 0; i < bodies.Length; i++) bodies[i].isKinematic = savedKinematic[i];
+
+        Debug.Log($"[EpisodeRecorder] {p.cid} 最終結果: goal={goal}(距離 {goalDist * 1000f:F1} mm), fell={fell}, target_contact={targetContact}, secondary={secondary}, " +
+                  $"target 移動 {Vector3.Distance(finalPos[ti], settledPos[ti]) * 1000f:F1} mm, mask {maskPixels} px, 画像 with={okWith} free={okFree}");
+    }
+
+    int WriteTargetMask(string semPath, string outPath)
+    {
+        var tex = new Texture2D(2, 2);
+        if (!tex.LoadImage(File.ReadAllBytes(semPath))) return -1;
+        var px = tex.GetPixels32();
+        var m = new byte[px.Length];
+        int n = 0;
+        for (int i = 0; i < px.Length; i++)
+            if (px[i].r == targetMaskColor.r && px[i].g == targetMaskColor.g && px[i].b == targetMaskColor.b) { m[i] = 255; n++; }
+        // LoadImage も EncodeArrayToPNG も下の行から並ぶので、そのまま渡せば上下は元画像と同じ
+        File.WriteAllBytes(outPath, ImageConversion.EncodeArrayToPNG(m, UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm, (uint)tex.width, (uint)tex.height));
+        Destroy(tex);
+        return n;
+    }
+
+    static string B(bool b) => b ? "true" : "false";
 
     static void AppendPose(StringBuilder sb, Vector3 p, Quaternion r)
     {

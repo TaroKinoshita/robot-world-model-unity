@@ -10042,7 +10042,7 @@ MonoBehaviour:
     pushAngleDeg: 130
     pushLength: 0.1
   planner:
-    approachHeight: 0.12
+    approachHeight: 0.16
     preContactGap: 0.05
     contactPadding: 0.015
     pushHeightOffset: -0.01
@@ -10063,6 +10063,12 @@ MonoBehaviour:
     fingerDamping: 10
   postSettleSteps: 50
   resetHoldSteps: 3
+  goalCenter: {x: -0.1, y: 0, z: 0.3}
+  goalRadius: 0.03
+  fallDropThreshold: 0.02
+  targetMaskColor:
+    serializedVersion: 2
+    rgba: 4278190335
 --- !u!4 &1696397983
 Transform:
   m_ObjectHideFlags: 0
