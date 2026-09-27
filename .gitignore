@@ -26,3 +26,4 @@ sysinfo.txt
 # Python
 __pycache__/
 *.pyc
+/Captures/
