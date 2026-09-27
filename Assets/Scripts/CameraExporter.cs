@@ -38,11 +38,14 @@ public class CameraExporter : MonoBehaviour
     }
 
     [ContextMenu("Export Now")]
-    public void Export()
+    public void Export() { ExportToFile(null); }
+
+    /// <summary>path が空なら CaptureLogs/camera_日時.json に書き出す。書き出したパスを返す(失敗時は null)</summary>
+    public string ExportToFile(string path)
     {
         Camera cam = targetCamera != null ? targetCamera : GetComponent<Camera>();
-        if (cam == null) { Debug.LogError("[CameraExporter] Camera が未設定"); return; }
-        if (cam.orthographic) { Debug.LogError("[CameraExporter] Orthographic は非対応"); return; }
+        if (cam == null) { Debug.LogError("[CameraExporter] Camera が未設定"); return null; }
+        if (cam.orthographic) { Debug.LogError("[CameraExporter] Orthographic は非対応"); return null; }
 
         int W = cam.pixelWidth;
         int H = cam.pixelHeight;
@@ -121,13 +124,17 @@ public class CameraExporter : MonoBehaviour
 
         string json = "{\n" + string.Join(",\n", f) + "\n}\n";
 
-        string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "CaptureLogs"));
-        Directory.CreateDirectory(dir);
-        string path = Path.Combine(dir, $"camera_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+        if (string.IsNullOrEmpty(path))
+        {
+            string dir = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "CaptureLogs"));
+            path = Path.Combine(dir, $"camera_{DateTime.Now:yyyyMMdd_HHmmss}.json");
+        }
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
         File.WriteAllText(path, json, new UTF8Encoding(false));
 
         Debug.Log($"[CameraExporter] 書き出し: {path}\n" +
                   $"K: fx={fx:F3} fy={fy:F3} cx={cx:F3} cy={cy:F3} / {W}x{H}");
+        return path;
     }
 
     // ---- JSON ヘルパー ----
