@@ -10020,6 +10020,36 @@ MonoBehaviour:
   hideSettleFrames: 1
   soloRoot: 
   fileWaitTimeoutSec: 30
+  toolLinkName: tool0
+  armJointNames:
+  - shoulder_link
+  - upper_arm_link
+  - forearm_link
+  - wrist_1_link
+  - wrist_2_link
+  - wrist_3_link
+  fingerPadA: left_inner_finger_pad
+  fingerPadB: right_inner_finger_pad
+  validateKinematics: 1
+  fkToleranceM: 0.001
+  targetObjectName: Target
+  numCandidates: 2
+  candidateSpecs:
+  - note: push away from robot (+Z)
+    pushAngleDeg: 0
+    pushLength: 0.1
+  - note: push toward SecondObject
+    pushAngleDeg: 130
+    pushLength: 0.1
+  planner:
+    approachHeight: 0.12
+    preContactGap: 0.05
+    contactPadding: 0.015
+    pushHeightOffset: -0.01
+    transferDuration: 3
+    moveSpeed: 0.1
+    pushSpeed: 0.05
+    holdDuration: 0.5
 --- !u!4 &1696397983
 Transform:
   m_ObjectHideFlags: 0
