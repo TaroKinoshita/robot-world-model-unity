@@ -67,6 +67,12 @@ public class EpisodeRecorder : MonoBehaviour
     };
     public PlannerSettings planner = new PlannerSettings();
     public ActionRasterSettings actions = new ActionRasterSettings();
+    [Header("Execution (5. 実行)")]
+    public DriveSettings drives = new DriveSettings();
+    [Tooltip("軌道の最後のあと、物体が止まるまで記録を続けるステップ数")]
+    public int postSettleSteps = 50;
+    [Tooltip("リセット後、物体を固定したまま待つステップ数")]
+    public int resetHoldSteps = 3;
 
     Renderer[] robotRenderers;
     bool[] originalForceOff;
@@ -109,6 +115,7 @@ public class EpisodeRecorder : MonoBehaviour
         authoredPositions = bodies.Select(b => b.position).ToArray();
 
         // 運動学は初期姿勢(指が開いた状態)で作る
+        EnsureContactRecorders();   // 物理が1回も回る前に付ける
         kin = ArmKinematics.Build(robotRoot, toolLinkName, armJointNames, fingerPadA, fingerPadB, out kinError);
         if (kin == null) Debug.LogError($"[EpisodeRecorder] 運動学を作れない: {kinError}");
 
@@ -155,6 +162,11 @@ public class EpisodeRecorder : MonoBehaviour
         }
         string objectsJson = BuildObjectsJson();
         string robotJson = BuildRobotJson();
+        settledPos = bodies.Select(b => b.position).ToArray();
+        settledRot = bodies.Select(b => b.rotation).ToArray();
+        savedKinematic = origKinematic;
+        savedMode = origMode;
+        initialDofPositions = CaptureAllDofs();
         float[] qInit = kin != null ? ReadArmJoints() : null;
 
         // ---- 撮影: ロボットあり → robot-free ----
@@ -190,6 +202,7 @@ public class EpisodeRecorder : MonoBehaviour
 
         // ================= 3. 候補軌道 =================
 
+        List<PlanResult> plans = null;
         if (kin == null)
         {
             Debug.LogError($"[EpisodeRecorder] 運動学が無いので候補軌道を作れない: {kinError}");
@@ -209,24 +222,32 @@ public class EpisodeRecorder : MonoBehaviour
                 else Debug.LogError($"[EpisodeRecorder] FK 検証 NG: 最大誤差 +:{fkErrPlus * 1000f:F2} mm / -:{fkErrMinus * 1000f:F2} mm");
             }
 
-            if (fkOk) PlanCandidates(sceneDir, sceneId, qInit, fkErrPlus, fkErrMinus);
+            if (fkOk) plans = PlanCandidates(sceneDir, sceneId, qInit, fkErrPlus, fkErrMinus);
         }
 
-        // ---- 固定を解除(この後の実行で物体が動けるように) ----
-        for (int i = 0; i < bodies.Length; i++)
+        // ================= 5. 実行(物体は固定したまま始める) =================
+        if (plans != null && plans.Count > 0)
         {
-            bodies[i].isKinematic = origKinematic[i];
-            bodies[i].collisionDetectionMode = origMode[i];
+            Debug.Log("[EpisodeRecorder] 5. ドライブ設定");
+            ApplyDrives();
+            yield return new WaitForFixedUpdate();
+            foreach (var p in plans) yield return ExecuteCandidate(p);
         }
+        else
+        {
+            for (int i = 0; i < bodies.Length; i++) bodies[i].isKinematic = origKinematic[i];
+        }
+
         Debug.Log("[EpisodeRecorder] 完了");
     }
 
     // ---------- 3. candidates ----------
 
-    void PlanCandidates(string sceneDir, string sceneId, float[] qInit, float fkErrPlus, float fkErrMinus)
+    List<PlanResult> PlanCandidates(string sceneDir, string sceneId, float[] qInit, float fkErrPlus, float fkErrMinus)
     {
         var target = bodies.FirstOrDefault(b => b.name == targetObjectName);
-        if (target == null) { Debug.LogError($"[EpisodeRecorder] ターゲット '{targetObjectName}' が無い"); return; }
+        if (target == null) { Debug.LogError($"[EpisodeRecorder] ターゲット '{targetObjectName}' が無い"); return null; }
+        var results = new List<PlanResult>();
         var col = target.GetComponent<Collider>();
         Vector3 center = col != null ? col.bounds.center : target.position;
         Vector3 half = col != null ? col.bounds.extents : Vector3.one * 0.04f;
@@ -243,6 +264,7 @@ public class EpisodeRecorder : MonoBehaviour
             WritePlannedJson(Path.Combine(dir, "planned_trajectory.json"), sceneId, cid, c, spec, tr, center, half);
             WritePlannedCsv(Path.Combine(dir, "planned_trajectory.csv"), tr);
             if (tr.ok) ActionRepresentations.Write(kin, tr, perceptionCamera.GetComponent<Camera>(), dir, actions, sceneId, cid);
+            if (tr.ok) results.Add(new PlanResult { cid = cid, dir = dir, tr = tr, sceneId = sceneId });
 
             index.Add("    {" +
                 $"\"candidate_id\": {Q(cid)}, \"candidate_index\": {c}, \"note\": {Q(spec.note)}, " +
@@ -266,6 +288,7 @@ public class EpisodeRecorder : MonoBehaviour
             $"  \"fk_validation\": {{\"enabled\": {(validateKinematics ? "true" : "false")}, \"max_err_sign_plus_m\": {N(fkErrPlus)}, \"max_err_sign_minus_m\": {N(fkErrMinus)}, \"joint_sign\": {N(kin.JointSign)}}},\n" +
             "  \"candidates\": [\n" + string.Join(",\n", index) + "\n  ]\n}\n";
         File.WriteAllText(Path.Combine(sceneDir, "candidates.json"), json, new UTF8Encoding(false));
+        return results;
     }
 
     IEnumerator ValidateFK(float[] qInit, Action<float, float> done)
@@ -367,6 +390,247 @@ public class EpisodeRecorder : MonoBehaviour
             sb.Append(',').Append(N(tr.tcp[i].x)).Append(',').Append(N(tr.tcp[i].y)).Append(',').Append(N(tr.tcp[i].z)).Append('\n');
         }
         File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
+    }
+
+    // ---------- 5. execution ----------
+
+    [Serializable]
+    public class DriveSettings
+    {
+        public float armStiffness = 10000f;
+        public float armDamping = 100f;
+        [Tooltip("0 以下なら元の forceLimit のまま")]
+        public float armForceLimit = 0f;
+        public float fingerStiffness = 1000f;
+        public float fingerDamping = 10f;
+    }
+
+    public class PlanResult
+    {
+        public string cid, dir, sceneId;
+        public PlannedTrajectory tr;
+    }
+
+    Vector3[] settledPos;
+    Quaternion[] settledRot;
+    bool[] savedKinematic;
+    CollisionDetectionMode[] savedMode;
+    List<(ArticulationBody body, float pos)> initialDofPositions;
+    List<Transform> linkTransforms;
+
+    List<(ArticulationBody body, float pos)> CaptureAllDofs()
+    {
+        var list = new List<(ArticulationBody body, float pos)>();
+        foreach (var ab in robotRoot.GetComponentsInChildren<ArticulationBody>(true))
+            if (!ab.isRoot && ab.dofCount == 1) list.Add((ab, ab.jointPosition[0]));
+        return list;
+    }
+
+    void ApplyDrives()
+    {
+        foreach (var (ab, pos) in initialDofPositions)
+        {
+            var d = ab.xDrive;
+            bool arm = Array.IndexOf(kin.JointBodies, ab) >= 0;
+            d.stiffness = arm ? drives.armStiffness : drives.fingerStiffness;
+            d.damping = arm ? drives.armDamping : drives.fingerDamping;
+            if (arm && drives.armForceLimit > 0f) d.forceLimit = drives.armForceLimit;
+            d.target = pos * Mathf.Rad2Deg;
+            ab.xDrive = d;
+        }
+    }
+
+    // 物体と腕を「落ち着かせた直後の状態」に戻す(衝突判定モードは変えない、指の関節は触らない)
+    IEnumerator ResetScene(Action<float> done)
+    {
+        for (int i = 0; i < bodies.Length; i++)
+        {
+            var b = bodies[i];
+            b.isKinematic = true;
+            b.position = settledPos[i];
+            b.rotation = settledRot[i];
+            b.transform.SetPositionAndRotation(settledPos[i], settledRot[i]);
+        }
+        foreach (var (ab, pos) in initialDofPositions)
+        {
+            if (Array.IndexOf(kin.JointBodies, ab) < 0) continue;
+            ab.jointPosition = new ArticulationReducedSpace(pos);
+            ab.jointVelocity = new ArticulationReducedSpace(0f);
+            var d = ab.xDrive;
+            d.target = pos * Mathf.Rad2Deg;
+            ab.xDrive = d;
+        }
+        Physics.SyncTransforms();
+        for (int i = 0; i < Mathf.Max(1, resetHoldSteps); i++) yield return new WaitForFixedUpdate();
+
+        float err = 0f;
+        for (int i = 0; i < bodies.Length; i++)
+        {
+            var b = bodies[i];
+            err = Mathf.Max(err, Vector3.Distance(b.position, settledPos[i]));
+            b.isKinematic = savedKinematic[i];
+            if (!b.isKinematic) { b.linearVelocity = Vector3.zero; b.angularVelocity = Vector3.zero; }
+        }
+        foreach (var (ab, pos) in initialDofPositions)
+            err = Mathf.Max(err, Mathf.Abs(ab.jointPosition[0] - pos) * 0.1f);   // rad を m 相当に(0.1 m/rad)
+        done(err);
+    }
+
+    // 物体にだけ付ける(ArticulationBody に実行中に付けると PhysX が落ちた)。
+    // ロボット↔物体の接触は物体側で articulationBody として記録される
+    void EnsureContactRecorders()
+    {
+        foreach (var b in bodies)
+            if (b.GetComponent<ContactRecorder>() == null) b.gameObject.AddComponent<ContactRecorder>().selfKind = "object";
+    }
+
+    static Transform FindByName(Transform root, string name)
+    {
+        foreach (var t in root.GetComponentsInChildren<Transform>(true))
+            if (t.name == name) return t;
+        return null;
+    }
+
+    IEnumerator ExecuteCandidate(PlanResult p)
+    {
+        var tr = p.tr;
+        float resetErr = 0f;
+        yield return ResetScene(e => resetErr = e);
+        Debug.Log($"[EpisodeRecorder] {p.cid} 実行開始(reset err {resetErr:E1})");
+
+        if (linkTransforms == null)
+            linkTransforms = kin.KeypointNames.Take(kin.KeypointNames.Length - 1).Select(n => FindByName(robotRoot, n)).ToList();
+        string[] linkNames = kin.KeypointNames.Take(kin.KeypointNames.Length - 1).ToArray();
+
+        var contactRows = new List<string>();
+        ContactRecorder.Rows = contactRows;
+
+        var hdr = new List<string> { "step", "t", "phase", "planned_step" };
+        hdr.AddRange(kin.JointNames.Select(n => "cmd_" + n));
+        hdr.AddRange(kin.JointNames.Select(n => "q_" + n));
+        hdr.AddRange(kin.JointNames.Select(n => "qd_" + n));
+        hdr.AddRange(new[] { "tcp_x", "tcp_y", "tcp_z", "tool_rot_x", "tool_rot_y", "tool_rot_z", "tool_rot_w" });
+        foreach (var n in linkNames) hdr.AddRange(new[] { n + "_x", n + "_y", n + "_z", n + "_rx", n + "_ry", n + "_rz", n + "_rw" });
+        foreach (var b in bodies) hdr.AddRange(new[] { b.name + "_x", b.name + "_y", b.name + "_z", b.name + "_rx", b.name + "_ry", b.name + "_rz", b.name + "_rw", b.name + "_vx", b.name + "_vy", b.name + "_vz" });
+        var sb = new StringBuilder(string.Join(",", hdr) + "\n");
+
+        int nPlan = tr.q.Count;
+        int total = nPlan + Mathf.Max(0, postSettleSteps);
+        float maxJointErr = 0f, maxTcpErr = 0f;
+        double sumTcpErr2 = 0;
+
+        for (int i = 0; i < total; i++)
+        {
+            int ps = Mathf.Min(i, nPlan - 1);
+            var qCmd = tr.q[ps];
+            for (int j = 0; j < kin.Dof; j++)
+            {
+                var ab = kin.JointBodies[j];
+                var d = ab.xDrive;
+                d.target = qCmd[j] * Mathf.Rad2Deg;
+                // 計画の速度も渡す(渡さないと damping がブレーキになって追従が遅れる)
+                float qd = 0f;
+                if (i < nPlan - 1) qd = (tr.q[Mathf.Min(ps + 1, nPlan - 1)][j] - tr.q[Mathf.Max(ps - 1, 0)][j]) / ((Mathf.Min(ps + 1, nPlan - 1) - Mathf.Max(ps - 1, 0)) * tr.dt);
+                d.targetVelocity = qd * Mathf.Rad2Deg;
+                ab.xDrive = d;
+            }
+            ContactRecorder.CurrentStep = i;
+            ContactRecorder.CurrentTime = (i + 1) * tr.dt;
+            yield return new WaitForFixedUpdate();   // 物理 1 ステップ後の状態を記録する
+
+            string phase = i < nPlan ? tr.phase[i] : "post_settle";
+            var q = ReadArmJoints();
+            Vector3 tcp = kin.Tool.TransformPoint(kin.TcpLocal);
+            Quaternion tr0 = kin.Tool.rotation;
+            if (i < nPlan)
+            {
+                for (int j = 0; j < kin.Dof; j++) maxJointErr = Mathf.Max(maxJointErr, Mathf.Abs(q[j] - qCmd[j]));
+                float e = Vector3.Distance(tcp, tr.tcp[i]);
+                maxTcpErr = Mathf.Max(maxTcpErr, e);
+                sumTcpErr2 += e * e;
+            }
+
+            sb.Append(i).Append(',').Append(N((i + 1) * tr.dt)).Append(',').Append(phase).Append(',').Append(ps);
+            foreach (var v in qCmd) sb.Append(',').Append(N(v));
+            foreach (var v in q) sb.Append(',').Append(N(v));
+            for (int j = 0; j < kin.Dof; j++) sb.Append(',').Append(N(kin.JointBodies[j].jointVelocity[0]));
+            AppendPose(sb, tcp, tr0);
+            foreach (var t in linkTransforms) AppendPose(sb, t.position, t.rotation);
+            foreach (var b in bodies)
+            {
+                AppendPose(sb, b.position, b.rotation);
+                var v = b.linearVelocity;
+                sb.Append(',').Append(N(v.x)).Append(',').Append(N(v.y)).Append(',').Append(N(v.z));
+            }
+            sb.Append('\n');
+        }
+        ContactRecorder.Rows = null;
+        ContactRecorder.CurrentStep = -1;
+
+        string exDir = Path.Combine(p.dir, "executed");
+        Directory.CreateDirectory(exDir);
+        var utf8 = new UTF8Encoding(false);
+        File.WriteAllText(Path.Combine(exDir, "executed_trajectory.csv"), sb.ToString(), utf8);
+        File.WriteAllText(Path.Combine(exDir, "contacts.csv"),
+            "step,t,event,body,body_kind,other,other_kind,num_points,px,py,pz,nx,ny,nz,impulse,rel_speed\n" +
+            string.Join("\n", contactRows) + (contactRows.Count > 0 ? "\n" : ""), utf8);
+
+        // ---- 接触のまとめ ----
+        int firstRobotTarget = -1, robotTargetSteps = 0, firstTargetOther = -1, firstRobotOther = -1, firstRobotEnv = -1;
+        foreach (var row in contactRows)
+        {
+            var f = row.Split(',');
+            if (f[2] == "exit") continue;
+            int st = int.Parse(f[0], CultureInfo.InvariantCulture);
+            string body = f[3], bodyKind = f[4], other = f[5], otherKind = f[6];
+            bool bodyIsTarget = body == targetObjectName, otherIsTarget = other == targetObjectName;
+            if (bodyKind == "object" && otherKind == "robot_link")
+            {
+                if (bodyIsTarget) { robotTargetSteps++; if (firstRobotTarget < 0) firstRobotTarget = st; }
+                else if (firstRobotOther < 0) firstRobotOther = st;
+            }
+            else if (bodyKind == "object" && otherKind == "object" && (bodyIsTarget || otherIsTarget))
+            {
+                if (firstTargetOther < 0) firstTargetOther = st;
+            }
+            else if (bodyKind == "robot_link" && otherKind == "environment")
+            {
+                if (firstRobotEnv < 0) firstRobotEnv = st;
+            }
+        }
+        float rmsTcp = nPlan > 0 ? Mathf.Sqrt((float)(sumTcpErr2 / nPlan)) : 0f;
+
+        string meta = "{\n" +
+            "  \"schema\": \"executed_trajectory_v1\",\n" +
+            $"  \"scene_id\": {Q(p.sceneId)},\n" +
+            $"  \"candidate_id\": {Q(p.cid)},\n" +
+            "  \"command_source\": \"../planned_trajectory.json (joint position targets, one per physics step)\",\n" +
+            "  \"timing\": \"row step i = state measured after physics step i with command planned_step; t = (i + 1) * dt\",\n" +
+            $"  \"dt\": {N(tr.dt)},\n" +
+            $"  \"num_planned_steps\": {nPlan},\n" +
+            $"  \"post_settle_steps\": {Mathf.Max(0, postSettleSteps)},\n" +
+            $"  \"num_steps\": {total},\n" +
+            $"  \"drives\": {JsonUtility.ToJson(drives)},\n" +
+            $"  \"reset\": {{\"hold_steps\": {resetHoldSteps}, \"max_error\": {N(resetErr)}}},\n" +
+            $"  \"tracking\": {{\"max_joint_err_rad\": {N(maxJointErr)}, \"max_tcp_err_m\": {N(maxTcpErr)}, \"rms_tcp_err_m\": {N(rmsTcp)}}},\n" +
+            "  \"contact_summary\": {" +
+            $"\"num_rows\": {contactRows.Count}, \"first_robot_target_step\": {firstRobotTarget}, \"robot_target_steps\": {robotTargetSteps}, " +
+            $"\"first_target_object_contact_step\": {firstTargetOther}, \"first_robot_other_object_step\": {firstRobotOther}, " +
+            $"\"first_robot_environment_step\": {firstRobotEnv}}},\n" +
+            "  \"files\": {\"trajectory\": \"executed_trajectory.csv\", \"contacts\": \"contacts.csv\"},\n" +
+            "  \"columns\": \"cmd_* = commanded joint target (rad), q_* / qd_* = measured joint position / velocity, tcp/tool_rot = measured TCP pose, " +
+            "<link>_* = measured link origin pose, <object>_* = measured object pose and linear velocity; rotations are quaternions xyzw; world = Unity (left-handed, Y-up, m)\"\n" +
+            "}\n";
+        File.WriteAllText(Path.Combine(exDir, "executed_meta.json"), meta, utf8);
+
+        Debug.Log($"[EpisodeRecorder] {p.cid} 実行完了: {total} steps, reset err {resetErr:E1}, 追従誤差 最大 {maxJointErr * Mathf.Rad2Deg:F2}° / TCP 最大 {maxTcpErr * 1000f:F1} mm(RMS {rmsTcp * 1000f:F1} mm), " +
+                  $"接触: robot-target 初回 step {firstRobotTarget}({robotTargetSteps} steps), target-物体 初回 {firstTargetOther}, robot-他物体 初回 {firstRobotOther}, robot-環境 初回 {firstRobotEnv}");
+    }
+
+    static void AppendPose(StringBuilder sb, Vector3 p, Quaternion r)
+    {
+        sb.Append(',').Append(N(p.x)).Append(',').Append(N(p.y)).Append(',').Append(N(p.z))
+          .Append(',').Append(N(r.x)).Append(',').Append(N(r.y)).Append(',').Append(N(r.z)).Append(',').Append(N(r.w));
     }
 
     // ---------- capture ----------

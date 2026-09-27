@@ -4788,7 +4788,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 2
+  m_CollisionDetection: 3
 --- !u!1 &603784983
 GameObject:
   m_ObjectHideFlags: 8
@@ -10035,8 +10035,8 @@ MonoBehaviour:
   targetObjectName: Target
   numCandidates: 2
   candidateSpecs:
-  - note: push away from robot (+Z)
-    pushAngleDeg: 0
+  - note: push sideways away from SecondObject (-X)
+    pushAngleDeg: -90
     pushLength: 0.1
   - note: push toward SecondObject
     pushAngleDeg: 130
@@ -10050,6 +10050,19 @@ MonoBehaviour:
     moveSpeed: 0.1
     pushSpeed: 0.05
     holdDuration: 0.5
+  actions:
+    rasterStride: 5
+    eefRadiusPx: 3
+    bodyLineRadiusPx: 1.5
+    bodyJointRadiusPx: 2.5
+  drives:
+    armStiffness: 20000
+    armDamping: 200
+    armForceLimit: 5000
+    fingerStiffness: 1000
+    fingerDamping: 10
+  postSettleSteps: 50
+  resetHoldSteps: 3
 --- !u!4 &1696397983
 Transform:
   m_ObjectHideFlags: 0
@@ -10633,7 +10646,7 @@ Rigidbody:
   m_IsKinematic: 0
   m_Interpolate: 0
   m_Constraints: 0
-  m_CollisionDetection: 2
+  m_CollisionDetection: 3
 --- !u!1 &1823688464
 GameObject:
   m_ObjectHideFlags: 0
