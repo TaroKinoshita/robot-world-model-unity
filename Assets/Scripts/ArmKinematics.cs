@@ -91,6 +91,10 @@ public class ArmKinematics
         Vector3 open = k.Tool.InverseTransformDirection(pb.position - pa.position);
         k.OpeningLocal = Vector3.ProjectOnPlane(open, k.ApproachLocal).normalized;
         k.FingerHalfSpan = (pb.position - pa.position).magnitude * 0.5f;
+        var kp = new List<string>();
+        foreach (var nd in k.nodes) kp.Add(nd.name);
+        kp.Add("tcp");
+        k.KeypointNames = kp.ToArray();
         return k;
     }
 
@@ -134,6 +138,27 @@ public class ArmKinematics
     {
         ToolPose(q, out var p, out toolRot);
         tcp = p + toolRot * TcpLocal;
+    }
+
+    /// <summary>腕全体の点: chain の各リンク原点(root → tool)+ TCP</summary>
+    public string[] KeypointNames { get; private set; }
+
+    public void Keypoints(float[] q, Vector3[] outPts)
+    {
+        Vector3 p = rootPos;
+        Quaternion r = rootRot;
+        outPts[0] = p;
+        for (int i = 1; i < nodes.Count; i++)
+        {
+            var nd = nodes[i];
+            Vector3 jp = p + r * nd.pAnchorPos;
+            Quaternion jr = r * nd.pAnchorRot;
+            if (nd.q >= 0) jr = jr * Quaternion.AngleAxis(JointSign * q[nd.q] * Mathf.Rad2Deg, Vector3.right);
+            r = jr * Quaternion.Inverse(nd.anchorRot);
+            p = jp - r * nd.anchorPos;
+            outPts[i] = p;
+        }
+        outPts[nodes.Count] = p + r * TcpLocal;
     }
 
     /// <summary>グリッパーの向き(approach)と指の開閉方向(opening)を world で指定したときの tool の回転</summary>

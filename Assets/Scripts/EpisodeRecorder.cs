@@ -66,6 +66,7 @@ public class EpisodeRecorder : MonoBehaviour
         new CandidateSpec { note = "push toward SecondObject", pushAngleDeg = 130f, pushLength = 0.10f },
     };
     public PlannerSettings planner = new PlannerSettings();
+    public ActionRasterSettings actions = new ActionRasterSettings();
 
     Renderer[] robotRenderers;
     bool[] originalForceOff;
@@ -241,6 +242,7 @@ public class EpisodeRecorder : MonoBehaviour
             Directory.CreateDirectory(dir);
             WritePlannedJson(Path.Combine(dir, "planned_trajectory.json"), sceneId, cid, c, spec, tr, center, half);
             WritePlannedCsv(Path.Combine(dir, "planned_trajectory.csv"), tr);
+            if (tr.ok) ActionRepresentations.Write(kin, tr, perceptionCamera.GetComponent<Camera>(), dir, actions, sceneId, cid);
 
             index.Add("    {" +
                 $"\"candidate_id\": {Q(cid)}, \"candidate_index\": {c}, \"note\": {Q(spec.note)}, " +
