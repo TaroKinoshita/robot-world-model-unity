@@ -31,6 +31,7 @@ public static class ActionRepresentations
                              ActionRasterSettings s, string sceneId, string cid)
     {
         string dir = Path.Combine(candDir, "actions");
+        if (Directory.Exists(dir)) Directory.Delete(dir, true);   // 前の実行の画像を消す
         string eefDir = Path.Combine(dir, "eef_raster");
         string bodyDir = Path.Combine(dir, "fullbody_raster");
         Directory.CreateDirectory(eefDir);
