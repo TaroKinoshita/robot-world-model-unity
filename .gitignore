@@ -28,3 +28,6 @@ __pycache__/
 *.pyc
 /Captures/
 /Episodes/
+
+# CameraExporter writes CaptureLogs/camera_*.json on every Play; keep them out of git status (already-tracked logs stay tracked)
+/CaptureLogs/
