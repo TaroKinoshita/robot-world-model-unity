@@ -4278,6 +4278,7 @@ GameObject:
   m_Component:
   - component: {fileID: 310314864}
   - component: {fileID: 310314865}
+  - component: {fileID: 310314866}
   m_Layer: 0
   m_Name: world
   m_TagString: Untagged
@@ -4316,6 +4317,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IsBaseLink: 1
+--- !u!114 &310314866
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 310314863}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b33f0bc2b78db642a758f07826d0dd0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  labels:
+  - arm
+  useAutoLabeling: 0
+  autoLabelingSchemeType: 
 --- !u!1001 &320705101
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -11215,6 +11232,7 @@ GameObject:
   - component: {fileID: 948371457}
   - component: {fileID: 948371456}
   - component: {fileID: 948371455}
+  - component: {fileID: 948371459}
   m_Layer: 0
   m_Name: wrist_3_link
   m_TagString: Untagged
@@ -11354,6 +11372,22 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   IsBaseLink: 0
+--- !u!114 &948371459
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 948371453}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b33f0bc2b78db642a758f07826d0dd0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  labels:
+  - hand
+  useAutoLabeling: 0
+  autoLabelingSchemeType: 
 --- !u!1 &975280737
 GameObject:
   m_ObjectHideFlags: 0
@@ -19221,12 +19255,12 @@ MonoBehaviour:
   - wrist_2_link
   - wrist_3_link
   jointDegrees:
-  - 0
+  - -63.5
+  - -151.8
+  - 122.3
+  - -60.5
   - -90
-  - 0
-  - -90
-  - 0
-  - 0
+  - -63.5
 --- !u!114 &1725148060
 MonoBehaviour:
   m_ObjectHideFlags: 0
