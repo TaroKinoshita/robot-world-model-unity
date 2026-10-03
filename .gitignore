@@ -31,3 +31,6 @@ __pycache__/
 
 # CameraExporter writes CaptureLogs/camera_*.json on every Play; keep them out of git status (already-tracked logs stay tracked)
 /CaptureLogs/
+
+# broken importer outputs moved aside during UR5e import (not deleted)
+/_import_backup/

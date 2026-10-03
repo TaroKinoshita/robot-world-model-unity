@@ -1,0 +1,14 @@
+{
+  "method": "Convex decomposition by partitioning the collision STL triangles (by centroid) into axis-aligned slices or a grid in mesh-local coordinates; one convex MeshCollider per part (Unity convex cooking). Importer single-hull collider kept but deactivated.",
+  "metrics": "bulge_ge_1cm_pct = % of surface samples whose +1cm outward offset lies inside the colliders (lower=tighter); under_p99_mm/under_max_mm = distance of mesh vertices outside the colliders",
+  "source": "ur_e_description/meshes/ur5e/collision/*.stl (ros-industrial/universal_robot kinetic-devel)",
+  "created": "2026-10-04T04:59:54",
+  "links": [
+    {"link": "shoulder_link", "mesh": "shoulder.stl", "partition": "slices_axis_z", "n": 8, "parts": 8, "bulge_ge_1cm_pct_single_hull": 29.7, "bulge_ge_1cm_pct": 0.1, "under_p99_mm": 3.3, "under_max_mm": 5.5},
+    {"link": "upper_arm_link", "mesh": "upperarm.stl", "partition": "slices_axis_z", "n": 4, "parts": 4, "bulge_ge_1cm_pct_single_hull": 22.5, "bulge_ge_1cm_pct": 0, "under_p99_mm": 3.2, "under_max_mm": 5.3},
+    {"link": "forearm_link", "mesh": "forearm.stl", "partition": "slices_axis_x", "n": 8, "parts": 8, "bulge_ge_1cm_pct_single_hull": 3, "bulge_ge_1cm_pct": 0, "under_p99_mm": 3.8, "under_max_mm": 6},
+    {"link": "wrist_1_link", "mesh": "wrist1.stl", "partition": "grid", "n": 2, "parts": 8, "bulge_ge_1cm_pct_single_hull": 40.3, "bulge_ge_1cm_pct": 1.8, "under_p99_mm": 4.5, "under_max_mm": 5.2},
+    {"link": "wrist_2_link", "mesh": "wrist2.stl", "partition": "slices_axis_x", "n": 4, "parts": 4, "bulge_ge_1cm_pct_single_hull": 33.6, "bulge_ge_1cm_pct": 0.6, "under_p99_mm": 4.9, "under_max_mm": 6}
+  ],
+  "unchanged_single_hull": ["base_link", "wrist_3_link"]
+}
