@@ -35,3 +35,6 @@ __pycache__/
 # broken importer outputs moved aside during UR5e import (not deleted)
 /_import_backup/
 __pycache__.meta
+
+# files the Claude desktop app copies into the project (not part of the repo)
+/Claude outputs/
