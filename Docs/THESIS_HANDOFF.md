@@ -5,6 +5,7 @@
 - 使い方：
   - 新しいチャットの最初に、このファイルを丸ごと貼る
   - Claude はこれを「現時点の正」として扱う。ここに書いていない数値・設定は推測せず、Taro に確認する
+- 追記（2026-10-05 午後）：P6（バッチ実行）完了。§6.9・§8・§12・§14.2 を更新
 - この版で変えたこと：
   - TODO6（UR5e）、P0〜P5 の結果を全部反映した
   - 現在の仕様（§5〜§7）と、全期間の経緯（§9）を 1 本にまとめた
@@ -201,7 +202,7 @@ How Much of the Robot Should a World Model See? Comparing End-Effector and Full-
 | proposal 提出 | 2026-10-02 | ✅ |
 | 環境構築＋パイロットデータ（2 週） | **2026-10-16** | ✅ 前倒しで達成 |
 | 中間チェックポイント | 2026-10-30 | 準備中（§14.3） |
-| 本番データ生成＋学習（7 週） | 2026-12-04 | バッチ実行を作るところ。学習モデルは未設計 |
+| 本番データ生成＋学習（7 週） | 2026-12-04 | バッチ実行は完成（P6）。次は量産と点検（P7）。学習モデルは未設計 |
 | 評価＋執筆（6 週） | 2027-01-14 | — |
 | 最終提出 | 2027-01-15 | — |
 | 発表準備（2 週） | 発表日前 | — |
@@ -256,7 +257,7 @@ How Much of the Robot Should a World Model See? Comparing End-Effector and Full-
 | planned から action、executed と分離 | 実装済み | ✅ | TODO5 |
 | robot-free 初期画像 | 実装済み。検証 A・B を UR5e でもやり直して合格 | ✅ | TODO4・P1 |
 | 再現性（同じ入力 → 同じ結果） | 候補ごとの物理シーン＋TGS。Play をまたいでも 1 ビットも同じ | ✅ | P4-B |
-| 本番データ（数千〜1 万 episode） | まとめて回す仕組みがまだない | ❌ | §14.2 |
+| 本番データ（数千〜1 万 episode） | バッチ実行（P6）はできた。量産はこれから | 🔶 | §6.9・§14.2 |
 | 学習モデル | 仮モデルでコストを測っただけ。本番の設計は未着手 | ❌ | §14.5 |
 | GPU | 手元は RTX 4060 Laptop 8 GB。大学のクラスタが使えるか未確認 | ❌ | §14.4 |
 
@@ -667,16 +668,34 @@ load_pair_episode("Episodes", "pair_0000", "B", "c001")
 - ロボット↔机のラベルと `executed_meta` が一致するか
 - task の整合（scene / metadata / candidates / episode / final_state で `task_variant`・`pair_id` が同じ）
 
-### 6.9 量産の手順（今は手で回す）
+### 6.9 量産の手順（P6：バッチ実行）
 
-1. `seed`・`sceneIndex`（A の番号。B は +1）・`pairIndex` を決める
-   - Play 中に変えた値はシーンに保存しない
-2. 作業フォルダがきれいなことを確認 → commit → Play → 終わったら **Play を止める**
-3. `build_metadata.py` → `validate_episode.py` → `check_task_pair.py` → `summarize_labels.py`
-   - 長いので別プロセスで回して、`Episodes/_pipeline_log.txt` を見る
+- 仕組み（`Assets/Editor/BatchRunner.cs`・`Assets/Scripts/BatchJob.cs`・`Assets/Python/run_pipeline.py`）：
 
-- 1 万 episode なら約 50 時間（1 シーン 32 episode・約 10 分）
-- **まとめて回す仕組みはまだない**（§14.2）
+```
+BatchRunner（Editor、EditorApplication.update で動く）
+ ├─ Temp/p6_batch/job.json を書く（seed・sceneIndex・pairIndex・outputRoot）→ Play
+ ├─ EpisodeRecorder.Start が job.json を読んで消す → Play 中のインスタンスだけ値が変わる（シーンファイルは変わらない）
+ ├─ EpisodeRecorder が終わったら Temp/p6_batch/result.json（ok / stage / reason）を書く
+ ├─ BatchRunner が result を見て Play を止める → 3 秒待つ（SOLO の定義ファイル）
+ ├─ ok → run_pipeline.py を別プロセスで起動（build_metadata ×2 → validate_episode ×2 → check_task_pair → summarize_labels）
+ │        → <root>/_batch/logs/pair_XXXX.txt / .json
+ └─ 失敗（生成失敗・Error Pause・タイムアウト）→ 途中のフォルダを <root>/_failed/<jobId>/ へ移す → 次の seed（scene・pair の番号は詰める）
+```
+
+- 状態は `Temp/p6_batch/state.json`（Play の開始・終了のドメインリロードをまたいで続く。Unity を閉じると消える）
+- ログ：`<root>/_batch/batch_log.txt`、終わったら `<root>/_batch/batch_summary_<日時>.json`
+- 使い方：
+  1. commit して clean にする（`requireCleanGit` が true だと、dirty なら始まらない）
+  2. `Episodes/_batch_config.json` を書く（無ければ `Tools > P6 Batch > Start` で雛形ができる）
+  3. `Tools > P6 Batch > Start`
+  - 止める：`Stop after current`（今のシーンの後）／`Abort now`（すぐ）。状態：`Status`
+- 設定（`Config`）：`outputRoot`（相対 or 絶対）、`numScenes`（成功させるペア数）、`seedStart` か `seeds`、`maxSeedAttempts`（0 = numScenes×2＋5）、`sceneIndexStart`・`pairIndexStart`、`playTimeoutMin` 30、`pythonTimeoutMin` 30、`pythonExe`（Python311）、`requireCleanGit`、`runPython`
+- 安全装置：出力先に同じ番号の `scene_XXXX`・`pairs/pair_XXXX` があると始めない（上書きしない）。`debugOnlyCandidates` が空でないと始めない
+- EpisodeRecorder の変更：scene フォルダはシーンの生成に成功してから作る。生成失敗は `LogWarning`
+- 実測：1 シーン（32 episode）Play 約 8 分＋Python 約 10 秒。1 万 episode なら約 42 時間
+- 検証（git `198d0d6`、clean）：`_ur5e_test/p6_accept` に seed 1〜3 を無人で連続 → 3/3 PASS（A 580/580・B 564/564・ペア 107/107）。executed と labels はパイロット（`f46109c`）と 96/96 で 1 ビットも同じ
+- 失敗の経路は、タイムアウト 1 分で確認（`_ur5e_test/p6_failpath`：途中のフォルダを `_failed/` へ移して次の seed へ、上限で終了）。生成失敗（stage = generate）は同じ経路を通るが、実際に失敗する seed ではまだ試していない
 
 ---
 
@@ -744,6 +763,7 @@ Unity（`Assets/Scripts/`）：
 | `CameraExporter.cs` | 153 | カメラ行列の書き出し（Play ごとに `CaptureLogs/` へ書く） | 有効 |
 | `RobotInitialPose.cs` | 61 | Play 開始時の初期姿勢・指の角度（P1 で新規、`[DefaultExecutionOrder(-100)]`） | 有効 |
 | `DisableRobotGravity.cs` | 28 | 重力オフ＋ドライブ | 有効 |
+| `BatchJob.cs` | 77 | P6：BatchRunner との受け渡し（job.json / result.json） | 有効 |
 | `RobotFreeCapture.cs` | 248 | TODO4 のペア撮影（`freezeObjectsDuringCapture` 既定 on、UR5e 用 16 姿勢） | **無効**（検証 B をやり直すときだけ on にして、EpisodeController を off） |
 
 Python（`Assets/Python/`）：
@@ -757,6 +777,9 @@ Python（`Assets/Python/`）：
 | `check_camera.py` | カメラ行列の検証 |
 | `check_verification_a.py`・`check_verification_b.py` | 検証 A・B |
 | `bench_training_cost.py`・`bench_data_loading.py` | P1.5 の計測 |
+| `run_pipeline.py` | P6：1 ペア分の 4 本を順に回して、ログと結果 JSON を書く |
+
+Editor（`Assets/Editor/`）：`BatchRunner.cs`（P6、`Tools > P6 Batch`）
 
 `EpisodeController` の主な設定（今の値）：
 
@@ -1454,6 +1477,8 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 | `f46109c` | P5：ロボット↔机・SOLO・ドライブ値（**今のパイロットの元**） |
 | `9f89f72` | P5：記録・パイロット v5 |
 | `cf679b3` | `Docs/P4_P5_経緯_20261005.md` |
+| `b2c6a16` | `Docs/THESIS_HANDOFF.md`（push 済み） |
+| `198d0d6` | P6：バッチ実行 |
 
 - 10/05 の時点で `cf679b3` まで push 済み。`main` より 28 commit 先にある
 - この文書（`Docs/THESIS_HANDOFF.md`）は、その次の commit で追加する
@@ -1516,7 +1541,7 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 
 ### 14.2 量産（12/4 に向けて）
 
-1. **バッチ実行の仕組みを作る**
+1. ~~**バッチ実行の仕組みを作る**~~ → ✅ P6 完了（§6.9）
    - seed・`sceneIndex`・`pairIndex` を変えながら、Play → 止める → Python を繰り返す
    - シーンファイルを汚さない（Play 中だけ値を変える）
    - 1 シーン約 10 分。1 万 episode で約 50 時間
