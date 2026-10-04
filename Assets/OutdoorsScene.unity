@@ -18997,12 +18997,15 @@ MonoBehaviour:
     holdDuration: 0.5
     gripperYawDeg: 90
     contactFromGeometry: 1
-    gripperPitchDeg: 15
+    gripperPitchDeg: 0
   actions:
     rasterStride: 5
+    rasterFrames: 25
     eefRadiusPx: 3
     bodyLineRadiusPx: 1.5
     bodyJointRadiusPx: 2.5
+  useMeshRaster: 1
+  contactHeatmapSigmaPx: 2
   drives:
     armStiffness: 20000
     armDamping: 200
@@ -19384,7 +19387,7 @@ MonoBehaviour:
   - -60.5
   - -90
   - -63.5
-  gripperCloseRad: 0.6
+  gripperCloseRad: 0.42
   gripperLinkNames:
   - left_outer_knuckle
   - left_inner_knuckle
