@@ -92,6 +92,22 @@ public class EpisodeRecorder : MonoBehaviour
     [Tooltip("P4-B: 候補ごとに新しい物理シーン(PhysX のシーン)を作って、ロボットと Objects をそこへ移して実行する。" +
              "同じ物理シーンで続けて実行すると、前の候補の接触の履歴で結果が数 mm ブレる")]
     public bool freshPhysicsScenePerCandidate = true;
+    [Tooltip("P4-B: 接触を「触れた」とみなす隙間の上限(m)。PhysX は contactOffset 以内に近づくと触れる前から接触を報告する")]
+    public float contactTouchTolerance = 0.001f;
+    bool IsTouching(string minSep)
+    {
+        return float.TryParse(minSep, NumberStyles.Float, CultureInfo.InvariantCulture, out float v) && v <= contactTouchTolerance;
+    }
+    [Tooltip("P4-B: ロボットの当たり判定の contactOffset(m、0 以下なら変えない)。小さくすると、触れていない円柱と同じ計算のまとまり(island)に入りにくくなり、Task A/B の結果がずれにくい")]
+    public float robotContactOffset = 0f;
+    [Tooltip("P4-B: secondary(円柱)の当たり判定の contactOffset(m、0 以下なら変えない)")]
+    public float secondaryContactOffset = 0f;
+    [Header("P4-B: seed からシーンと候補を作る")]
+    public AutoSceneSettings autoScene = new AutoSceneSettings();
+    [Tooltip("机の天板の当たり判定を持つ GameObject の名前(Objects の下)")]
+    public string tableObjectName = "Table";
+    GeneratedScene generated;
+
     [Header("Final / labels (6. 最終結果)")]
     [Tooltip("ゴール領域の中心(world、XZ だけ使う)。仮の値: ターゲットを -X に 10cm 動かした位置")]
     public Vector3 goalCenter = new Vector3(-0.10f, 0f, 0.30f);
@@ -99,6 +115,8 @@ public class EpisodeRecorder : MonoBehaviour
     public float fallDropThreshold = 0.02f;
     [Tooltip("P4-B: 上向きの軸がこれ以上傾いたら倒れたとみなす(度)")]
     public float fallTiltDeg = 30f;
+    [Tooltip("P4-B: goal 到達には、最後にこの速さ未満で止まっていることも必要(m/s)")]
+    public float goalMaxSpeed = 0.005f;
     public Color32 targetMaskColor = new Color32(255, 0, 0, 255);
     string runSoloDir;
 
@@ -170,6 +188,8 @@ public class EpisodeRecorder : MonoBehaviour
 
         EnsureContactRecorders();   // 物理が1回も回る前に付ける
         if (ignoreRobotSelfCollision) IgnoreRobotSelfCollision();
+        if (robotContactOffset > 0f) foreach (var c in robotRoot.GetComponentsInChildren<Collider>(true)) c.contactOffset = robotContactOffset;
+        if (secondaryContactOffset > 0f && secondaryBody != null) foreach (var c in secondaryBody.GetComponentsInChildren<Collider>(true)) c.contactOffset = secondaryContactOffset;
         // 運動学は Run() の最初(物理が回って RobotInitialPose の関節角が Transform に反映された後)に作る。
         // ここで作ると、指の関節角(P4-B で閉じる)が Transform にまだ反映されていない
 
@@ -205,6 +225,15 @@ public class EpisodeRecorder : MonoBehaviour
         }
         if (generateTaskPair)
             Debug.Log($"[EpisodeRecorder] Task A/B ペア {pairId}: A = {sceneIds[0]}, B = {sceneIds[1]}(planned は 1 回だけ作って両方に使う)");
+
+        // ================= P4-B: seed からシーンと候補を作る =================
+        if (autoScene.enabled)
+        {
+            if (kin == null) { Debug.LogError("[EpisodeRecorder] 運動学が無いのでシーンを作れない"); yield break; }
+            if (!GenerateScene()) yield break;
+            // 置き直した物体を落ち着かせる基準も更新する
+            authoredPositions = allBodies.Select(b => b.position).ToArray();
+        }
 
         // ================= 2. Initial scene =================
 
@@ -267,6 +296,8 @@ public class EpisodeRecorder : MonoBehaviour
             }
 
             string pairedSceneId = generateTaskPair ? sceneIds[1 - v] : null;
+            if (generated != null)
+                File.WriteAllText(Path.Combine(sceneDir, "scene_generation.json"), SceneGenerator.ToJson(generated, autoScene, sceneId), new UTF8Encoding(false));
             WriteSceneJson(sceneDir, sceneId, sceneIndex + v, settled, maxDisp, maxSpeed, runSoloDir,
                            stepWithRobot, stepRobotFree, okWith, okFree, camPath != null, objectsJson, robotJson,
                            BuildTaskJson(variants[v], pairedSceneId));
@@ -378,6 +409,48 @@ public class EpisodeRecorder : MonoBehaviour
         public Vector3 center, half;
     }
 
+    // ターゲットの箱の半分の大きさ(箱の座標)
+    Vector3 TargetLocalHalf(Rigidbody target)
+    {
+        var bc = target.GetComponent<BoxCollider>();
+        return bc != null ? Vector3.Scale(bc.size, target.transform.lossyScale) * 0.5f : Vector3.one * 0.04f;
+    }
+
+    // P4-B: seed からターゲットの位置・向き、ゴール、候補、円柱の位置を決めて、シーンに反映する
+    bool GenerateScene()
+    {
+        var target = allBodies.First(b => b.name == targetObjectName);
+        var table = objectsRoot.GetComponentsInChildren<Collider>(true).FirstOrDefault(c => c.name == tableObjectName);
+        if (table == null) { Debug.LogError($"[EpisodeRecorder] 机 '{tableObjectName}' が Objects の下に無い"); return false; }
+        var ctx = new SceneGenerator.Context
+        {
+            kin = kin, qInit = ReadArmJoints(), planner = planner, dt = Time.fixedDeltaTime,
+            targetHalf = TargetLocalHalf(target), targetCenterY = target.position.y, tableTop = table.bounds.max.y,
+            cam = perceptionCamera.GetComponent<Camera>(), robotRoot = robotRoot, toolLinkName = toolLinkName
+        };
+        var t0 = DateTime.UtcNow;
+        generated = SceneGenerator.Generate(ctx, autoScene, seed);
+        if (!generated.ok) { Debug.LogError($"[EpisodeRecorder] シーンを作れない(seed {seed}): {generated.error}"); return false; }
+
+        target.position = generated.targetPos; target.rotation = generated.targetRot;
+        target.transform.SetPositionAndRotation(generated.targetPos, generated.targetRot);
+        target.linearVelocity = Vector3.zero; target.angularVelocity = Vector3.zero;
+        if (secondaryBody != null && !string.IsNullOrEmpty(generated.placementPair))
+        {
+            secondaryBody.position = generated.secondaryPos; secondaryBody.rotation = Quaternion.identity;
+            secondaryBody.transform.SetPositionAndRotation(generated.secondaryPos, Quaternion.identity);
+            secondaryBody.linearVelocity = Vector3.zero; secondaryBody.angularVelocity = Vector3.zero;
+        }
+        Physics.SyncTransforms();
+        goalCenter = generated.goal;
+        candidateSpecs = generated.specs;
+        numCandidates = generated.specs.Count;
+        Debug.Log($"[EpisodeRecorder] シーン生成(seed {seed}, {(DateTime.UtcNow - t0).TotalSeconds:F1} s, 試行 {generated.sceneAttempts} 回): " +
+                  $"target ({generated.targetPos.x:F3}, {generated.targetPos.z:F3}) yaw {generated.targetYawDeg:F1}°, goal ({generated.goal.x:F3}, {generated.goal.z:F3}), " +
+                  $"円柱 ({generated.secondaryPos.x:F3}, {generated.secondaryPos.z:F3}) = {generated.placementPair} の {generated.overlapBranch} が {generated.armOverlap * 1000f:F1} mm 重なる, 候補 {numCandidates} 本(計画 {generated.plannedCandidates} 回)");
+        return true;
+    }
+
     // 計画だけ(書き出しは WriteCandidates)。A/B で同じ計画を使うため 1 回だけ呼ぶ
     List<CandidatePlan> PlanCandidates(float[] qInit)
     {
@@ -385,7 +458,8 @@ public class EpisodeRecorder : MonoBehaviour
         if (target == null) { Debug.LogError($"[EpisodeRecorder] ターゲット '{targetObjectName}' が無い"); return null; }
         var col = target.GetComponent<Collider>();
         Vector3 center = col != null ? col.bounds.center : target.position;
-        Vector3 half = col != null ? col.bounds.extents : Vector3.one * 0.04f;
+        Vector3 half = TargetLocalHalf(target);   // P4-B: 向きのある箱として扱う(AABB だと回した箱で押し始めがずれる)
+        Quaternion trot = target.rotation;
 
         var list = new List<CandidatePlan>();
         int n = Mathf.Clamp(numCandidates, 0, candidateSpecs.Count);
@@ -393,7 +467,7 @@ public class EpisodeRecorder : MonoBehaviour
         {
             string cid = $"c{c:D3}";
             var spec = candidateSpecs[c];
-            var tr = TrajectoryPlanner.Plan(kin, qInit, center, half, spec, planner, Time.fixedDeltaTime);
+            var tr = TrajectoryPlanner.Plan(kin, qInit, center, half, trot, spec, planner, Time.fixedDeltaTime);
             list.Add(new CandidatePlan { index = c, cid = cid, spec = spec, tr = tr, center = center, half = half });
 
             if (tr.ok)
@@ -860,7 +934,7 @@ public class EpisodeRecorder : MonoBehaviour
         var utf8 = new UTF8Encoding(false);
         File.WriteAllText(Path.Combine(exDir, "executed_trajectory.csv"), sb.ToString(), utf8);
         File.WriteAllText(Path.Combine(exDir, "contacts.csv"),
-            "step,t,event,body,body_kind,other,other_kind,num_points,px,py,pz,nx,ny,nz,impulse,rel_speed\n" +
+            "step,t,event,body,body_kind,other,other_kind,num_points,px,py,pz,nx,ny,nz,impulse,rel_speed,min_separation\n" +
             string.Join("\n", contactRows) + (contactRows.Count > 0 ? "\n" : ""), utf8);
 
         // ---- 接触のまとめ ----
@@ -869,6 +943,8 @@ public class EpisodeRecorder : MonoBehaviour
         {
             var f = row.Split(',');
             if (f[2] == "exit") continue;
+            // P4-B: 触れていない(隙間が contactTouchTolerance より大きい)接触は数えない
+            if (f.Length > 16 && !IsTouching(f[16])) continue;
             int st = int.Parse(f[0], CultureInfo.InvariantCulture);
             string body = f[3], bodyKind = f[4], other = f[5], otherKind = f[6];
             bool bodyIsTarget = body == targetObjectName, otherIsTarget = other == targetObjectName;
@@ -905,7 +981,8 @@ public class EpisodeRecorder : MonoBehaviour
             "  \"contact_summary\": {" +
             $"\"num_rows\": {contactRows.Count}, \"first_robot_target_step\": {firstRobotTarget}, \"robot_target_steps\": {robotTargetSteps}, " +
             $"\"first_target_object_contact_step\": {firstTargetOther}, \"first_robot_other_object_step\": {firstRobotOther}, " +
-            $"\"first_robot_environment_step\": {firstRobotEnv}}},\n" +
+            $"\"first_robot_environment_step\": {firstRobotEnv}, \"touch_tolerance_m\": {N(contactTouchTolerance)}, " +
+            "\"rule\": \"rows with min_separation above touch_tolerance_m (near but not touching) are ignored\"},\n" +
             "  \"files\": {\"trajectory\": \"executed_trajectory.csv\", \"contacts\": \"contacts.csv\"},\n" +
             "  \"columns\": \"cmd_* = commanded joint target (rad), q_* / qd_* = measured joint position / velocity, tcp/tool_rot = measured TCP pose, " +
             "<link>_* = measured link origin pose, <object>_* = measured object pose and linear velocity; rotations are quaternions xyzw; world = Unity (left-handed, Y-up, m)\"\n" +
@@ -925,6 +1002,9 @@ public class EpisodeRecorder : MonoBehaviour
         string fDir = Path.Combine(p.dir, "final");
         Directory.CreateDirectory(fDir);
 
+        // P4-B: 固定する前のターゲットの速さ(goal 到達には「止まっている」ことも必要)
+        int tiSpeed = Array.FindIndex(bodies, b => b.name == targetObjectName);
+        float finalSpeed = bodies[tiSpeed].linearVelocity.magnitude;
         // 撮影中に動かないよう固定してから、最終姿勢を記録
         for (int i = 0; i < bodies.Length; i++) bodies[i].isKinematic = true;
         var finalPos = bodies.Select(b => b.position).ToArray();
@@ -955,7 +1035,7 @@ public class EpisodeRecorder : MonoBehaviour
         // P4-B: 立方体は横倒しになっても中心の高さが変わらないので、傾き(上向きの軸と鉛直のなす角)でも判定する
         float tiltDeg = Vector3.Angle(finalRot[ti] * Quaternion.Inverse(settledRot[ti]) * Vector3.up, Vector3.up);
         bool fell = t1.y < settledPos[ti].y - fallDropThreshold || tiltDeg > fallTiltDeg;
-        bool goal = goalDist <= goalRadius && !fell;
+        bool goal = goalDist <= goalRadius && !fell && finalSpeed < goalMaxSpeed;
         bool targetContact = firstRobotTarget >= 0;
         bool secondary = firstTargetOther >= 0 || firstRobotOther >= 0;
         // Task A(secondary 物体なし)では「衝突なし」ではなく「対象なし」= null
@@ -983,12 +1063,12 @@ public class EpisodeRecorder : MonoBehaviour
             $"  \"pair_id\": {(pairId != null ? Q(pairId) : "null")},\n" +
             "  \"measured_after\": \"end of post_settle steps (objects frozen for the final capture)\",\n" +
             "  \"objects\": [\n" + string.Join(",\n", objs) + "\n  ],\n" +
-            $"  \"goal\": {{\"center_world\": {Vec(goalCenter)}, \"radius_m\": {N(goalRadius)}, \"definition\": \"target final center within radius of goal center in XZ, and not fallen\"}},\n" +
+            $"  \"goal\": {{\"center_world\": {Vec(goalCenter)}, \"radius_m\": {N(goalRadius)}, \"definition\": \"target final center within radius of goal center in XZ, not fallen (drop or tilt), and at rest (speed below goal_max_speed_mps)\"}},\n" +
             "  \"labels\": {" +
-            $"\"goal_reached\": {B(goal)}, \"goal_distance_m\": {N(goalDist)}, \"target_fell\": {B(fell)}, \"target_tilt_deg\": {N(tiltDeg)}, " +
+            $"\"goal_reached\": {B(goal)}, \"goal_distance_m\": {N(goalDist)}, \"target_fell\": {B(fell)}, \"target_tilt_deg\": {N(tiltDeg)}, \"target_final_speed_mps\": {N(finalSpeed)}, " +
             $"\"target_contact\": {B(targetContact)}, \"first_robot_target_step\": {firstRobotTarget}, \"robot_target_contact_rows\": {robotTargetSteps}, " +
             $"\"secondary_applicable\": {B(secApplicable)}, \"secondary_collision\": {secJson}, \"first_target_secondary_step\": {firstTS}, \"first_robot_secondary_step\": {firstRS}}},\n" +
-            $"  \"label_params\": {{\"fall_drop_threshold_m\": {N(fallDropThreshold)}, \"fall_tilt_deg\": {N(fallTiltDeg)}}},\n" +
+            $"  \"label_params\": {{\"fall_drop_threshold_m\": {N(fallDropThreshold)}, \"fall_tilt_deg\": {N(fallTiltDeg)}, \"goal_max_speed_mps\": {N(goalMaxSpeed)}}},\n" +
             $"  \"target_mask\": {{\"file\": \"target_mask.png\", \"pixels\": {maskPixels}, \"semantic_color_rgb\": [{targetMaskColor.r}, {targetMaskColor.g}, {targetMaskColor.b}], \"encoding\": \"8-bit gray, 255 = target\"}},\n" +
             $"  \"capture\": {{\"step_with_robot\": {stepWith}, \"step_robot_free\": {stepFree}, \"copied_with_robot\": {B(okWith)}, \"copied_robot_free\": {B(okFree)}}},\n" +
             "  \"files\": {\"robot_free\": {\"rgb\": \"robot_free/rgb.png\", \"depth\": \"robot_free/depth.exr\", \"semantic\": \"robot_free/semantic.png\"}, " +

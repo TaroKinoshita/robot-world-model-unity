@@ -18885,7 +18885,7 @@ MonoBehaviour:
   robotRoot: {fileID: 1725148058}
   objectsRoot: {fileID: 0}
   sceneIndex: 0
-  seed: 0
+  seed: 1
   outputRoot: 
   generateTaskPair: 1
   taskVariant: 1
@@ -18997,7 +18997,7 @@ MonoBehaviour:
     holdDuration: 0.5
     gripperYawDeg: 90
     contactFromGeometry: 1
-    gripperPitchDeg: 30
+    gripperPitchDeg: 15
   actions:
     rasterStride: 5
     eefRadiusPx: 3
@@ -19013,10 +19013,56 @@ MonoBehaviour:
   resetHoldSteps: 3
   ignoreRobotSelfCollision: 1
   freshPhysicsScenePerCandidate: 1
+  contactTouchTolerance: 0.001
+  robotContactOffset: 0.002
+  secondaryContactOffset: 0.001
+  autoScene:
+    enabled: 1
+    targetXRange: {x: -0.15, y: 0.15}
+    targetZRange: {x: 0.22, y: 0.42}
+    targetYawRangeDeg: {x: 0, y: 90}
+    goalDistanceRange: {x: 0.06, y: 0.12}
+    numMatchedPairs: 2
+    numSingles: 12
+    numGoalDirected: 6
+    goalFaceJitterDeg: 10
+    goalLengthBias: 0.015
+    goalDirectedAngleSpreadDeg: 10
+    goalDirectedLengthSpread: 0.03
+    pushLengthRange: {x: 0.05, y: 0.12}
+    minPreContactDistFromBase: 0.25
+    maxJointStepDeg: 2
+    wristUpSeedDeg:
+    - -64
+    - -122
+    - 117
+    - 95
+    - 90
+    - 116
+    tableXZ:
+      serializedVersion: 2
+      x: -0.5
+      y: -0.15
+      width: 1
+      height: 0.8
+    tableMargin: 0.06
+    viewMargin: 0.05
+    secondaryRadius: 0.048
+    secondaryHeight: 0.28
+    armOverlapRange: {x: 0.003, y: 0.01}
+    otherBranchClearance: 0.03
+    handClearance: 0.025
+    targetPathClearance: 0.03
+    goalClearance: 0.06
+    gridStep: 0.01
+    maxSceneAttempts: 20
+    maxCandidateAttempts: 300
+  tableObjectName: Table
   goalCenter: {x: -0.1, y: 0, z: 0.3}
   goalRadius: 0.03
   fallDropThreshold: 0.02
   fallTiltDeg: 30
+  goalMaxSpeed: 0.005
   targetMaskColor:
     serializedVersion: 2
     rgba: 4278190335

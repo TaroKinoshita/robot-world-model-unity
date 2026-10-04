@@ -261,6 +261,13 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
     _, c = ep["contacts"]
     rows = list(zip(*(c[k] if isinstance(c[k], list) else list(c[k]) for k in ["step", "event", "body", "body_kind", "other", "other_kind"]))) if c else []
     rows = [x for x in rows if x[1] != "exit"]
+    # P4-B: min_separation の列があれば、触れていない(隙間 > touch_tolerance)行は数えない
+    if c and "min_separation" in c:
+        tol = ep["executed_meta"]["contact_summary"].get("touch_tolerance_m", 0.001)
+        sep = list(c["min_separation"])
+        keep = [i for i in range(len(sep)) if c["event"][i] != "exit" and float(sep[i]) <= tol]
+        allrows = list(zip(*(c[k] if isinstance(c[k], list) else list(c[k]) for k in ["step", "event", "body", "body_kind", "other", "other_kind"])))
+        rows = [allrows[i] for i in keep]
     robot_target = [int(x[0]) for x in rows if x[3] == "object" and x[5] == "robot_link" and x[2] == tgt_name]
     robot_other = [int(x[0]) for x in rows if x[3] == "object" and x[5] == "robot_link" and x[2] != tgt_name]
     tgt_obj = [int(x[0]) for x in rows if x[3] == "object" and x[5] == "object" and tgt_name in (x[2], x[4])]
@@ -306,8 +313,16 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
                 f"{tilt:.2f} vs {lab['target_tilt_deg']:.2f}")
         fell = fell or tilt > lp.get("fall_tilt_deg", 30.0)
     r.check(f"{cid} ラベル: target_fell = 最終 pose から再計算", fell == lab["target_fell"], f"{fell} vs {lab['target_fell']}")
-    r.check(f"{cid} ラベル: goal_reached = 距離 ≤ 半径 かつ 倒れていない",
-            lab["goal_reached"] == (lab["goal_distance_m"] <= ep["final"]["goal"]["radius_m"] + 1e-9 and not lab["target_fell"]),
+    still = True
+    if "target_final_speed_mps" in lab:
+        ex_ = ep["executed"][1]
+        tname = fo["name"]
+        v_last = float(np.linalg.norm([float(ex_[f"{tname}_v{a}"][-1]) for a in "xyz"]))
+        r.check(f"{cid} ラベル: target_final_speed = executed の最後の行の速さ", abs(v_last - lab["target_final_speed_mps"]) < 1e-4,
+                f"{v_last:.6f} vs {lab['target_final_speed_mps']:.6f}")
+        still = lab["target_final_speed_mps"] < lp.get("goal_max_speed_mps", float("inf"))
+    r.check(f"{cid} ラベル: goal_reached = 距離 ≤ 半径 かつ 倒れていない かつ 止まっている",
+            lab["goal_reached"] == (lab["goal_distance_m"] <= ep["final"]["goal"]["radius_m"] + 1e-9 and not lab["target_fell"] and still),
             f"goal_reached={lab['goal_reached']}")
 
     # ---- E. 時系列

@@ -163,6 +163,27 @@ public class ArmKinematics
         outPts[nodes.Count] = p + r * TcpLocal;
     }
 
+    /// <summary>chain の各リンク(root → tool)の名前</summary>
+    public string[] LinkNames { get { var a = new string[nodes.Count]; for (int i = 0; i < nodes.Count; i++) a[i] = nodes[i].name; return a; } }
+
+    /// <summary>P4-B: chain の各リンク(root → tool)の位置と回転(Transform と同じ)</summary>
+    public void LinkPoses(float[] q, Vector3[] outPos, Quaternion[] outRot)
+    {
+        Vector3 p = rootPos;
+        Quaternion r = rootRot;
+        outPos[0] = p; outRot[0] = r;
+        for (int i = 1; i < nodes.Count; i++)
+        {
+            var nd = nodes[i];
+            Vector3 jp = p + r * nd.pAnchorPos;
+            Quaternion jr = r * nd.pAnchorRot;
+            if (nd.q >= 0) jr = jr * Quaternion.AngleAxis(JointSign * q[nd.q] * Mathf.Rad2Deg, Vector3.right);
+            r = jr * Quaternion.Inverse(nd.anchorRot);
+            p = jp - r * nd.anchorPos;
+            outPos[i] = p; outRot[i] = r;
+        }
+    }
+
     /// <summary>グリッパーの向き(approach)と指の開閉方向(opening)を world で指定したときの tool の回転</summary>
     public Quaternion ToolRotationFor(Vector3 approachWorld, Vector3 openingWorld)
     {

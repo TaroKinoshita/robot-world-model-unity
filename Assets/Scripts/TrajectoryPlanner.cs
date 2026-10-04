@@ -73,7 +73,22 @@ public static class TrajectoryPlanner
 {
     static float MinJerk(float s) => s * s * s * (10f + s * (-15f + 6f * s));
 
+    /// <summary>向きのある箱の、方向 dir への張り出し(中心から)</summary>
+    public static float Support(Vector3 dir, Vector3 half, Quaternion rot)
+    {
+        return Mathf.Abs(Vector3.Dot(rot * Vector3.right, dir)) * half.x
+             + Mathf.Abs(Vector3.Dot(rot * Vector3.up, dir)) * half.y
+             + Mathf.Abs(Vector3.Dot(rot * Vector3.forward, dir)) * half.z;
+    }
+
     public static PlannedTrajectory Plan(ArmKinematics kin, float[] qInit, Vector3 targetCenter, Vector3 targetHalfExtents,
+                                         CandidateSpec spec, PlannerSettings s, float dt)
+    {
+        return Plan(kin, qInit, targetCenter, targetHalfExtents, Quaternion.identity, spec, s, dt);
+    }
+
+    /// <summary>targetHalfExtents はターゲットの箱の半分の大きさ(箱の座標)、targetRot は箱の向き(P4-B: 向きのある箱に対応)</summary>
+    public static PlannedTrajectory Plan(ArmKinematics kin, float[] qInit, Vector3 targetCenter, Vector3 targetHalfExtents, Quaternion targetRot,
                                          CandidateSpec spec, PlannerSettings s, float dt)
     {
         var tr = new PlannedTrajectory { dt = dt };
@@ -82,7 +97,7 @@ public static class TrajectoryPlanner
         float phi = spec.pushAngleDeg * Mathf.Deg2Rad;
         Vector3 u = new Vector3(Mathf.Sin(phi), 0f, Mathf.Cos(phi));
         tr.pushDir = u;
-        float halfU = Mathf.Abs(u.x) * targetHalfExtents.x + Mathf.Abs(u.z) * targetHalfExtents.z;
+        float halfU = Support(u, targetHalfExtents, targetRot);
         Vector3 opening = Quaternion.AngleAxis(s.gripperYawDeg + (spec.gripperYawFlip ? 180f : 0f), Vector3.up) * u;
         Vector3 approach = Quaternion.AngleAxis(s.gripperPitchDeg, Vector3.Cross(Vector3.down, u)) * Vector3.down;   // 指先を押す方向へ傾ける
         Quaternion rotDes = kin.ToolRotationFor(approach, opening);
@@ -92,8 +107,9 @@ public static class TrajectoryPlanner
         {
             // ターゲットの高さの範囲・幅の範囲に入るグリッパーの点のうち、押す方向に一番前に出ている点
             Vector3 side = Vector3.Cross(Vector3.up, u);
-            float halfSide = Mathf.Abs(side.x) * targetHalfExtents.x + Mathf.Abs(side.z) * targetHalfExtents.z;
-            float yLo = -targetHalfExtents.y - s.pushHeightOffset, yHi = targetHalfExtents.y - s.pushHeightOffset;
+            float halfSide = Support(side, targetHalfExtents, targetRot);
+            float halfY = Support(Vector3.up, targetHalfExtents, targetRot);
+            float yLo = -halfY - s.pushHeightOffset, yHi = halfY - s.pushHeightOffset;
             float best = float.NegativeInfinity;
             foreach (var pl in kin.GripperPointsLocal)
             {
