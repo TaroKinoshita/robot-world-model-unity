@@ -34,3 +34,4 @@ __pycache__/
 
 # broken importer outputs moved aside during UR5e import (not deleted)
 /_import_backup/
+__pycache__.meta
