@@ -144,8 +144,35 @@ public class EpisodeRecorder : MonoBehaviour
     int captureIndex = 0;
     DateTime runStartUtc;
 
+    // ---------- P6: バッチ実行 ----------
+    BatchJob.Job batchJob;   // BatchRunner から来たときだけ入る(手で Play したときは null)
+    bool batchFinished;
+
+    void BatchFinish(bool ok, string stage, string reason, int planned = 0, int executed = 0)
+    {
+        if (batchJob == null || batchFinished) return;
+        batchFinished = true;
+        BatchJob.WriteResult(new BatchJob.Result
+        {
+            jobId = batchJob.jobId, ok = ok, stage = stage, reason = reason ?? "",
+            seed = seed, sceneIndex = sceneIndex, pairIndex = pairIndex,
+            candidatesPlanned = planned, candidatesExecuted = executed
+        });
+    }
+
     void Start()
     {
+        // P6: BatchRunner の job があれば、この Play の間だけ値を上書きする(シーンファイルは変えない)
+        batchJob = BatchJob.TryConsume();
+        if (batchJob != null)
+        {
+            seed = batchJob.seed;
+            sceneIndex = batchJob.sceneIndex;
+            pairIndex = batchJob.pairIndex;
+            if (!string.IsNullOrEmpty(batchJob.outputRoot)) outputRoot = batchJob.outputRoot;
+            Debug.Log($"[EpisodeRecorder] batch job {batchJob.jobId}: seed={seed}, sceneIndex={sceneIndex}, pairIndex={pairIndex}, outputRoot='{outputRoot}'");
+        }
+
         if (perceptionCamera == null) perceptionCamera = FindFirstObjectByType<PerceptionCamera>();
         if (cameraExporter == null && perceptionCamera != null) cameraExporter = perceptionCamera.GetComponent<CameraExporter>();
         if (robotRoot == null) { var go = GameObject.Find("ur5e_with_gripper") ?? GameObject.Find("ur3_with_gripper"); if (go != null) robotRoot = go.transform; }
@@ -154,6 +181,7 @@ public class EpisodeRecorder : MonoBehaviour
         if (perceptionCamera == null || cameraExporter == null || robotRoot == null || objectsRoot == null)
         {
             Debug.LogError("[EpisodeRecorder] perceptionCamera / cameraExporter / robotRoot / objectsRoot のどれかが見つからない");
+            BatchFinish(false, "start", "Start で必要な物が見つからない(コンソール参照)");
             enabled = false;
             return;
         }
@@ -162,6 +190,7 @@ public class EpisodeRecorder : MonoBehaviour
         if (rfc != null && rfc.enabled)
         {
             Debug.LogError("[EpisodeRecorder] RobotFreeCapture が有効。撮影の step 番号が混ざるので無効にして");
+            BatchFinish(false, "start", "Start で必要な物が見つからない(コンソール参照)");
             enabled = false;
             return;
         }
@@ -183,12 +212,14 @@ public class EpisodeRecorder : MonoBehaviour
         if (needSecondary && secondaryBody == null)
         {
             Debug.LogError($"[EpisodeRecorder] Task B に使う '{secondaryObjectName}' が Objects の下に(有効な状態で)無い");
+            BatchFinish(false, "start", "Start で必要な物が見つからない(コンソール参照)");
             enabled = false;
             return;
         }
         if (!allBodies.Any(b => b.name == targetObjectName))
         {
             Debug.LogError($"[EpisodeRecorder] ターゲット '{targetObjectName}' が Objects の下に無い");
+            BatchFinish(false, "start", "Start で必要な物が見つからない(コンソール参照)");
             enabled = false;
             return;
         }
@@ -234,9 +265,6 @@ public class EpisodeRecorder : MonoBehaviour
         {
             sceneIds[v] = $"scene_{sceneIndex + v:D4}";
             sceneDirs[v] = Path.Combine(root, sceneIds[v]);
-            if (Directory.Exists(sceneDirs[v]))
-                Debug.LogWarning($"[EpisodeRecorder] {sceneDirs[v]} は既にある。同じ名前のファイルは上書きする");
-            Directory.CreateDirectory(sceneDirs[v]);
         }
         if (generateTaskPair)
             Debug.Log($"[EpisodeRecorder] Task A/B ペア {pairId}: A = {sceneIds[0]}, B = {sceneIds[1]}(planned は 1 回だけ作って両方に使う)");
@@ -244,10 +272,18 @@ public class EpisodeRecorder : MonoBehaviour
         // ================= P4-B: seed からシーンと候補を作る =================
         if (autoScene.enabled)
         {
-            if (kin == null) { Debug.LogError("[EpisodeRecorder] 運動学が無いのでシーンを作れない"); yield break; }
-            if (!GenerateScene()) yield break;
+            if (kin == null) { Debug.LogError("[EpisodeRecorder] 運動学が無いのでシーンを作れない"); BatchFinish(false, "kinematics", kinError); yield break; }
+            if (!GenerateScene()) { BatchFinish(false, "generate", generated != null ? generated.error : "GenerateScene failed"); yield break; }
             // 置き直した物体を落ち着かせる基準も更新する
             authoredPositions = allBodies.Select(b => b.position).ToArray();
+        }
+
+        // P6: フォルダはシーンを作れてから作る(生成に失敗した seed で空のフォルダを残さない)
+        for (int v = 0; v < variants.Length; v++)
+        {
+            if (Directory.Exists(sceneDirs[v]))
+                Debug.LogWarning($"[EpisodeRecorder] {sceneDirs[v]} は既にある。同じ名前のファイルは上書きする");
+            Directory.CreateDirectory(sceneDirs[v]);
         }
 
         // ================= 2. Initial scene =================
@@ -355,6 +391,7 @@ public class EpisodeRecorder : MonoBehaviour
 
         // ================= 5. 実行(物体は固定したまま始める) =================
         bool any = plansPerVariant.Any(l => l != null && l.Count > 0);
+        int executedCount = 0;
         if (any)
         {
             Debug.Log("[EpisodeRecorder] 5. ドライブ設定");
@@ -370,6 +407,7 @@ public class EpisodeRecorder : MonoBehaviour
                     // テスト用: debugOnlyCandidates が空でなければ、そこに書いた候補だけ実行する
                     if (debugOnlyCandidates != null && debugOnlyCandidates.Length > 0 && Array.IndexOf(debugOnlyCandidates, p.cid) < 0) continue;
                     yield return ExecuteCandidate(p);
+                    executedCount++;
                 }
             }
         }
@@ -380,6 +418,13 @@ public class EpisodeRecorder : MonoBehaviour
         for (int i = 0; i < allBodies.Length; i++) allBodies[i].isKinematic = origKinematic[i];
 
         Debug.Log("[EpisodeRecorder] 完了");
+
+        // P6: 結果を BatchRunner に返す
+        int planned = candidatePlans != null ? candidatePlans.Count : 0;
+        if (kin == null) BatchFinish(false, "kinematics", kinError, planned, executedCount);
+        else if (candidatePlans == null) BatchFinish(false, "fk", $"FK 検証 NG(+:{fkErrPlus * 1000f:F2} mm / -:{fkErrMinus * 1000f:F2} mm)", planned, executedCount);
+        else if (planned == 0 || executedCount == 0) BatchFinish(false, "plan", "実行できた候補が 0", planned, executedCount);
+        else BatchFinish(true, "done", "", planned, executedCount);
     }
 
     // ---------- Task A / B ----------
@@ -450,7 +495,7 @@ public class EpisodeRecorder : MonoBehaviour
         };
         var t0 = DateTime.UtcNow;
         generated = SceneGenerator.Generate(ctx, autoScene, seed);
-        if (!generated.ok) { Debug.LogError($"[EpisodeRecorder] シーンを作れない(seed {seed}): {generated.error}"); return false; }
+        if (!generated.ok) { Debug.LogWarning($"[EpisodeRecorder] シーンを作れない(seed {seed}): {generated.error}"); return false; }   // P6: LogError だと Error Pause で止まる
 
         target.position = generated.targetPos; target.rotation = generated.targetRot;
         target.transform.SetPositionAndRotation(generated.targetPos, generated.targetRot);
