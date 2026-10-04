@@ -893,6 +893,7 @@ public class EpisodeRecorder : MonoBehaviour
 
         var contactRows = new List<string>();
         ContactRecorder.Rows = contactRows;
+        ResetRobotTable();
 
         var hdr = new List<string> { "step", "t", "phase", "planned_step" };
         hdr.AddRange(kin.JointNames.Select(n => "cmd_" + n));
@@ -926,6 +927,7 @@ public class EpisodeRecorder : MonoBehaviour
             ContactRecorder.CurrentStep = i;
             ContactRecorder.CurrentTime = (i + 1) * tr.dt;
             yield return new WaitForFixedUpdate();   // 物理 1 ステップ後の状態を記録する
+            CheckRobotTable(i);
 
             string phase = i < nPlan ? tr.phase[i] : "post_settle";
             var q = ReadArmJoints();
@@ -1009,6 +1011,8 @@ public class EpisodeRecorder : MonoBehaviour
             $"\"num_rows\": {contactRows.Count}, \"first_robot_target_step\": {firstRobotTarget}, \"robot_target_steps\": {robotTargetSteps}, " +
             $"\"first_target_object_contact_step\": {firstTargetOther}, \"first_robot_other_object_step\": {firstRobotOther}, " +
             $"\"first_robot_environment_step\": {firstRobotEnv}, \"touch_tolerance_m\": {N(contactTouchTolerance)}, " +
+            $"\"robot_table\": {{\"method\": \"Physics.ComputePenetration between each robot collider and the table collider after every physics step\", \"ignored_links\": [{string.Join(", ", robotTableIgnoreLinks.Select(Q))}], " +
+            $"\"first_step\": {rtFirst}, \"steps\": {rtSteps}, \"max_penetration_m\": {N(rtMaxPen)}, \"links\": [{string.Join(", ", rtLinks.Select(Q))}]}}, " +
             "\"rule\": \"rows with min_separation above touch_tolerance_m (near but not touching) are ignored\"},\n" +
             "  \"files\": {\"trajectory\": \"executed_trajectory.csv\", \"contacts\": \"contacts.csv\"},\n" +
             "  \"columns\": \"cmd_* = commanded joint target (rad), q_* / qd_* = measured joint position / velocity, tcp/tool_rot = measured TCP pose, " +
@@ -1021,6 +1025,49 @@ public class EpisodeRecorder : MonoBehaviour
 
         WriteContactHeatmaps(p, contactRows);
         yield return SaveFinal(p, firstRobotTarget, robotTargetSteps, firstTargetOther, firstRobotOther);
+    }
+
+    // ---------- P5: ロボット↔机の接触(重なり判定) ----------
+    // ロボットのリンクに ContactRecorder を付けると PhysX が落ちたので、当たり判定どうしの重なりを毎 step 調べる
+
+    [Tooltip("P5: ロボット↔机の重なり判定で数えないリンク(机に固定している土台)")]
+    public string[] robotTableIgnoreLinks = { "world", "base_link" };
+    List<Collider> rtRobotCols;
+    Collider rtTable;
+    int rtFirst = -1, rtSteps = 0;
+    float rtMaxPen = 0f;
+    SortedSet<string> rtLinks = new SortedSet<string>();
+
+    void ResetRobotTable()
+    {
+        rtFirst = -1; rtSteps = 0; rtMaxPen = 0f; rtLinks.Clear();
+        if (rtRobotCols == null)
+        {
+            // 土台(机と同じ高さに固定してあり、天板に 2.6 mm めり込んでいる)は数えない
+            rtRobotCols = robotRoot.GetComponentsInChildren<Collider>(false)
+                .Where(c => c.enabled && Array.IndexOf(robotTableIgnoreLinks, (c.GetComponentInParent<ArticulationBody>() != null ? c.GetComponentInParent<ArticulationBody>().name : "")) < 0).ToList();
+            rtTable = objectsRoot.GetComponentsInChildren<Collider>(true).FirstOrDefault(c => c.name == tableObjectName);
+        }
+    }
+
+    void CheckRobotTable(int step)
+    {
+        if (rtTable == null) return;
+        var tb = rtTable.bounds;
+        bool any = false;
+        foreach (var c in rtRobotCols)
+        {
+            if (!c.bounds.Intersects(tb)) continue;
+            if (Physics.ComputePenetration(c, c.transform.position, c.transform.rotation,
+                                           rtTable, rtTable.transform.position, rtTable.transform.rotation, out _, out float dist))
+            {
+                any = true;
+                rtMaxPen = Mathf.Max(rtMaxPen, dist);
+                var ab = c.GetComponentInParent<ArticulationBody>();
+                rtLinks.Add(ab != null ? ab.name : c.name);
+            }
+        }
+        if (any) { rtSteps++; if (rtFirst < 0) rtFirst = step; }
     }
 
     // ---------- P4-B: contact heatmap ----------
@@ -1157,6 +1204,7 @@ public class EpisodeRecorder : MonoBehaviour
             "  \"labels\": {" +
             $"\"goal_reached\": {B(goal)}, \"goal_distance_m\": {N(goalDist)}, \"target_fell\": {B(fell)}, \"target_tilt_deg\": {N(tiltDeg)}, \"target_final_speed_mps\": {N(finalSpeed)}, " +
             $"\"target_contact\": {B(targetContact)}, \"first_robot_target_step\": {firstRobotTarget}, \"robot_target_contact_rows\": {robotTargetSteps}, " +
+            $"\"robot_table_contact\": {B(rtFirst >= 0)}, \"first_robot_table_step\": {rtFirst}, " +
             $"\"secondary_applicable\": {B(secApplicable)}, \"secondary_collision\": {secJson}, \"first_target_secondary_step\": {firstTS}, \"first_robot_secondary_step\": {firstRS}}},\n" +
             $"  \"label_params\": {{\"fall_drop_threshold_m\": {N(fallDropThreshold)}, \"fall_tilt_deg\": {N(fallTiltDeg)}, \"goal_max_speed_mps\": {N(goalMaxSpeed)}}},\n" +
             $"  \"target_mask\": {{\"file\": \"target_mask.png\", \"pixels\": {maskPixels}, \"semantic_color_rgb\": [{targetMaskColor.r}, {targetMaskColor.g}, {targetMaskColor.b}], \"encoding\": \"8-bit gray, 255 = target\"}},\n" +

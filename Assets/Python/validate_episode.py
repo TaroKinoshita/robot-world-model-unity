@@ -472,6 +472,13 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
                 f"{tilt:.2f} vs {lab['target_tilt_deg']:.2f}")
         fell = fell or tilt > lp.get("fall_tilt_deg", 30.0)
     r.check(f"{cid} ラベル: target_fell = 最終 pose から再計算", fell == lab["target_fell"], f"{fell} vs {lab['target_fell']}")
+    # P5: ロボット↔机の接触ラベル = executed_meta の重なり判定の結果
+    rt = ep["executed_meta"].get("contact_summary", {}).get("robot_table")
+    if rt is not None and "robot_table_contact" in lab:
+        r.check(f"{cid} ラベル: robot_table_contact = executed_meta の重なり判定",
+                lab["robot_table_contact"] == (rt["first_step"] >= 0) and lab["first_robot_table_step"] == rt["first_step"]
+                and (rt["first_step"] < 0) == (rt["steps"] == 0),
+                f"label={lab['robot_table_contact']}({lab['first_robot_table_step']}), meta first={rt['first_step']}, steps={rt['steps']}, 最大 {rt['max_penetration_m'] * 1000:.1f} mm {rt['links']}")
     still = True
     if "target_final_speed_mps" in lab:
         ex_ = ep["executed"][1]

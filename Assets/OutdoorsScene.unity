@@ -19005,6 +19005,7 @@ MonoBehaviour:
     bodyLineRadiusPx: 1.5
     bodyJointRadiusPx: 2.5
   useMeshRaster: 1
+  debugOnlyCandidates: []
   contactHeatmapSigmaPx: 2
   drives:
     armStiffness: 20000
@@ -19031,6 +19032,11 @@ MonoBehaviour:
     goalFaceJitterDeg: 10
     goalLengthBias: 0.015
     goalDirectedAngleSpreadDeg: 10
+    numTowardSecondary: 3
+    towardSecondaryOvershoot: {x: 0.03, y: 0.06}
+    towardSecondaryAngleSpreadDeg: 10
+    secondaryNearTargetWeight: 0.05
+    maxOtherRobotHits: 3
     goalDirectedLengthSpread: 0.03
     pushLengthRange: {x: 0.05, y: 0.12}
     minPreContactDistFromBase: 0.25
@@ -19051,7 +19057,8 @@ MonoBehaviour:
     tableMargin: 0.06
     viewMargin: 0.05
     secondaryRadius: 0.048
-    secondaryHeight: 0.28
+    secondaryHeightRange: {x: 0.24, y: 0.4}
+    secondaryHeightStep: 0.02
     armOverlapRange: {x: 0.003, y: 0.01}
     otherBranchClearance: 0.03
     handClearance: 0.025
@@ -19414,9 +19421,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 9fe3c08eb7ebdb744b016a1a96c497cc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  stiffness: 10000
-  damping: 100
-  forceLimit: 1000
+  stiffness: 20000
+  damping: 200
+  forceLimit: 5000
 --- !u!1 &1731632860
 GameObject:
   m_ObjectHideFlags: 8

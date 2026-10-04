@@ -19,6 +19,7 @@ Task A / B(P2):
 import argparse
 import json
 import platform
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -148,7 +149,17 @@ def build_scene(project: Path, scene_dir: Path):
     actions0 = load(scene_dir / f"candidates/{first}/actions/actions_meta.json") if first else {}
     planned0, executed0, final0, actions0 = planned0 or {}, executed0 or {}, final0 or {}, actions0 or {}
 
-    labels_def = load(scene_dir / "solo_annotation_definitions.json")
+    # P5: SOLO の annotation_definitions.json は Play が終わるときに書かれるので、Play 中にはコピーできない → ここでコピーする
+    defs_dst = scene_dir / "solo_annotation_definitions.json"
+    solo_dir = (initial.get("capture") or {}).get("solo_dir")
+    if not defs_dst.is_file() and solo_dir:
+        src = Path(solo_dir) / "annotation_definitions.json"
+        if src.is_file():
+            shutil.copyfile(src, defs_dst)
+            print(f"[copy] {src} -> {defs_dst.name}")
+        else:
+            print(f"[warn] SOLO の annotation_definitions.json が無い: {src}")
+    labels_def = load(defs_dst)
 
     meta = {
         "schema": "scene_metadata_v1",
