@@ -37,6 +37,8 @@ public class AutoSceneSettings
     [Tooltip("円柱方向の候補の押す距離 = 円柱に届く距離 + この範囲(m)")]
     public Vector2 towardSecondaryOvershoot = new Vector2(0.03f, 0.06f);
     public float towardSecondaryAngleSpreadDeg = 10f;
+    [Tooltip("円柱の置き場所を選ぶとき、ターゲットから 15 cm より遠い分に掛ける減点(m あたり)")]
+    public float secondaryNearTargetWeight = 0.02f;
     public float goalDirectedLengthSpread = 0.03f;
     [Tooltip("押す距離(m)。ゴール方向の候補は、ゴールまでの距離 ± goalDirectedLengthSpread")]
     public Vector2 pushLengthRange = new Vector2(0.05f, 0.12f);
@@ -450,7 +452,7 @@ public static class SceneGenerator
         float bestScore = float.PositiveInfinity; bool found = false;
         int nHand = 0, nRange = 0;
         float closest = float.PositiveInfinity; string closestInfo = "";
-        foreach (var cd in cands.OrderBy(q => q.score).Take(12))
+        foreach (var cd in cands.OrderBy(q => q.score).Take(24))
         {
             for (int k = 0; k < 2; k++)
             {
@@ -484,7 +486,9 @@ public static class SceneGenerator
                 if ((p2 - new Vector2(goal.x, goal.z)).magnitude < s.goalClearance + s.secondaryRadius) continue;
                 var center = new Vector3(cx, c.tableTop + 0.5f * H, cz);
                 if (!InView(c, s, center, new Vector3(s.secondaryRadius, 0.5f * H, s.secondaryRadius), Quaternion.identity)) continue;
-                float score = Mathf.Abs(ov - midOverlap);
+                // ターゲットに近い場所を少し優先する(ターゲットを円柱の方へ押す候補が届くように)。15 cm より遠いと 10 cm ごとに 2 mm 分の減点
+                float tdist = new Vector2(cx - tPos.x, cz - tPos.z).magnitude;
+                float score = Mathf.Abs(ov - midOverlap) + s.secondaryNearTargetWeight * Mathf.Max(0f, tdist - 0.15f);
                 if (score < bestScore)
                 {
                     bestScore = score; found = true;
@@ -492,7 +496,7 @@ public static class SceneGenerator
                     g.overlapBranch = k == 0 ? down.branchLabel : up.branchLabel; g.armOverlap = ov; g.otherClearance = other; g.handClear = h;
                 }
             }
-            if (found && bestScore < 0.001f) break;
+            if (found && bestScore < 0.0005f) break;
         }
         if (!found) g.placementLog.Add($"{down.matchedPairId} H{H * 100f:F0}cm: 格子 {cands.Count}, 正確に測って 手が近い {nHand} / 重なりが範囲外 {nRange}, 一番近いもの: {closestInfo}");
         return found;
