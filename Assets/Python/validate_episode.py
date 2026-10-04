@@ -39,6 +39,21 @@ import numpy as np
 
 # ---------------------------------------------------------------- 読み込み
 
+
+def _quat_rotate(q, v):
+    """クォータニオン (x, y, z, w) でベクトルを回す"""
+    x, y, z, w = q
+    u = np.array([x, y, z]); v = np.asarray(v, dtype=float)
+    return 2 * np.dot(u, v) * u + (w * w - np.dot(u, u)) * v + 2 * w * np.cross(u, v)
+
+
+def _tilt_deg(q0, q1):
+    """初期姿勢から見た、上向きの軸の傾き(度)。Unity は左手系だが角度の大きさは同じ"""
+    x0, y0, z0, w0 = q0
+    inv0 = (-x0, -y0, -z0, w0)
+    up = _quat_rotate(q1, _quat_rotate(inv0, [0.0, 1.0, 0.0]))
+    return float(np.degrees(np.arccos(np.clip(up[1] / np.linalg.norm(up), -1.0, 1.0))))
+
 def _json(p):
     return json.loads(Path(p).read_text(encoding="utf-8"))
 
@@ -281,6 +296,19 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
     d = float(np.hypot(fo["final_position_world"][0] - goal[0], fo["final_position_world"][2] - goal[2]))
     r.check(f"{cid} ラベル: goal_distance = 最終 pose から再計算", abs(d - lab["goal_distance_m"]) < 1e-4,
             f"{d:.5f} vs {lab['goal_distance_m']:.5f}")
+    # P4-B: 倒れた判定(高さの低下 or 傾き)を最終 pose から再計算(target_tilt_deg が無い古いデータは高さだけ)
+    lp = ep["final"].get("label_params", {})
+    drop = fo["initial_position_world"][1] - fo["final_position_world"][1]
+    fell = drop > lp.get("fall_drop_threshold_m", 0.02)
+    if "target_tilt_deg" in lab:
+        tilt = _tilt_deg(fo["initial_rotation_world_xyzw"], fo["final_rotation_world_xyzw"])
+        r.check(f"{cid} ラベル: target_tilt_deg = 最終 pose から再計算", abs(tilt - lab["target_tilt_deg"]) < 0.05,
+                f"{tilt:.2f} vs {lab['target_tilt_deg']:.2f}")
+        fell = fell or tilt > lp.get("fall_tilt_deg", 30.0)
+    r.check(f"{cid} ラベル: target_fell = 最終 pose から再計算", fell == lab["target_fell"], f"{fell} vs {lab['target_fell']}")
+    r.check(f"{cid} ラベル: goal_reached = 距離 ≤ 半径 かつ 倒れていない",
+            lab["goal_reached"] == (lab["goal_distance_m"] <= ep["final"]["goal"]["radius_m"] + 1e-9 and not lab["target_fell"]),
+            f"goal_reached={lab['goal_reached']}")
 
     # ---- E. 時系列
     dt = ep["planned"]["dt"]

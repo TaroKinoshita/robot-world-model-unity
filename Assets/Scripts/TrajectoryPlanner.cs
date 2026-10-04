@@ -23,6 +23,10 @@ public class CandidateSpec
     public string matchedPairId = "";
     [Tooltip("例: wrist_down / wrist_up")]
     public string branchLabel = "";
+
+    [Header("P4-B")]
+    [Tooltip("グリッパーを接近方向まわりに 180° 回した向きで押す(閉じた指は左右対称なので押し方は同じ)。手首の関節が ±180° に引っかかるときに使う")]
+    public bool gripperYawFlip = false;
 }
 
 /// <summary>軌道の作り方の共通設定</summary>
@@ -37,6 +41,13 @@ public class PlannerSettings
     public float moveSpeed = 0.10f;         // 降りる・持ち上げるときの平均速度(m/s)
     public float pushSpeed = 0.05f;         // 押すときの平均速度(m/s)
     public float holdDuration = 0.5f;       // 最後に止まっている時間(s)
+    [Header("P4-B: 押し方")]
+    [Tooltip("指の開閉方向を、押す方向から鉛直軸まわりに何度回すか。0 = 押す方向に揃える(前側の指で押す)、90 = 押す方向と直角(2 本の指の側面で押す)")]
+    public float gripperYawDeg = 0f;
+    [Tooltip("on: 押し始めの位置を、グリッパーの当たり判定の形(ターゲットの高さの範囲で一番前に出ている点)から決める。off: 指パッドの間隔の半分 + contactPadding")]
+    public bool contactFromGeometry = false;
+    [Tooltip("グリッパーを押す方向へ何度傾けるか(指先が前に出る向き)。0 = 真下向き。上の方の部品(ナックル)が先に箱の上の方へ当たって箱が倒れるのを防ぐ")]
+    public float gripperPitchDeg = 0f;
 }
 
 /// <summary>計画した軌道(物理 1 ステップごと)</summary>
@@ -55,6 +66,7 @@ public class PlannedTrajectory
     public Vector3[] waypoints = new Vector3[4];
     public float maxIkPosErr, maxIkAngErr, maxJointStep;
     public float minTcpHeightTransfer = float.MaxValue;
+    public float frontExtent;   // TCP から押す方向に一番前に出ているグリッパーの点までの距離(m)
 }
 
 public static class TrajectoryPlanner
@@ -71,8 +83,28 @@ public static class TrajectoryPlanner
         Vector3 u = new Vector3(Mathf.Sin(phi), 0f, Mathf.Cos(phi));
         tr.pushDir = u;
         float halfU = Mathf.Abs(u.x) * targetHalfExtents.x + Mathf.Abs(u.z) * targetHalfExtents.z;
-        // 指の開閉方向 = 押す方向 → 前側の指パッドで押す。TCP は指の中点なので、その分だけ手前に置く
-        float contact = halfU + kin.FingerHalfSpan + s.contactPadding;
+        Vector3 opening = Quaternion.AngleAxis(s.gripperYawDeg + (spec.gripperYawFlip ? 180f : 0f), Vector3.up) * u;
+        Vector3 approach = Quaternion.AngleAxis(s.gripperPitchDeg, Vector3.Cross(Vector3.down, u)) * Vector3.down;   // 指先を押す方向へ傾ける
+        Quaternion rotDes = kin.ToolRotationFor(approach, opening);
+        // 指の開閉方向 = 押す方向(gripperYawDeg = 0)→ 前側の指パッドで押す。TCP は指の中点なので、その分だけ手前に置く
+        tr.frontExtent = kin.FingerHalfSpan + s.contactPadding;
+        if (s.contactFromGeometry && kin.GripperPointsLocal != null && kin.GripperPointsLocal.Length > 0)
+        {
+            // ターゲットの高さの範囲・幅の範囲に入るグリッパーの点のうち、押す方向に一番前に出ている点
+            Vector3 side = Vector3.Cross(Vector3.up, u);
+            float halfSide = Mathf.Abs(side.x) * targetHalfExtents.x + Mathf.Abs(side.z) * targetHalfExtents.z;
+            float yLo = -targetHalfExtents.y - s.pushHeightOffset, yHi = targetHalfExtents.y - s.pushHeightOffset;
+            float best = float.NegativeInfinity;
+            foreach (var pl in kin.GripperPointsLocal)
+            {
+                Vector3 r = rotDes * (pl - kin.TcpLocal);   // TCP 基準の world 方向
+                if (r.y < yLo || r.y > yHi) continue;
+                if (Mathf.Abs(Vector3.Dot(r, side)) > halfSide + 0.01f) continue;
+                best = Mathf.Max(best, Vector3.Dot(r, u));
+            }
+            if (!float.IsNegativeInfinity(best)) tr.frontExtent = best + s.contactPadding;
+        }
+        float contact = halfU + tr.frontExtent;
 
         Vector3 pre = targetCenter - u * (contact + s.preContactGap);
         pre.y = targetCenter.y + s.pushHeightOffset;
@@ -80,8 +112,6 @@ public static class TrajectoryPlanner
         Vector3 end = pre + u * (s.preContactGap + spec.pushLength);
         Vector3 lift = end + Vector3.up * s.approachHeight;
         tr.waypoints = new[] { above, pre, end, lift };
-
-        Quaternion rotDes = kin.ToolRotationFor(Vector3.down, u);
 
         // ---- 0) 開始姿勢(matched pair では、同じ手先の位置・向きのまま別の IK の枝から始める) ----
         float[] qStart = qInit;

@@ -18908,6 +18908,7 @@ MonoBehaviour:
   - wrist_3_link
   fingerPadA: left_inner_finger_pad
   fingerPadB: right_inner_finger_pad
+  gripperRootName: robotiq_arg2f_base_link
   validateKinematics: 1
   fkToleranceM: 0.001
   targetObjectName: Target
@@ -18920,6 +18921,7 @@ MonoBehaviour:
     cartesianTransfer: 0
     matchedPairId: 
     branchLabel: 
+    gripperYawFlip: 0
   - note: push at 130 deg
     pushAngleDeg: 130
     pushLength: 0.1
@@ -18927,6 +18929,7 @@ MonoBehaviour:
     cartesianTransfer: 0
     matchedPairId: 
     branchLabel: 
+    gripperYawFlip: 0
   - note: push toward the robot (-Z)
     pushAngleDeg: 180
     pushLength: 0.1
@@ -18934,6 +18937,7 @@ MonoBehaviour:
     cartesianTransfer: 0
     matchedPairId: 
     branchLabel: 
+    gripperYawFlip: 0
   - note: push at -45 deg
     pushAngleDeg: -45
     pushLength: 0.1
@@ -18941,6 +18945,7 @@ MonoBehaviour:
     cartesianTransfer: 0
     matchedPairId: 
     branchLabel: 
+    gripperYawFlip: 0
   - note: push at -135 deg
     pushAngleDeg: -135
     pushLength: 0.1
@@ -18948,6 +18953,7 @@ MonoBehaviour:
     cartesianTransfer: 0
     matchedPairId: 
     branchLabel: 
+    gripperYawFlip: 0
   - note: push at 150 deg
     pushAngleDeg: 150
     pushLength: 0.1
@@ -18955,15 +18961,18 @@ MonoBehaviour:
     cartesianTransfer: 0
     matchedPairId: 
     branchLabel: 
+    gripperYawFlip: 0
   - note: 'matched pair mp0: wrist-down branch (same start as the scene), Cartesian
-      transfer'
+      transfer, gripper yaw flipped 180 deg'
     pushAngleDeg: -90
     pushLength: 0.1
     startBranchSeedDeg: []
     cartesianTransfer: 1
     matchedPairId: mp0
     branchLabel: wrist_down
-  - note: 'matched pair mp0: wrist-up branch, same TCP path as the wrist-down one'
+    gripperYawFlip: 1
+  - note: 'matched pair mp0: wrist-up branch, same TCP path as the wrist-down one,
+      gripper yaw flipped 180 deg'
     pushAngleDeg: -90
     pushLength: 0.1
     startBranchSeedDeg:
@@ -18976,15 +18985,19 @@ MonoBehaviour:
     cartesianTransfer: 1
     matchedPairId: mp0
     branchLabel: wrist_up
+    gripperYawFlip: 1
   planner:
     approachHeight: 0.16
     preContactGap: 0.05
-    contactPadding: 0.015
-    pushHeightOffset: -0.01
+    contactPadding: 0.005
+    pushHeightOffset: 0
     transferDuration: 3
     moveSpeed: 0.1
     pushSpeed: 0.05
     holdDuration: 0.5
+    gripperYawDeg: 90
+    contactFromGeometry: 1
+    gripperPitchDeg: 30
   actions:
     rasterStride: 5
     eefRadiusPx: 3
@@ -18998,9 +19011,12 @@ MonoBehaviour:
     fingerDamping: 10
   postSettleSteps: 50
   resetHoldSteps: 3
+  ignoreRobotSelfCollision: 1
+  freshPhysicsScenePerCandidate: 1
   goalCenter: {x: -0.1, y: 0, z: 0.3}
   goalRadius: 0.03
   fallDropThreshold: 0.02
+  fallTiltDeg: 30
   targetMaskColor:
     serializedVersion: 2
     rgba: 4278190335
@@ -19322,6 +19338,21 @@ MonoBehaviour:
   - -60.5
   - -90
   - -63.5
+  gripperCloseRad: 0.6
+  gripperLinkNames:
+  - left_outer_knuckle
+  - left_inner_knuckle
+  - left_inner_finger
+  - right_outer_knuckle
+  - right_inner_knuckle
+  - right_inner_finger
+  gripperMimic:
+  - 1
+  - -1
+  - 1
+  - -1
+  - -1
+  - 1
 --- !u!114 &1725148060
 MonoBehaviour:
   m_ObjectHideFlags: 0

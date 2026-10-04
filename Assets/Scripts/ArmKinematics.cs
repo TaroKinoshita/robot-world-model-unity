@@ -30,6 +30,8 @@ public class ArmKinematics
     public Vector3 ApproachLocal { get; private set; }  // tool リンク座標でのグリッパーの向き(tool 原点 → TCP)
     public Vector3 OpeningLocal { get; private set; }   // tool リンク座標での指の開閉方向(pad A → pad B)
     public float FingerHalfSpan { get; private set; }   // TCP から指パッドまでの距離
+    /// <summary>P4-B: グリッパーの当たり判定の頂点(tool リンク座標)。押し始めの位置を形から決めるのに使う。null なら FingerHalfSpan を使う</summary>
+    public Vector3[] GripperPointsLocal;
     public float JointSign = 1f;
     public int Dof => JointNames.Length;
 

@@ -64,6 +64,8 @@ public class EpisodeRecorder : MonoBehaviour
         "wrist_1_link", "wrist_2_link", "wrist_3_link" };
     public string fingerPadA = "left_inner_finger_pad";
     public string fingerPadB = "right_inner_finger_pad";
+    [Tooltip("P4-B: グリッパーの根元のリンク(この下の当たり判定で押し始めの位置を決める)")]
+    public string gripperRootName = "robotiq_arg2f_base_link";
     [Tooltip("FK を実際のロボットの姿勢と比べて検証する(ロボットを一時的に高い姿勢へ動かす)")]
     public bool validateKinematics = true;
     public float fkToleranceM = 0.001f;
@@ -85,11 +87,18 @@ public class EpisodeRecorder : MonoBehaviour
     public int postSettleSteps = 50;
     [Tooltip("リセット後、物体を固定したまま待つステップ数")]
     public int resetHoldSteps = 3;
+    [Tooltip("P4-B: ロボットの当たり判定どうしの衝突を全部無視する")]
+    public bool ignoreRobotSelfCollision = true;
+    [Tooltip("P4-B: 候補ごとに新しい物理シーン(PhysX のシーン)を作って、ロボットと Objects をそこへ移して実行する。" +
+             "同じ物理シーンで続けて実行すると、前の候補の接触の履歴で結果が数 mm ブレる")]
+    public bool freshPhysicsScenePerCandidate = true;
     [Header("Final / labels (6. 最終結果)")]
     [Tooltip("ゴール領域の中心(world、XZ だけ使う)。仮の値: ターゲットを -X に 10cm 動かした位置")]
     public Vector3 goalCenter = new Vector3(-0.10f, 0f, 0.30f);
     public float goalRadius = 0.03f;
     public float fallDropThreshold = 0.02f;
+    [Tooltip("P4-B: 上向きの軸がこれ以上傾いたら倒れたとみなす(度)")]
+    public float fallTiltDeg = 30f;
     public Color32 targetMaskColor = new Color32(255, 0, 0, 255);
     string runSoloDir;
 
@@ -159,10 +168,10 @@ public class EpisodeRecorder : MonoBehaviour
             return;
         }
 
-        // 運動学は初期姿勢(指が開いた状態)で作る
         EnsureContactRecorders();   // 物理が1回も回る前に付ける
-        kin = ArmKinematics.Build(robotRoot, toolLinkName, armJointNames, fingerPadA, fingerPadB, out kinError);
-        if (kin == null) Debug.LogError($"[EpisodeRecorder] 運動学を作れない: {kinError}");
+        if (ignoreRobotSelfCollision) IgnoreRobotSelfCollision();
+        // 運動学は Run() の最初(物理が回って RobotInitialPose の関節角が Transform に反映された後)に作る。
+        // ここで作ると、指の関節角(P4-B で閉じる)が Transform にまだ反映されていない
 
         runStartUtc = DateTime.UtcNow;
         StartCoroutine(Run());
@@ -171,6 +180,11 @@ public class EpisodeRecorder : MonoBehaviour
     IEnumerator Run()
     {
         for (int i = 0; i < framesBeforeStart; i++) yield return null;
+
+        // 運動学は初期姿勢(指は RobotInitialPose の角度)で作る
+        kin = ArmKinematics.Build(robotRoot, toolLinkName, armJointNames, fingerPadA, fingerPadB, out kinError);
+        if (kin == null) Debug.LogError($"[EpisodeRecorder] 運動学を作れない: {kinError}");
+        else kin.GripperPointsLocal = CollectGripperPoints();
 
         string root = string.IsNullOrEmpty(outputRoot)
             ? Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Episodes"))
@@ -383,11 +397,11 @@ public class EpisodeRecorder : MonoBehaviour
             list.Add(new CandidatePlan { index = c, cid = cid, spec = spec, tr = tr, center = center, half = half });
 
             if (tr.ok)
-                Debug.Log($"[EpisodeRecorder] {cid} 計画 OK: {tr.q.Count} steps ({tr.q.Count * tr.dt:F2} s), " +
+                Debug.Log($"[EpisodeRecorder] {cid} 計画 OK: {tr.q.Count} steps ({tr.q.Count * tr.dt:F2} s), 前に出ている距離 {tr.frontExtent * 1000f:F1} mm, " +
                           $"IK 最大誤差 {tr.maxIkPosErr * 1000f:F3} mm / {tr.maxIkAngErr:F4} rad, 1 step の最大関節変化 {tr.maxJointStep * Mathf.Rad2Deg:F2}°, " +
                           $"移動中の TCP 最低高さ {tr.minTcpHeightTransfer:F3} m");
             else
-                Debug.LogError($"[EpisodeRecorder] {cid} 計画 NG: {tr.error}");
+                Debug.LogWarning($"[EpisodeRecorder] {cid} 計画 NG: {tr.error}");   // P5: LogError だと Error Pause で止まる
         }
         return list;
     }
@@ -411,7 +425,7 @@ public class EpisodeRecorder : MonoBehaviour
                 $"\"push_angle_deg\": {N(cp.spec.pushAngleDeg)}, \"push_length_m\": {N(cp.spec.pushLength)}, " +
                 $"\"matched_pair_id\": {(string.IsNullOrEmpty(cp.spec.matchedPairId) ? "null" : Q(cp.spec.matchedPairId))}, " +
                 $"\"branch\": {(string.IsNullOrEmpty(cp.spec.branchLabel) ? "null" : Q(cp.spec.branchLabel))}, " +
-                $"\"cartesian_transfer\": {B(cp.spec.cartesianTransfer)}, " +
+                $"\"cartesian_transfer\": {B(cp.spec.cartesianTransfer)}, \"gripper_yaw_flip\": {B(cp.spec.gripperYawFlip)}, " +
                 $"\"planned_ok\": {(tr.ok ? "true" : "false")}, \"num_steps\": {tr.q.Count}, " +
                 $"\"planned_trajectory\": {Q($"candidates/{cp.cid}/planned_trajectory.json")}" +
                 (tr.ok ? "" : $", \"error\": {Q(tr.error ?? "")}") + "}");
@@ -504,10 +518,11 @@ public class EpisodeRecorder : MonoBehaviour
         sb.Append($"  \"tcp_definition\": {{\"description\": \"midpoint of the two finger pads\", \"pads\": [{Q(fingerPadA)}, {Q(fingerPadB)}], " +
                   $"\"tcp_in_tool_frame\": {Vec(kin.TcpLocal)}, \"approach_in_tool_frame\": {Vec(kin.ApproachLocal)}, " +
                   $"\"opening_in_tool_frame\": {Vec(kin.OpeningLocal)}, \"finger_half_span_m\": {N(kin.FingerHalfSpan)}}},\n");
-        sb.Append("  \"gripper\": \"open; finger joints are not commanded\",\n");
+        sb.Append($"  \"gripper\": {{\"finger_joints_rad\": {{{string.Join(", ", initialDofPositions.Where(d => Array.IndexOf(kin.JointBodies, d.body) < 0).Select(d => $"{Q(d.body.name)}: {N(d.pos)}"))}}}, " +
+                  "\"note\": \"finger joints are held at these initial positions by their drives (not commanded during the episode)\"},\n");
         sb.Append("  \"frames\": {\"world\": \"Unity world: left-handed, Y-up, meters\", \"joints\": \"Unity ArticulationBody jointPosition, rad\"},\n");
         sb.Append($"  \"quality\": {{\"max_ik_pos_err_m\": {N(tr.maxIkPosErr)}, \"max_ik_ang_err_rad\": {N(tr.maxIkAngErr)}, " +
-                  $"\"max_joint_step_rad\": {N(tr.maxJointStep)}, \"min_tcp_height_transfer_m\": {N(tr.q.Count > 0 ? tr.minTcpHeightTransfer : 0f)}}},\n");
+                  $"\"max_joint_step_rad\": {N(tr.maxJointStep)}, \"min_tcp_height_transfer_m\": {N(tr.q.Count > 0 ? tr.minTcpHeightTransfer : 0f)}, \"front_extent_m\": {N(tr.frontExtent)}}},\n");
         sb.Append($"  \"dt\": {N(tr.dt)},\n");
         sb.Append($"  \"num_steps\": {tr.q.Count},\n");
         sb.Append("  \"joint_names\": [" + string.Join(", ", kin.JointNames.Select(Q)) + "],\n");
@@ -583,8 +598,54 @@ public class EpisodeRecorder : MonoBehaviour
         }
     }
 
-    // 物体と腕を「落ち着かせた直後の状態」に戻す(衝突判定モードは変えない、指の関節は触らない)
-    // qStart: 腕の開始姿勢(matched pair では候補ごとに違う)。指は今までどおり触らない
+    // 物体とロボットを「落ち着かせた直後の状態」に戻す(衝突判定モードは変えない)
+    // qStart: 腕の開始姿勢(matched pair では候補ごとに違う)。指は初期の位置へ戻す(P4-B)
+    // P4-B: グリッパーの当たり判定の頂点を tool リンク座標で集める(押し始めの位置を形から決める用)
+    Vector3[] CollectGripperPoints()
+    {
+        var root = robotRoot.GetComponentsInChildren<ArticulationBody>(true).Where(a => a.name == gripperRootName).Select(a => a.transform).FirstOrDefault();
+        if (root == null) { Debug.LogWarning($"[EpisodeRecorder] '{gripperRootName}' が見つからない(押し始めは指パッドの間隔で決める)"); return null; }
+        var pts = new List<Vector3>();
+        foreach (var c in root.GetComponentsInChildren<Collider>(false))
+        {
+            if (!c.enabled) continue;
+            var mc = c as MeshCollider;
+            if (mc != null && mc.sharedMesh != null)
+            {
+                foreach (var v in mc.sharedMesh.vertices) pts.Add(kin.Tool.InverseTransformPoint(c.transform.TransformPoint(v)));
+                continue;
+            }
+            var bc = c as BoxCollider;
+            if (bc != null)
+            {
+                for (int i = 0; i < 8; i++)
+                {
+                    var o = new Vector3((i & 1) == 0 ? -0.5f : 0.5f, (i & 2) == 0 ? -0.5f : 0.5f, (i & 4) == 0 ? -0.5f : 0.5f);
+                    pts.Add(kin.Tool.InverseTransformPoint(c.transform.TransformPoint(bc.center + Vector3.Scale(o, bc.size))));
+                }
+                continue;
+            }
+            var b = c.bounds;
+            for (int i = 0; i < 8; i++)
+                pts.Add(kin.Tool.InverseTransformPoint(b.center + Vector3.Scale(b.extents, new Vector3((i & 1) == 0 ? -1 : 1, (i & 2) == 0 ? -1 : 1, (i & 4) == 0 ? -1 : 1))));
+        }
+        Debug.Log($"[EpisodeRecorder] グリッパーの当たり判定の頂点: {pts.Count} 個");
+        return pts.ToArray();
+    }
+
+    // P4-B: ロボットの当たり判定どうしの衝突を全部無視する。
+    // 自己接触(指のリンクどうしなど)は計画した動きでは意味がなく、PhysX の接触の状態が候補をまたいで残る原因になる
+    bool selfCollisionLogged;
+    void IgnoreRobotSelfCollision()
+    {
+        var cols = robotRoot.GetComponentsInChildren<Collider>(true);
+        int n = 0;
+        for (int i = 0; i < cols.Length; i++)
+            for (int j = i + 1; j < cols.Length; j++) { Physics.IgnoreCollision(cols[i], cols[j], true); n++; }
+        if (!selfCollisionLogged) Debug.Log($"[EpisodeRecorder] ロボットの自己衝突を無視: 当たり判定 {cols.Length} 個、{n} 組");
+        selfCollisionLogged = true;
+    }
+
     IEnumerator ResetScene(Action<float> done, float[] qStart)
     {
         for (int i = 0; i < bodies.Length; i++)
@@ -595,15 +656,18 @@ public class EpisodeRecorder : MonoBehaviour
             b.rotation = settledRot[i];
             b.transform.SetPositionAndRotation(settledPos[i], settledRot[i]);
         }
+        // P4-B: 指も含めて全関節を戻す(位置・速度・力・ドライブ目標)。
+        // 指を戻さないと、前の候補の接触で指がずれたまま次の候補が始まり、結果が実行順でブレていた
         foreach (var (ab, pos0) in initialDofPositions)
         {
             int ji = Array.IndexOf(kin.JointBodies, ab);
-            if (ji < 0) continue;
-            float pos = qStart != null ? qStart[ji] : pos0;
+            float pos = (ji >= 0 && qStart != null) ? qStart[ji] : pos0;
             ab.jointPosition = new ArticulationReducedSpace(pos);
             ab.jointVelocity = new ArticulationReducedSpace(0f);
+            ab.jointForce = new ArticulationReducedSpace(0f);
             var d = ab.xDrive;
             d.target = pos * Mathf.Rad2Deg;
+            d.targetVelocity = 0f;
             ab.xDrive = d;
         }
         Physics.SyncTransforms();
@@ -641,7 +705,81 @@ public class EpisodeRecorder : MonoBehaviour
         return null;
     }
 
+    // ---------- P4-B: 候補ごとの新しい物理シーン ----------
+
+    UnityEngine.SceneManagement.Scene candScene;
+    PhysicsScene candPhysics;
+    bool candPhysicsActive;
+
+    // ロボットのリンクの Transform をシーンに置いたときの値(全関節 0)に戻し、物体を落ち着いた位置に戻す。
+    // ArticulationBody / Rigidbody はシーンを移ると今の Transform から作り直されるので、
+    // 毎回まったく同じ Transform から作り直されるようにする(物理で 0 へ動かすと 1e-6 m 程度ずつズレる)
+    void RestoreAuthoredTransforms()
+    {
+        if (authoredRobotLocal == null) return;
+        foreach (var kv in authoredRobotLocal) kv.Key.SetLocalPositionAndRotation(kv.Value.Key, kv.Value.Value);
+        for (int i = 0; i < allBodies.Length; i++)
+        {
+            allBodies[i].isKinematic = true;
+            allBodies[i].transform.SetPositionAndRotation(allSettledPos[i], allSettledRot[i]);
+        }
+    }
+
+    Dictionary<Transform, KeyValuePair<Vector3, Quaternion>> authoredRobotLocal;
+
+    void Awake()
+    {
+        // 物理が 1 回も回る前(= シーンに置いた姿勢)のリンクの Transform を覚えておく
+        var go = robotRoot != null ? robotRoot.gameObject : (GameObject.Find("ur5e_with_gripper") ?? GameObject.Find("ur3_with_gripper"));
+        if (go == null) return;
+        authoredRobotLocal = new Dictionary<Transform, KeyValuePair<Vector3, Quaternion>>();
+        foreach (var ab in go.GetComponentsInChildren<ArticulationBody>(true))
+            authoredRobotLocal[ab.transform] = new KeyValuePair<Vector3, Quaternion>(ab.transform.localPosition, ab.transform.localRotation);
+    }
+
+    // ロボットと Objects を新しい物理シーンへ移す(PhysX の actor が作り直されるので、接触の履歴が消える)
+    IEnumerator EnterFreshPhysicsScene(string name)
+    {
+        RestoreAuthoredTransforms();
+        candScene = UnityEngine.SceneManagement.SceneManager.CreateScene(name,
+            new UnityEngine.SceneManagement.CreateSceneParameters(UnityEngine.SceneManagement.LocalPhysicsMode.Physics3D));
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(robotRoot.root.gameObject, candScene);
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(objectsRoot.root.gameObject, candScene);
+        candPhysics = candScene.GetPhysicsScene();
+        candPhysicsActive = true;
+        if (ignoreRobotSelfCollision) IgnoreRobotSelfCollision();   // 移すと IgnoreCollision の設定が消える
+        // 移した直後は PhysX の actor がまだ無いことがあるので、1 step 回してからリセットする
+        yield return new WaitForFixedUpdate();
+    }
+
+    // 元のシーンへ戻して、空になった物理シーンを閉じる
+    IEnumerator LeaveFreshPhysicsScene()
+    {
+        if (!candPhysicsActive) yield break;
+        RestoreAuthoredTransforms();
+        candPhysicsActive = false;
+        var home = gameObject.scene;
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(robotRoot.root.gameObject, home);
+        UnityEngine.SceneManagement.SceneManager.MoveGameObjectToScene(objectsRoot.root.gameObject, home);
+        UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(candScene);
+        if (ignoreRobotSelfCollision) IgnoreRobotSelfCollision();
+        yield return new WaitForFixedUpdate();
+    }
+
+    // 新しい物理シーンは自動では回らないので、既定のシーンと同じタイミング(FixedUpdate)で 1 step 回す
+    void FixedUpdate()
+    {
+        if (candPhysicsActive && candPhysics.IsValid()) candPhysics.Simulate(Time.fixedDeltaTime);
+    }
+
     IEnumerator ExecuteCandidate(PlanResult p)
+    {
+        if (freshPhysicsScenePerCandidate) yield return EnterFreshPhysicsScene($"physics_{p.sceneId}_{p.cid}");
+        yield return ExecuteCandidateInner(p);
+        yield return LeaveFreshPhysicsScene();
+    }
+
+    IEnumerator ExecuteCandidateInner(PlanResult p)
     {
         var tr = p.tr;
         float resetErr = 0f;
@@ -814,7 +952,9 @@ public class EpisodeRecorder : MonoBehaviour
         int ti = Array.FindIndex(bodies, b => b.name == targetObjectName);
         Vector3 t1 = finalPos[ti];
         float goalDist = new Vector2(t1.x - goalCenter.x, t1.z - goalCenter.z).magnitude;
-        bool fell = t1.y < settledPos[ti].y - fallDropThreshold;
+        // P4-B: 立方体は横倒しになっても中心の高さが変わらないので、傾き(上向きの軸と鉛直のなす角)でも判定する
+        float tiltDeg = Vector3.Angle(finalRot[ti] * Quaternion.Inverse(settledRot[ti]) * Vector3.up, Vector3.up);
+        bool fell = t1.y < settledPos[ti].y - fallDropThreshold || tiltDeg > fallTiltDeg;
         bool goal = goalDist <= goalRadius && !fell;
         bool targetContact = firstRobotTarget >= 0;
         bool secondary = firstTargetOther >= 0 || firstRobotOther >= 0;
@@ -845,10 +985,10 @@ public class EpisodeRecorder : MonoBehaviour
             "  \"objects\": [\n" + string.Join(",\n", objs) + "\n  ],\n" +
             $"  \"goal\": {{\"center_world\": {Vec(goalCenter)}, \"radius_m\": {N(goalRadius)}, \"definition\": \"target final center within radius of goal center in XZ, and not fallen\"}},\n" +
             "  \"labels\": {" +
-            $"\"goal_reached\": {B(goal)}, \"goal_distance_m\": {N(goalDist)}, \"target_fell\": {B(fell)}, " +
+            $"\"goal_reached\": {B(goal)}, \"goal_distance_m\": {N(goalDist)}, \"target_fell\": {B(fell)}, \"target_tilt_deg\": {N(tiltDeg)}, " +
             $"\"target_contact\": {B(targetContact)}, \"first_robot_target_step\": {firstRobotTarget}, \"robot_target_contact_rows\": {robotTargetSteps}, " +
             $"\"secondary_applicable\": {B(secApplicable)}, \"secondary_collision\": {secJson}, \"first_target_secondary_step\": {firstTS}, \"first_robot_secondary_step\": {firstRS}}},\n" +
-            $"  \"label_params\": {{\"fall_drop_threshold_m\": {N(fallDropThreshold)}}},\n" +
+            $"  \"label_params\": {{\"fall_drop_threshold_m\": {N(fallDropThreshold)}, \"fall_tilt_deg\": {N(fallTiltDeg)}}},\n" +
             $"  \"target_mask\": {{\"file\": \"target_mask.png\", \"pixels\": {maskPixels}, \"semantic_color_rgb\": [{targetMaskColor.r}, {targetMaskColor.g}, {targetMaskColor.b}], \"encoding\": \"8-bit gray, 255 = target\"}},\n" +
             $"  \"capture\": {{\"step_with_robot\": {stepWith}, \"step_robot_free\": {stepFree}, \"copied_with_robot\": {B(okWith)}, \"copied_robot_free\": {B(okFree)}}},\n" +
             "  \"files\": {\"robot_free\": {\"rgb\": \"robot_free/rgb.png\", \"depth\": \"robot_free/depth.exr\", \"semantic\": \"robot_free/semantic.png\"}, " +
@@ -858,7 +998,7 @@ public class EpisodeRecorder : MonoBehaviour
 
         for (int i = 0; i < bodies.Length; i++) bodies[i].isKinematic = savedKinematic[i];
 
-        Debug.Log($"[EpisodeRecorder] {p.cid} 最終結果: goal={goal}(距離 {goalDist * 1000f:F1} mm), fell={fell}, target_contact={targetContact}, secondary={(secApplicable ? secondary.ToString() : "n/a (Task A)")}, " +
+        Debug.Log($"[EpisodeRecorder] {p.cid} 最終結果: goal={goal}(距離 {goalDist * 1000f:F1} mm), fell={fell}(傾き {tiltDeg:F1}°), target_contact={targetContact}, secondary={(secApplicable ? secondary.ToString() : "n/a (Task A)")}, " +
                   $"target 移動 {Vector3.Distance(finalPos[ti], settledPos[ti]) * 1000f:F1} mm, mask {maskPixels} px, 画像 with={okWith} free={okFree}");
     }
 
