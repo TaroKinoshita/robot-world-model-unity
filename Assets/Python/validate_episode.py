@@ -245,25 +245,32 @@ def check_mesh_raster(r, ep, steps):
     r.check(f"{cid} 本描画: グリッパーのマスク ⊂ 全身のマスク、全身の depth ≤ グリッパーの depth",
             not sub.any() and bool((fd[both] <= ed[both] + 0.5).all()), f"はみ出し {int(sub.sum())} px")
     # TCP: 投影した画素のまわり(5 px 以内)にグリッパーが写っていて、その depth が TCP のカメラ z と 3 cm 以内
+    # TCP は 2 つの指パッドの中点なので、指が開いているとパッドの間(何も無い所)に来る。
+    # 許す距離 = 5 px + パッドの間隔の半分を画像に投影した長さ。depth は「パッドの間隔の半分 + 3 cm」以内
     _, eef = ep["eef_numeric"]
-    worst_px, worst_dz, n = 0.0, 0.0, 0
+    half = float(ep["planned"].get("tcp_definition", {}).get("finger_half_span_m", 0.0))
+    fx = float(np.array(cam["K"], float)[0, 0])
+    worst, worst_dz, n, ok_all = 0.0, 0.0, 0, True
     for k, s in enumerate(steps):
         p = [eef["tcp_x"][s], eef["tcp_y"][s], eef["tcp_z"][s]]
         uv, z = project(cam, [p])
         u, v = uv[0]
         if z[0] <= 0 or not (5 <= u < W - 5 and 5 <= v < H - 5):
             continue
+        tol = 5.0 + fx * half / z[0]
         ys, xs = np.nonzero(em[k] > 127)
         d = np.hypot(xs - u, ys - v)
         j = int(np.argmin(d))
-        worst_px = max(worst_px, float(d[j]))
-        win = ed[k, max(0, int(v) - 5):int(v) + 6, max(0, int(u) - 5):int(u) + 6]
+        worst = max(worst, float(d[j]) / tol)
+        rr = int(np.ceil(tol))
+        win = ed[k, max(0, int(v) - rr):int(v) + rr + 1, max(0, int(u) - rr):int(u) + rr + 1]
         win = win[win > 0]
-        if len(win):
-            worst_dz = max(worst_dz, float(np.min(np.abs(win / 1000.0 - z[0]))))
+        dz = float(np.min(np.abs(win / 1000.0 - z[0]))) if len(win) else float("inf")
+        worst_dz = max(worst_dz, dz)
+        ok_all &= d[j] <= tol and dz <= half + 0.03
         n += 1
-    r.check(f"{cid} 本描画: TCP の投影から 5 px 以内にグリッパー、depth が TCP の z と 3 cm 以内",
-            n > 0 and worst_px <= 5.0 and worst_dz <= 0.03, f"最大 {worst_px:.2f} px / {worst_dz * 1000:.1f} mm({n} 枚)")
+    r.check(f"{cid} 本描画: TCP の投影の近く(5 px + パッドの間隔の半分)にグリッパー、depth が TCP の z と(間隔の半分 + 3 cm)以内",
+            n > 0 and ok_all, f"距離/許容 最大 {worst:.2f}、depth の差 最大 {worst_dz * 1000:.1f} mm(パッドの間隔の半分 {half * 1000:.1f} mm、{n} 枚)")
     # カメラ幾何: 最初の step の全身の本描画 vs Perception の初期画像(ロボットあり)。開始姿勢が初期姿勢と同じ候補だけ
     if "initial_with_robot_depth" in ep and steps and steps[0] == 0:
         q0 = np.array(ep["planned"]["steps"]["q"][0], dtype=float)

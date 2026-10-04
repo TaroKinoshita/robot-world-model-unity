@@ -52,7 +52,9 @@ public class AutoSceneSettings
 
     [Header("Secondary(Task B の円柱)")]
     public float secondaryRadius = 0.048f;
-    public float secondaryHeight = 0.28f;
+    [Tooltip("円柱の高さの候補(m)。低い方から試して、片方だけ当たる置き場所が見つかった高さを使う")]
+    public Vector2 secondaryHeightRange = new Vector2(0.24f, 0.40f);
+    public float secondaryHeightStep = 0.02f;
     [Tooltip("matched pair の片方の腕が円柱に重なる深さの範囲(m)")]
     public Vector2 armOverlapRange = new Vector2(0.003f, 0.010f);
     [Tooltip("もう片方の腕と円柱の隙間(m)")]
@@ -82,6 +84,7 @@ public class GeneratedScene
     public float goalDirDeg, goalDist;
     public List<CandidateSpec> specs = new List<CandidateSpec>();
     public Vector3 secondaryPos;
+    public float secondaryHeight;
     public string placementPair, overlapBranch;
     public float armOverlap, otherClearance, handClear;
     public int sceneAttempts, plannedCandidates, rejectedCandidates;
@@ -237,7 +240,7 @@ public static class SceneGenerator
             g.ok = true;
             return g;
         }
-        g.error = $"{s.maxSceneAttempts} 回試してもシーンを作れなかった。円柱: " + string.Join(" | ", g.placementLog.Take(6));
+        g.error = $"{s.maxSceneAttempts} 回試してもシーンを作れなかった。円柱: " + string.Join(" | ", g.placementLog.Take(10));
         return g;
     }
 
@@ -366,9 +369,21 @@ public static class SceneGenerator
                                CandidateSpec down, CandidateSpec up, PlannedTrajectory trD, PlannedTrajectory trU)
     {
         CollectPoints(c);
-        float top = c.tableTop + s.secondaryHeight;
-        var armD = MinHeightMap(c, s, trD, armPts, false); var armU = MinHeightMap(c, s, trU, armPts, false);
-        var handD = MinHeightMap(c, s, trD, handPts, true); var handU = MinHeightMap(c, s, trU, handPts, true);
+        var maps = new[] { MinHeightMap(c, s, trD, armPts, false), MinHeightMap(c, s, trU, armPts, false),
+                           MinHeightMap(c, s, trD, handPts, true), MinHeightMap(c, s, trU, handPts, true) };
+        float yMax = c.tableTop + s.secondaryHeightRange.y + 0.01f;
+        var lists = new[] { WorldPoints(c, trD, armPts, false, yMax), WorldPoints(c, trU, armPts, false, yMax),
+                            WorldPoints(c, trD, handPts, true, yMax), WorldPoints(c, trU, handPts, true, yMax) };
+        for (float H = s.secondaryHeightRange.x; H <= s.secondaryHeightRange.y + 1e-4f; H += s.secondaryHeightStep)
+            if (PlaceSecondaryAt(c, s, g, tPos, tRot, goal, down, up, maps, lists, H)) { g.secondaryHeight = H; return true; }
+        return false;
+    }
+
+    static bool PlaceSecondaryAt(Context c, AutoSceneSettings s, GeneratedScene g, Vector3 tPos, Quaternion tRot, Vector3 goal,
+                                 CandidateSpec down, CandidateSpec up, float[][,] maps, List<Vector3>[] lists, float H)
+    {
+        float top = c.tableTop + H;
+        var armD = maps[0]; var armU = maps[1]; var handD = maps[2]; var handU = maps[3];
         float tRad = new Vector2(c.targetHalf.x, c.targetHalf.z).magnitude;
         Vector3 u = Dir(down.pushAngleDeg);
         Vector2 a = new Vector2(tPos.x, tPos.z), b = a + new Vector2(u.x, u.z) * down.pushLength;
@@ -377,31 +392,33 @@ public static class SceneGenerator
 
         // ---- 1) 格子で候補を集める(近似) ----
         var cands = new List<Cand>();
+        int gPath = 0, gGoal = 0, gHand = 0, gRange = 0, gView = 0;
+        float gBestOv = float.NegativeInfinity;
         float m = s.tableMargin + s.secondaryRadius;
         for (float x = s.tableXZ.xMin + m; x <= s.tableXZ.xMax - m; x += s.gridStep)
             for (float z = s.tableXZ.yMin + m; z <= s.tableXZ.yMax - m; z += s.gridStep)
             {
                 var p2 = new Vector2(x, z);
-                if (SegDist2D(p2, a, b) < s.secondaryRadius + tRad + s.targetPathClearance) continue;
-                if ((p2 - new Vector2(goal.x, goal.z)).magnitude < s.goalClearance + s.secondaryRadius) continue;
+                if (SegDist2D(p2, a, b) < s.secondaryRadius + tRad + s.targetPathClearance) { gPath++; continue; }
+                if ((p2 - new Vector2(goal.x, goal.z)).magnitude < s.goalClearance + s.secondaryRadius) { gGoal++; continue; }
                 float h = Mathf.Min(Clearance(s, handD, x, z, top, 0.1f), Clearance(s, handU, x, z, top, 0.1f));
-                if (h < s.handClearance - slack) continue;
+                if (h < s.handClearance - slack) { gHand++; continue; }
                 float cD = Clearance(s, armD, x, z, top, 0.1f), cU = Clearance(s, armU, x, z, top, 0.1f);
                 for (int k = 0; k < 2; k++)
                 {
                     float ov = -(k == 0 ? cD : cU), other = k == 0 ? cU : cD;
-                    if (ov < s.armOverlapRange.x - slack || ov > s.armOverlapRange.y + slack || other < s.otherBranchClearance - slack) continue;
-                    var center = new Vector3(x, c.tableTop + 0.5f * s.secondaryHeight, z);
-                    if (!InView(c, s, center, new Vector3(s.secondaryRadius, 0.5f * s.secondaryHeight, s.secondaryRadius), Quaternion.identity)) continue;
+                    if (other >= s.otherBranchClearance - slack) gBestOv = Mathf.Max(gBestOv, ov);
+                    if (ov < s.armOverlapRange.x - slack || ov > s.armOverlapRange.y + slack || other < s.otherBranchClearance - slack) { gRange++; continue; }
+                    var center = new Vector3(x, c.tableTop + 0.5f * H, z);
+                    if (!InView(c, s, center, new Vector3(s.secondaryRadius, 0.5f * H, s.secondaryRadius), Quaternion.identity)) { gView++; continue; }
                     cands.Add(new Cand { x = x, z = z, score = Mathf.Abs(ov - midOverlap) });
                     break;
                 }
             }
-        if (cands.Count == 0) { g.placementLog.Add($"{down.matchedPairId}: 格子の候補 0"); return false; }
+        if (cands.Count == 0) { g.placementLog.Add($"{down.matchedPairId} H{H * 100f:F0}cm: 格子の候補 0(通り道 {gPath}, ゴール {gGoal}, 手 {gHand}, 重なり {gRange}, 画面 {gView}, 片方だけの最大の重なり {gBestOv * 1000f:F0} mm)"); return false; }
 
         // ---- 2) 良さそうな順に、頂点とカプセルの距離で正確に測る ----
-        var wArmD = WorldPoints(c, trD, armPts, false, top + 0.01f); var wArmU = WorldPoints(c, trU, armPts, false, top + 0.01f);
-        var wHandD = WorldPoints(c, trD, handPts, true, top + 0.01f); var wHandU = WorldPoints(c, trU, handPts, true, top + 0.01f);
+        var wArmD = lists[0]; var wArmU = lists[1]; var wHandD = lists[2]; var wHandU = lists[3];
         float bestScore = float.PositiveInfinity; bool found = false;
         int nHand = 0, nRange = 0;
         float closest = float.PositiveInfinity; string closestInfo = "";
@@ -414,7 +431,7 @@ public static class SceneGenerator
                 float cx = cd.x, cz = cd.z, ov = 0f;
                 for (int it = 0; it < 4; it++)
                 {
-                    float cl = CapsuleClearance(hitPts, cx, cz, c.tableTop, s.secondaryHeight, s.secondaryRadius, out var cp);
+                    float cl = CapsuleClearance(hitPts, cx, cz, c.tableTop, H, s.secondaryRadius, out var cp);
                     if (float.IsPositiveInfinity(cl)) break;
                     ov = -cl;
                     if (Mathf.Abs(ov - midOverlap) < 0.0005f) break;
@@ -424,10 +441,10 @@ public static class SceneGenerator
                     float step = Mathf.Clamp(midOverlap - ov, -0.03f, 0.03f);
                     cx += dir.x * step; cz += dir.y * step;
                 }
-                ov = -CapsuleClearance(hitPts, cx, cz, c.tableTop, s.secondaryHeight, s.secondaryRadius);
-                float other = CapsuleClearance(otherPts, cx, cz, c.tableTop, s.secondaryHeight, s.secondaryRadius);
-                float h = Mathf.Min(CapsuleClearance(wHandD, cx, cz, c.tableTop, s.secondaryHeight, s.secondaryRadius),
-                                    CapsuleClearance(wHandU, cx, cz, c.tableTop, s.secondaryHeight, s.secondaryRadius));
+                ov = -CapsuleClearance(hitPts, cx, cz, c.tableTop, H, s.secondaryRadius);
+                float other = CapsuleClearance(otherPts, cx, cz, c.tableTop, H, s.secondaryRadius);
+                float h = Mathf.Min(CapsuleClearance(wHandD, cx, cz, c.tableTop, H, s.secondaryRadius),
+                                    CapsuleClearance(wHandU, cx, cz, c.tableTop, H, s.secondaryRadius));
                 float miss = Mathf.Max(0f, s.armOverlapRange.x - ov) + Mathf.Max(0f, ov - s.armOverlapRange.y) + Mathf.Max(0f, s.otherBranchClearance - other) + Mathf.Max(0f, s.handClearance - h);
                 if (miss < closest) { closest = miss; closestInfo = $"ov {ov * 1000f:F1} mm, other {other * 1000f:F1} mm, hand {h * 1000f:F1} mm"; }
                 if (h < s.handClearance) { nHand++; continue; }
@@ -437,8 +454,8 @@ public static class SceneGenerator
                 if (cx < s.tableXZ.xMin + m || cx > s.tableXZ.xMax - m || cz < s.tableXZ.yMin + m || cz > s.tableXZ.yMax - m) continue;
                 if (SegDist2D(p2, a, b) < s.secondaryRadius + tRad + s.targetPathClearance) continue;
                 if ((p2 - new Vector2(goal.x, goal.z)).magnitude < s.goalClearance + s.secondaryRadius) continue;
-                var center = new Vector3(cx, c.tableTop + 0.5f * s.secondaryHeight, cz);
-                if (!InView(c, s, center, new Vector3(s.secondaryRadius, 0.5f * s.secondaryHeight, s.secondaryRadius), Quaternion.identity)) continue;
+                var center = new Vector3(cx, c.tableTop + 0.5f * H, cz);
+                if (!InView(c, s, center, new Vector3(s.secondaryRadius, 0.5f * H, s.secondaryRadius), Quaternion.identity)) continue;
                 float score = Mathf.Abs(ov - midOverlap);
                 if (score < bestScore)
                 {
@@ -449,7 +466,7 @@ public static class SceneGenerator
             }
             if (found && bestScore < 0.001f) break;
         }
-        if (!found) g.placementLog.Add($"{down.matchedPairId}: 格子 {cands.Count}, 正確に測って 手が近い {nHand} / 重なりが範囲外 {nRange}, 一番近いもの: {closestInfo}");
+        if (!found) g.placementLog.Add($"{down.matchedPairId} H{H * 100f:F0}cm: 格子 {cands.Count}, 正確に測って 手が近い {nHand} / 重なりが範囲外 {nRange}, 一番近いもの: {closestInfo}");
         return found;
     }
 
@@ -468,7 +485,7 @@ public static class SceneGenerator
         if (!g.ok) sb.Append($"  \"error\": \"{g.error}\",\n");
         sb.Append($"  \"target\": {{\"position_world\": {V(g.targetPos)}, \"yaw_deg\": {N(g.targetYawDeg)}}},\n");
         sb.Append($"  \"goal\": {{\"center_world\": {V(g.goal)}, \"direction_deg\": {N(g.goalDirDeg)}, \"distance_m\": {N(g.goalDist)}}},\n");
-        sb.Append($"  \"secondary\": {{\"position_world\": {V(g.secondaryPos)}, \"radius_m\": {N(s.secondaryRadius)}, \"height_m\": {N(s.secondaryHeight)}, " +
+        sb.Append($"  \"secondary\": {{\"position_world\": {V(g.secondaryPos)}, \"radius_m\": {N(s.secondaryRadius)}, \"height_m\": {N(g.secondaryHeight)}, " +
                   $"\"placed_for_pair\": \"{g.placementPair}\", \"overlapping_branch\": \"{g.overlapBranch}\", \"arm_overlap_m\": {N(g.armOverlap)}, " +
                   $"\"other_branch_clearance_m\": {N(g.otherClearance)}, \"hand_clearance_m\": {N(g.handClear)}, " +
                   "\"method\": \"planned link poses x collider vertices (every 2nd step); xz grid to pre-select, then exact vertex-to-capsule distance\"},\n");

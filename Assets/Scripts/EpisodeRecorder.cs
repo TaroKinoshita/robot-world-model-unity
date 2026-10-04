@@ -450,6 +450,13 @@ public class EpisodeRecorder : MonoBehaviour
         target.linearVelocity = Vector3.zero; target.angularVelocity = Vector3.zero;
         if (secondaryBody != null && !string.IsNullOrEmpty(generated.placementPair))
         {
+            // 高さもシーンごとに決める(カプセルの当たり判定の高さ × scale.y = 高さ)
+            var cc = secondaryBody.GetComponent<CapsuleCollider>();
+            if (cc != null && generated.secondaryHeight > 0f)
+            {
+                var sc = secondaryBody.transform.localScale;
+                secondaryBody.transform.localScale = new Vector3(sc.x, generated.secondaryHeight / cc.height, sc.z);
+            }
             secondaryBody.position = generated.secondaryPos; secondaryBody.rotation = Quaternion.identity;
             secondaryBody.transform.SetPositionAndRotation(generated.secondaryPos, Quaternion.identity);
             secondaryBody.linearVelocity = Vector3.zero; secondaryBody.angularVelocity = Vector3.zero;
@@ -460,7 +467,7 @@ public class EpisodeRecorder : MonoBehaviour
         numCandidates = generated.specs.Count;
         Debug.Log($"[EpisodeRecorder] シーン生成(seed {seed}, {(DateTime.UtcNow - t0).TotalSeconds:F1} s, 試行 {generated.sceneAttempts} 回): " +
                   $"target ({generated.targetPos.x:F3}, {generated.targetPos.z:F3}) yaw {generated.targetYawDeg:F1}°, goal ({generated.goal.x:F3}, {generated.goal.z:F3}), " +
-                  $"円柱 ({generated.secondaryPos.x:F3}, {generated.secondaryPos.z:F3}) = {generated.placementPair} の {generated.overlapBranch} が {generated.armOverlap * 1000f:F1} mm 重なる, 候補 {numCandidates} 本(計画 {generated.plannedCandidates} 回)");
+                  $"円柱 ({generated.secondaryPos.x:F3}, {generated.secondaryPos.z:F3}) 高さ {generated.secondaryHeight * 100f:F0} cm = {generated.placementPair} の {generated.overlapBranch} が {generated.armOverlap * 1000f:F1} mm 重なる, 候補 {numCandidates} 本(計画 {generated.plannedCandidates} 回)");
         return true;
     }
 
