@@ -281,6 +281,16 @@ def check_mesh_raster(r, ep, steps):
         if same_start:
             robot_px = np.any(ep["initial_with_robot_semantic"] != ep["initial_semantic"], axis=2)
             ren = fm[0] > 127
+            # Task B では円柱がロボットを隠すことがある(本描画は物体に隠されない)→ 円柱の外接箱を投影した範囲は比べない
+            tgt = ep["planned"]["target"]["name"]
+            occ = np.zeros((H, W), bool)
+            for o in ep["scene"]["objects"]:
+                if o["name"] == tgt or not o.get("active", True):
+                    continue
+                sc = np.asarray(o["scale"], float)
+                occ |= hull_mask(cam, box_corners(o["position_world"], o["rotation_world_xyzw"], [sc[0], 2 * sc[1], sc[2]]), H, W)
+            robot_px &= ~occ
+            ren = ren & ~occ
             v = iou(robot_px, ren)
             pd = ep["initial_with_robot_depth"]
             pd = pd[:, :, 2] if pd.ndim == 3 else pd   # Perception の depth は R チャンネル(cv2 は BGRA の順)
