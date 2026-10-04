@@ -106,3 +106,16 @@ Task B で衝突した候補：
 - A/B：円柱に触れない 15 候補は最終位置の差が 0.000 mm
 - テスト出力（`_ur5e_test/p4b_gen4`）と全部同じ値（Play をまたいでも同じ）
 - 偏り：衝突が 1 件だけ
+
+---
+
+## 作り直し 3（2026-10-04、git `b3ce0da`）← 今のパイロット
+
+本番の入力仕様（`Docs/P4B_input_spec.md`）と、半分開いた指の押し方で作り直した。3 シーン（seed 1〜3）。
+
+- `pair_0000`（`scene_0000`/`0001`、seed 1）
+- `pair_0001`（`scene_0002`/`0003`、seed 2）
+- `pair_0002`（`scene_0004`/`0005`、seed 3）
+- 1 つ前のデータ：`Episodes/_archive/p4b_closedgrip_3seeds_20261004_140158/`（閉じた指）
+- 2 つ前のデータ：`Episodes/_archive/p4a_auto_skeleton_20261004_132712/`（骨格線）
+- 点検の結果は `Docs/P4B_input_spec.md` §8

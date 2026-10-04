@@ -369,8 +369,20 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
     fo = next(o for o in ep["final"]["objects"] if o["name"] == tgt_name)
     proj1 = hull_mask(cam, box_corners(fo["final_position_world"], fo["final_rotation_world_xyzw"], obj0["scale"]), H, W)
     fm = ep["final_mask"] > 127
-    v = iou(fm, proj1)
-    r.check(f"{cid} 投影: 最終 target 箱 vs target_mask IoU ≥ {iou_min}", v >= iou_min, f"IoU={v:.3f}")
+    # P4-B: Task B では円柱がターゲットを隠すことがある → 円柱の外接箱を投影した範囲は比べない
+    occ = np.zeros((H, W), bool)
+    for so in ep["final"]["objects"]:
+        if so["name"] == tgt_name:
+            continue
+        s0 = next((o for o in ep["scene"]["objects"] if o["name"] == so["name"]), None)
+        if s0 is None:
+            continue
+        sc = np.asarray(s0["scale"], float)
+        dims = [sc[0], 2 * sc[1], sc[2]]   # カプセル(Unity の標準: 直径 1、高さ 2)の外接箱
+        occ |= hull_mask(cam, box_corners(so["final_position_world"], so["final_rotation_world_xyzw"], dims), H, W)
+    v = iou(fm & ~occ, proj1 & ~occ)
+    r.check(f"{cid} 投影: 最終 target 箱 vs target_mask IoU ≥ {iou_min}(円柱に隠れうる範囲は除く)", v >= iou_min,
+            f"IoU={v:.3f}(除いた画素 {int((occ & proj1).sum())})")
     r.check(f"{cid} 投影: target_mask の画素数 = final_state 記録値", int(fm.sum()) == ep["final"]["target_mask"]["pixels"],
             f"{int(fm.sum())} vs {ep['final']['target_mask']['pixels']}")
 
