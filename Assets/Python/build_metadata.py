@@ -8,6 +8,10 @@ EpisodeRecorder が書き出したファイルを読んで、scene と episode(=
     python Assets/Python/build_metadata.py                 # Episodes/ の全 scene
     python Assets/Python/build_metadata.py --scene scene_0000
 
+Task A / B(P2):
+    scene_initial.json の "task"(task_variant, pair_id, paired_scene_id)を metadata と episode.json に写す。
+    Task A(secondary 物体なし)の secondary_collision は null(= 対象なし)。古いデータ(task 無し)は task_variant = null。
+
 出力:
     Episodes/scene_XXXX/metadata.json                      # scene 全体(全 episode を含む)
     Episodes/scene_XXXX/candidates/cXXX/episode.json       # episode 単体(データローダ用)
@@ -65,7 +69,7 @@ def rel_files(scene_dir: Path, paths: dict, missing: list):
     return paths
 
 
-def build_episode(scene_dir: Path, scene_id: str, cand: dict, missing: list):
+def build_episode(scene_dir: Path, scene_id: str, cand: dict, missing: list, task: dict):
     cid = cand["candidate_id"]
     base = f"candidates/{cid}"
     planned = load(scene_dir / base / "planned_trajectory.json") or {}
@@ -104,6 +108,8 @@ def build_episode(scene_dir: Path, scene_id: str, cand: dict, missing: list):
         "scene_id": scene_id,
         "candidate_id": cid,
         "candidate_index": cand.get("candidate_index"),
+        "task_variant": task.get("task_variant"),
+        "pair_id": task.get("pair_id"),
         "spec": planned.get("spec"),
         "planned_ok": cand.get("planned_ok"),
         "num_planned_steps": planned.get("num_steps"),
@@ -124,8 +130,9 @@ def build_scene(project: Path, scene_dir: Path):
     camera = load(scene_dir / "camera.json") or {}
     cands = load(scene_dir / "candidates.json") or {"candidates": []}
     missing = []
+    task = initial.get("task") or {}
 
-    episodes = [build_episode(scene_dir, scene_id, c, missing) for c in cands["candidates"]]
+    episodes = [build_episode(scene_dir, scene_id, c, missing, task) for c in cands["candidates"]]
 
     # 代表の episode から共通情報を拾う
     first = cands["candidates"][0]["candidate_id"] if cands["candidates"] else None
@@ -144,6 +151,9 @@ def build_scene(project: Path, scene_dir: Path):
             "scene_id": scene_id,
             "scene_index": initial.get("scene_index"),
             "seed": initial.get("seed"),
+            "task_variant": task.get("task_variant"),
+            "pair_id": task.get("pair_id"),
+            "paired_scene_id": task.get("paired_scene_id"),
             "episode_ids": [e["episode_id"] for e in episodes],
             "episode_definition": "episode = one candidate trajectory executed from this scene's initial state",
         },
@@ -178,6 +188,7 @@ def build_scene(project: Path, scene_dir: Path):
             "position_world": camera.get("position_world"),
             "euler_world_deg": camera.get("euler_world_deg"),
         },
+        "task": task or None,
         "objects": initial.get("objects"),
         "physics": initial.get("physics"),
         "planner": planned0.get("planner"),
@@ -185,7 +196,8 @@ def build_scene(project: Path, scene_dir: Path):
             "goal": final0.get("goal"),
             "label_params": final0.get("label_params"),
             "target_contact": "any robot link contacted the target during execution",
-            "secondary_collision": "target touched another object, or any robot link touched a non-target object",
+            "secondary_collision": "target touched another object, or any robot link touched a non-target object; "
+                                   "null when the scene has no secondary object (Task A)",
             "target_fell": "target final height below initial height minus fall_drop_threshold_m",
             "settle": initial.get("settle"),
             "fk_validation": cands.get("fk_validation"),
@@ -216,7 +228,7 @@ def build_scene(project: Path, scene_dir: Path):
             json.dumps(ep, indent=2, ensure_ascii=False), encoding="utf-8")
 
     g = meta["versions"]["git"]
-    print(f"[ok] {scene_id}: episodes={len(episodes)}, missing={len(meta['missing_files'])}, "
+    print(f"[ok] {scene_id} (task {task.get('task_variant')}, {task.get('pair_id')}): episodes={len(episodes)}, missing={len(meta['missing_files'])}, "
           f"git={str(g['commit'])[:8]}{' (dirty)' if g['dirty'] else ''}")
     for e in episodes:
         lab = e["labels"] or {}

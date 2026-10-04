@@ -31,6 +31,18 @@ public class EpisodeRecorder : MonoBehaviour
     [Tooltip("空なら <project>/Episodes")]
     public string outputRoot = "";
 
+    public enum TaskVariant { A, B }
+
+    [Header("Task A / B (P2)")]
+    [Tooltip("on: 1 回の Play で Task A(scene = sceneIndex)と Task B(scene = sceneIndex + 1)を作る。planned は 1 回だけ計画して A/B 両方に使う")]
+    public bool generateTaskPair = true;
+    [Tooltip("generateTaskPair が off のときだけ使う")]
+    public TaskVariant taskVariant = TaskVariant.B;
+    [Tooltip("pair_id = pair_XXXX(generateTaskPair が on のとき)")]
+    public int pairIndex = 0;
+    [Tooltip("Task B にだけ置く物体の名前(Task A では GameObject ごと無効化)")]
+    public string secondaryObjectName = "SecondObject";
+
     [Header("Settle (物体を落ち着かせる)")]
     public int settleFixedSteps = 100;
     public float settleMaxDisplacement = 0.001f;  // m(配置位置からのズレ)
@@ -83,8 +95,16 @@ public class EpisodeRecorder : MonoBehaviour
 
     Renderer[] robotRenderers;
     bool[] originalForceOff;
-    Rigidbody[] bodies;
-    Vector3[] authoredPositions;
+    Rigidbody[] bodies;          // 今の variant にいる物体だけ(SelectVariant で絞る)
+    Rigidbody[] allBodies;       // シーンの全物体(secondary を含む)
+    Rigidbody secondaryBody;
+    bool secondaryInitiallyActive;
+    Vector3[] authoredPositions; // allBodies と同じ並び
+    Vector3[] allSettledPos;
+    Quaternion[] allSettledRot;
+    bool[] allSavedKinematic;
+    CollisionDetectionMode[] allSavedMode;
+    string pairId;
     ArmKinematics kin;
     string kinError;
     int captureIndex = 0;
@@ -94,7 +114,7 @@ public class EpisodeRecorder : MonoBehaviour
     {
         if (perceptionCamera == null) perceptionCamera = FindFirstObjectByType<PerceptionCamera>();
         if (cameraExporter == null && perceptionCamera != null) cameraExporter = perceptionCamera.GetComponent<CameraExporter>();
-        if (robotRoot == null) { var go = GameObject.Find("ur3_with_gripper"); if (go != null) robotRoot = go.transform; }
+        if (robotRoot == null) { var go = GameObject.Find("ur5e_with_gripper") ?? GameObject.Find("ur3_with_gripper"); if (go != null) robotRoot = go.transform; }
         if (objectsRoot == null) { var go = GameObject.Find("Objects"); if (go != null) objectsRoot = go.transform; }
 
         if (perceptionCamera == null || cameraExporter == null || robotRoot == null || objectsRoot == null)
@@ -119,7 +139,25 @@ public class EpisodeRecorder : MonoBehaviour
 
         // 配置した位置(物理が1ステップも回る前)を記録しておく
         bodies = objectsRoot.GetComponentsInChildren<Rigidbody>();
+        allBodies = bodies;
         authoredPositions = bodies.Select(b => b.position).ToArray();
+
+        // Task A / B: secondary 物体(シーンでは有効にしておく)
+        secondaryBody = allBodies.FirstOrDefault(b => b.name == secondaryObjectName);
+        secondaryInitiallyActive = secondaryBody != null && secondaryBody.gameObject.activeSelf;
+        bool needSecondary = generateTaskPair || taskVariant == TaskVariant.B;
+        if (needSecondary && secondaryBody == null)
+        {
+            Debug.LogError($"[EpisodeRecorder] Task B に使う '{secondaryObjectName}' が Objects の下に(有効な状態で)無い");
+            enabled = false;
+            return;
+        }
+        if (!allBodies.Any(b => b.name == targetObjectName))
+        {
+            Debug.LogError($"[EpisodeRecorder] ターゲット '{targetObjectName}' が Objects の下に無い");
+            enabled = false;
+            return;
+        }
 
         // 運動学は初期姿勢(指が開いた状態)で作る
         EnsureContactRecorders();   // 物理が1回も回る前に付ける
@@ -137,80 +175,97 @@ public class EpisodeRecorder : MonoBehaviour
         string root = string.IsNullOrEmpty(outputRoot)
             ? Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Episodes"))
             : outputRoot;
-        string sceneId = $"scene_{sceneIndex:D4}";
-        string sceneDir = Path.Combine(root, sceneId);
-        if (Directory.Exists(sceneDir))
-            Debug.LogWarning($"[EpisodeRecorder] {sceneDir} は既にある。同じ名前のファイルは上書きする");
-        Directory.CreateDirectory(sceneDir);
+
+        // ---- Task A / B: 作る scene の一覧(A = sceneIndex、B = sceneIndex + 1) ----
+        var variants = generateTaskPair ? new[] { TaskVariant.A, TaskVariant.B } : new[] { taskVariant };
+        pairId = generateTaskPair ? $"pair_{pairIndex:D4}" : null;
+        var sceneIds = new string[variants.Length];
+        var sceneDirs = new string[variants.Length];
+        for (int v = 0; v < variants.Length; v++)
+        {
+            sceneIds[v] = $"scene_{sceneIndex + v:D4}";
+            sceneDirs[v] = Path.Combine(root, sceneIds[v]);
+            if (Directory.Exists(sceneDirs[v]))
+                Debug.LogWarning($"[EpisodeRecorder] {sceneDirs[v]} は既にある。同じ名前のファイルは上書きする");
+            Directory.CreateDirectory(sceneDirs[v]);
+        }
+        if (generateTaskPair)
+            Debug.Log($"[EpisodeRecorder] Task A/B ペア {pairId}: A = {sceneIds[0]}, B = {sceneIds[1]}(planned は 1 回だけ作って両方に使う)");
 
         // ================= 2. Initial scene =================
 
-        // ---- 物体を落ち着かせる ----
+        // ---- 物体を落ち着かせる(A/B 共通。全物体ありで 1 回だけ) ----
         for (int i = 0; i < settleFixedSteps; i++) yield return new WaitForFixedUpdate();
         float maxDisp = 0f, maxSpeed = 0f;
-        for (int i = 0; i < bodies.Length; i++)
+        for (int i = 0; i < allBodies.Length; i++)
         {
-            maxDisp = Mathf.Max(maxDisp, Vector3.Distance(bodies[i].position, authoredPositions[i]));
-            maxSpeed = Mathf.Max(maxSpeed, bodies[i].linearVelocity.magnitude);
+            maxDisp = Mathf.Max(maxDisp, Vector3.Distance(allBodies[i].position, authoredPositions[i]));
+            maxSpeed = Mathf.Max(maxSpeed, allBodies[i].linearVelocity.magnitude);
         }
         bool settled = maxDisp <= settleMaxDisplacement && maxSpeed <= settleMaxSpeed;
         if (!settled)
             Debug.LogWarning($"[EpisodeRecorder] 物体が落ち着いていない: max displacement={maxDisp:F6} m, max speed={maxSpeed:F6} m/s");
 
         // ---- 撮影と計画の間は固定する ----
-        var origKinematic = new bool[bodies.Length];
-        var origMode = new CollisionDetectionMode[bodies.Length];
-        for (int i = 0; i < bodies.Length; i++)
+        var origKinematic = new bool[allBodies.Length];
+        var origMode = new CollisionDetectionMode[allBodies.Length];
+        for (int i = 0; i < allBodies.Length; i++)
         {
-            origKinematic[i] = bodies[i].isKinematic;
-            origMode[i] = bodies[i].collisionDetectionMode;
-            bodies[i].collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
-            bodies[i].isKinematic = true;
+            origKinematic[i] = allBodies[i].isKinematic;
+            origMode[i] = allBodies[i].collisionDetectionMode;
+            allBodies[i].collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
+            allBodies[i].isKinematic = true;
         }
-        string objectsJson = BuildObjectsJson();
-        string robotJson = BuildRobotJson();
-        settledPos = bodies.Select(b => b.position).ToArray();
-        settledRot = bodies.Select(b => b.rotation).ToArray();
-        savedKinematic = origKinematic;
-        savedMode = origMode;
+        allSettledPos = allBodies.Select(b => b.position).ToArray();
+        allSettledRot = allBodies.Select(b => b.rotation).ToArray();
+        allSavedKinematic = origKinematic;
+        allSavedMode = origMode;
         initialDofPositions = CaptureAllDofs();
         float[] qInit = kin != null ? ReadArmJoints() : null;
 
-        // ---- 撮影: ロボットあり → robot-free ----
-        int stepWithRobot = captureIndex;
-        yield return CaptureOne();
-        SetRobotVisible(false);
-        for (int i = 0; i < hideSettleFrames; i++) yield return null;
-        int stepRobotFree = captureIndex;
-        yield return CaptureOne();
-        SetRobotVisible(true);
-
-        // ---- カメラ行列 ----
-        string camPath = cameraExporter.ExportToFile(Path.Combine(sceneDir, "camera.json"));
-
-        // ---- SOLO から画像をコピー ----
-        string soloDir = null;
-        yield return FindSoloDir(d => soloDir = d);
-        runSoloDir = soloDir;
-        bool okWith = false, okFree = false;
-        if (soloDir != null)
+        // ---- variant ごとに初期シーンを撮る(A: secondary なし → B: あり) ----
+        for (int v = 0; v < variants.Length; v++)
         {
-            yield return CopyStep(soloDir, stepWithRobot, Path.Combine(sceneDir, "initial", "with_robot"), r => okWith = r);
-            yield return CopyStep(soloDir, stepRobotFree, Path.Combine(sceneDir, "initial", "robot_free"), r => okFree = r);
-            string defs = Path.Combine(soloDir, "annotation_definitions.json");
-            if (File.Exists(defs)) File.Copy(defs, Path.Combine(sceneDir, "solo_annotation_definitions.json"), true);
+            yield return SelectVariant(variants[v]);
+            string sceneDir = sceneDirs[v], sceneId = sceneIds[v];
+            string objectsJson = BuildObjectsJson();
+            string robotJson = BuildRobotJson();
+
+            // 撮影: ロボットあり → robot-free
+            int stepWithRobot = captureIndex;
+            yield return CaptureOne();
+            SetRobotVisible(false);
+            for (int i = 0; i < hideSettleFrames; i++) yield return null;
+            int stepRobotFree = captureIndex;
+            yield return CaptureOne();
+            SetRobotVisible(true);
+
+            string camPath = cameraExporter.ExportToFile(Path.Combine(sceneDir, "camera.json"));
+
+            if (runSoloDir == null) yield return FindSoloDir(d => runSoloDir = d);
+            bool okWith = false, okFree = false;
+            if (runSoloDir != null)
+            {
+                yield return CopyStep(runSoloDir, stepWithRobot, Path.Combine(sceneDir, "initial", "with_robot"), r => okWith = r);
+                yield return CopyStep(runSoloDir, stepRobotFree, Path.Combine(sceneDir, "initial", "robot_free"), r => okFree = r);
+                string defs = Path.Combine(runSoloDir, "annotation_definitions.json");
+                if (File.Exists(defs)) File.Copy(defs, Path.Combine(sceneDir, "solo_annotation_definitions.json"), true);
+            }
+
+            string pairedSceneId = generateTaskPair ? sceneIds[1 - v] : null;
+            WriteSceneJson(sceneDir, sceneId, sceneIndex + v, settled, maxDisp, maxSpeed, runSoloDir,
+                           stepWithRobot, stepRobotFree, okWith, okFree, camPath != null, objectsJson, robotJson,
+                           BuildTaskJson(variants[v], pairedSceneId));
+
+            bool initialOk = settled && okWith && okFree && camPath != null;
+            if (initialOk) Debug.Log($"[EpisodeRecorder] Initial scene 保存完了(Task {variants[v]}): {sceneDir}");
+            else Debug.LogWarning($"[EpisodeRecorder] Initial scene 保存に問題あり(Task {variants[v]}): settled={settled}, with_robot={okWith}, robot_free={okFree}, camera={camPath != null}");
         }
 
-        WriteSceneJson(sceneDir, sceneId, settled, maxDisp, maxSpeed, soloDir,
-                       stepWithRobot, stepRobotFree, okWith, okFree, camPath != null, objectsJson, robotJson);
+        // ================= 3. 候補軌道(1 回だけ計画) =================
 
-        bool initialOk = settled && okWith && okFree && camPath != null;
-        if (initialOk) Debug.Log($"[EpisodeRecorder] Initial scene 保存完了: {sceneDir}");
-        else Debug.LogWarning($"[EpisodeRecorder] Initial scene 保存に問題あり: settled={settled}, with_robot={okWith}, robot_free={okFree}, camera={camPath != null}");
-
-        // ================= 3. 候補軌道 =================
-
-        List<PlanResult> plans = null;
+        List<CandidatePlan> candidatePlans = null;
+        float fkErrPlus = -1f, fkErrMinus = -1f;
         if (kin == null)
         {
             Debug.LogError($"[EpisodeRecorder] 運動学が無いので候補軌道を作れない: {kinError}");
@@ -218,7 +273,6 @@ public class EpisodeRecorder : MonoBehaviour
         else
         {
             // ---- FK の検証(ロボットを高い姿勢へ動かして、計算と実際を比べる) ----
-            float fkErrPlus = -1f, fkErrMinus = -1f;
             bool fkOk = true;
             if (validateKinematics)
             {
@@ -230,56 +284,103 @@ public class EpisodeRecorder : MonoBehaviour
                 else Debug.LogError($"[EpisodeRecorder] FK 検証 NG: 最大誤差 +:{fkErrPlus * 1000f:F2} mm / -:{fkErrMinus * 1000f:F2} mm");
             }
 
-            if (fkOk) plans = PlanCandidates(sceneDir, sceneId, qInit, fkErrPlus, fkErrMinus);
+            if (fkOk) candidatePlans = PlanCandidates(qInit);
         }
 
+        // 同じ計画を A/B の両方に書き出す
+        var plansPerVariant = new List<PlanResult>[variants.Length];
+        if (candidatePlans != null)
+            for (int v = 0; v < variants.Length; v++)
+                plansPerVariant[v] = WriteCandidates(sceneDirs[v], sceneIds[v], variants[v], candidatePlans, fkErrPlus, fkErrMinus);
+
         // ================= 5. 実行(物体は固定したまま始める) =================
-        if (plans != null && plans.Count > 0)
+        bool any = plansPerVariant.Any(l => l != null && l.Count > 0);
+        if (any)
         {
             Debug.Log("[EpisodeRecorder] 5. ドライブ設定");
             ApplyDrives();
             yield return new WaitForFixedUpdate();
-            foreach (var p in plans) yield return ExecuteCandidate(p);
+            for (int v = 0; v < variants.Length; v++)
+            {
+                if (plansPerVariant[v] == null) continue;
+                yield return SelectVariant(variants[v]);
+                Debug.Log($"[EpisodeRecorder] Task {variants[v]}({sceneIds[v]})の実行開始: 物体 {bodies.Length} 個 [{string.Join(", ", bodies.Select(b => b.name))}]");
+                foreach (var p in plansPerVariant[v]) yield return ExecuteCandidate(p);
+            }
         }
-        else
-        {
-            for (int i = 0; i < bodies.Length; i++) bodies[i].isKinematic = origKinematic[i];
-        }
+
+        // ---- 片付け: secondary を元に戻し、物体の固定を解く ----
+        if (secondaryBody != null) secondaryBody.gameObject.SetActive(secondaryInitiallyActive);
+        bodies = allBodies;
+        for (int i = 0; i < allBodies.Length; i++) allBodies[i].isKinematic = origKinematic[i];
 
         Debug.Log("[EpisodeRecorder] 完了");
     }
 
+    // ---------- Task A / B ----------
+
+    // Task A = secondary を GameObject ごと無効化、Task B = 有効。
+    // bodies と settled* を「今いる物体」だけに絞る(executed の列・final の objects・ラベルが自動で揃う)
+    IEnumerator SelectVariant(TaskVariant v)
+    {
+        if (secondaryBody != null) secondaryBody.gameObject.SetActive(v == TaskVariant.B);
+        var idx = Enumerable.Range(0, allBodies.Length).Where(i => allBodies[i].gameObject.activeInHierarchy).ToArray();
+        bodies = idx.Select(i => allBodies[i]).ToArray();
+        if (allSettledPos != null)
+        {
+            settledPos = idx.Select(i => allSettledPos[i]).ToArray();
+            settledRot = idx.Select(i => allSettledRot[i]).ToArray();
+            savedKinematic = idx.Select(i => allSavedKinematic[i]).ToArray();
+            savedMode = idx.Select(i => allSavedMode[i]).ToArray();
+        }
+        Physics.SyncTransforms();
+        for (int i = 0; i < Mathf.Max(1, hideSettleFrames); i++) yield return null;   // 描画に反映させる
+    }
+
+    bool SecondaryPresent => bodies.Any(b => b.name != targetObjectName);
+
+    string BuildTaskJson(TaskVariant v, string pairedSceneId)
+    {
+        return "{" +
+            $"\"task_variant\": {Q(v.ToString())}, " +
+            $"\"pair_id\": {(pairId != null ? Q(pairId) : "null")}, " +
+            $"\"paired_scene_id\": {(pairedSceneId != null ? Q(pairedSceneId) : "null")}, " +
+            $"\"secondary_object\": {Q(secondaryObjectName)}, " +
+            $"\"secondary_present\": {B(v == TaskVariant.B && secondaryBody != null)}, " +
+            $"\"planned_shared_with_pair\": {B(generateTaskPair)}, " +
+            "\"definition\": \"A = target only (secondary object disabled); B = same scene plus the secondary object. " +
+            "Target, goal, initial robot pose, camera, rendering settings and planned trajectories are identical between A and B.\"" +
+            "}";
+    }
+
     // ---------- 3. candidates ----------
 
-    List<PlanResult> PlanCandidates(string sceneDir, string sceneId, float[] qInit, float fkErrPlus, float fkErrMinus)
+    public class CandidatePlan
     {
-        var target = bodies.FirstOrDefault(b => b.name == targetObjectName);
+        public int index;
+        public string cid;
+        public CandidateSpec spec;
+        public PlannedTrajectory tr;
+        public Vector3 center, half;
+    }
+
+    // 計画だけ(書き出しは WriteCandidates)。A/B で同じ計画を使うため 1 回だけ呼ぶ
+    List<CandidatePlan> PlanCandidates(float[] qInit)
+    {
+        var target = allBodies.FirstOrDefault(b => b.name == targetObjectName);
         if (target == null) { Debug.LogError($"[EpisodeRecorder] ターゲット '{targetObjectName}' が無い"); return null; }
-        var results = new List<PlanResult>();
         var col = target.GetComponent<Collider>();
         Vector3 center = col != null ? col.bounds.center : target.position;
         Vector3 half = col != null ? col.bounds.extents : Vector3.one * 0.04f;
 
+        var list = new List<CandidatePlan>();
         int n = Mathf.Clamp(numCandidates, 0, candidateSpecs.Count);
-        var index = new List<string>();
         for (int c = 0; c < n; c++)
         {
             string cid = $"c{c:D3}";
             var spec = candidateSpecs[c];
             var tr = TrajectoryPlanner.Plan(kin, qInit, center, half, spec, planner, Time.fixedDeltaTime);
-            string dir = Path.Combine(sceneDir, "candidates", cid);
-            Directory.CreateDirectory(dir);
-            WritePlannedJson(Path.Combine(dir, "planned_trajectory.json"), sceneId, cid, c, spec, tr, center, half);
-            WritePlannedCsv(Path.Combine(dir, "planned_trajectory.csv"), tr);
-            if (tr.ok) ActionRepresentations.Write(kin, tr, perceptionCamera.GetComponent<Camera>(), dir, actions, sceneId, cid);
-            if (tr.ok) results.Add(new PlanResult { cid = cid, dir = dir, tr = tr, sceneId = sceneId });
-
-            index.Add("    {" +
-                $"\"candidate_id\": {Q(cid)}, \"candidate_index\": {c}, \"note\": {Q(spec.note)}, " +
-                $"\"push_angle_deg\": {N(spec.pushAngleDeg)}, \"push_length_m\": {N(spec.pushLength)}, " +
-                $"\"planned_ok\": {(tr.ok ? "true" : "false")}, \"num_steps\": {tr.q.Count}, " +
-                $"\"planned_trajectory\": {Q($"candidates/{cid}/planned_trajectory.json")}" +
-                (tr.ok ? "" : $", \"error\": {Q(tr.error ?? "")}") + "}");
+            list.Add(new CandidatePlan { index = c, cid = cid, spec = spec, tr = tr, center = center, half = half });
 
             if (tr.ok)
                 Debug.Log($"[EpisodeRecorder] {cid} 計画 OK: {tr.q.Count} steps ({tr.q.Count * tr.dt:F2} s), " +
@@ -288,11 +389,37 @@ public class EpisodeRecorder : MonoBehaviour
             else
                 Debug.LogError($"[EpisodeRecorder] {cid} 計画 NG: {tr.error}");
         }
+        return list;
+    }
+
+    List<PlanResult> WriteCandidates(string sceneDir, string sceneId, TaskVariant v, List<CandidatePlan> plans, float fkErrPlus, float fkErrMinus)
+    {
+        var results = new List<PlanResult>();
+        var index = new List<string>();
+        foreach (var cp in plans)
+        {
+            var tr = cp.tr;
+            string dir = Path.Combine(sceneDir, "candidates", cp.cid);
+            Directory.CreateDirectory(dir);
+            WritePlannedJson(Path.Combine(dir, "planned_trajectory.json"), sceneId, cp.cid, cp.index, cp.spec, tr, cp.center, cp.half);
+            WritePlannedCsv(Path.Combine(dir, "planned_trajectory.csv"), tr);
+            if (tr.ok) ActionRepresentations.Write(kin, tr, perceptionCamera.GetComponent<Camera>(), dir, actions, sceneId, cp.cid);
+            if (tr.ok) results.Add(new PlanResult { cid = cp.cid, dir = dir, tr = tr, sceneId = sceneId, variant = v });
+
+            index.Add("    {" +
+                $"\"candidate_id\": {Q(cp.cid)}, \"candidate_index\": {cp.index}, \"note\": {Q(cp.spec.note)}, " +
+                $"\"push_angle_deg\": {N(cp.spec.pushAngleDeg)}, \"push_length_m\": {N(cp.spec.pushLength)}, " +
+                $"\"planned_ok\": {(tr.ok ? "true" : "false")}, \"num_steps\": {tr.q.Count}, " +
+                $"\"planned_trajectory\": {Q($"candidates/{cp.cid}/planned_trajectory.json")}" +
+                (tr.ok ? "" : $", \"error\": {Q(tr.error ?? "")}") + "}");
+        }
 
         string json = "{\n" +
             $"  \"schema\": \"candidates_v1\",\n" +
             $"  \"scene_id\": {Q(sceneId)},\n" +
-            $"  \"num_candidates\": {n},\n" +
+            $"  \"task_variant\": {Q(v.ToString())},\n" +
+            $"  \"pair_id\": {(pairId != null ? Q(pairId) : "null")},\n" +
+            $"  \"num_candidates\": {plans.Count},\n" +
             $"  \"fk_validation\": {{\"enabled\": {(validateKinematics ? "true" : "false")}, \"max_err_sign_plus_m\": {N(fkErrPlus)}, \"max_err_sign_minus_m\": {N(fkErrMinus)}, \"joint_sign\": {N(kin.JointSign)}}},\n" +
             "  \"candidates\": [\n" + string.Join(",\n", index) + "\n  ]\n}\n";
         File.WriteAllText(Path.Combine(sceneDir, "candidates.json"), json, new UTF8Encoding(false));
@@ -416,6 +543,7 @@ public class EpisodeRecorder : MonoBehaviour
     public class PlanResult
     {
         public string cid, dir, sceneId;
+        public TaskVariant variant;
         public PlannedTrajectory tr;
     }
 
@@ -504,7 +632,7 @@ public class EpisodeRecorder : MonoBehaviour
         var tr = p.tr;
         float resetErr = 0f;
         yield return ResetScene(e => resetErr = e);
-        Debug.Log($"[EpisodeRecorder] {p.cid} 実行開始(reset err {resetErr:E1})");
+        Debug.Log($"[EpisodeRecorder] {p.sceneId}/{p.cid}(Task {p.variant})実行開始(reset err {resetErr:E1})");
 
         if (linkTransforms == null)
             linkTransforms = kin.KeypointNames.Take(kin.KeypointNames.Length - 1).Select(n => FindByName(robotRoot, n)).ToList();
@@ -612,6 +740,7 @@ public class EpisodeRecorder : MonoBehaviour
             "  \"schema\": \"executed_trajectory_v1\",\n" +
             $"  \"scene_id\": {Q(p.sceneId)},\n" +
             $"  \"candidate_id\": {Q(p.cid)},\n" +
+            $"  \"task_variant\": {Q(p.variant.ToString())},\n" +
             "  \"command_source\": \"../planned_trajectory.json (joint position targets, one per physics step)\",\n" +
             "  \"timing\": \"row step i = state measured after physics step i with command planned_step; t = (i + 1) * dt\",\n" +
             $"  \"dt\": {N(tr.dt)},\n" +
@@ -675,6 +804,11 @@ public class EpisodeRecorder : MonoBehaviour
         bool goal = goalDist <= goalRadius && !fell;
         bool targetContact = firstRobotTarget >= 0;
         bool secondary = firstTargetOther >= 0 || firstRobotOther >= 0;
+        // Task A(secondary 物体なし)では「衝突なし」ではなく「対象なし」= null
+        bool secApplicable = SecondaryPresent;
+        string secJson = secApplicable ? B(secondary) : "null";
+        string firstTS = secApplicable ? firstTargetOther.ToString(CultureInfo.InvariantCulture) : "null";
+        string firstRS = secApplicable ? firstRobotOther.ToString(CultureInfo.InvariantCulture) : "null";
 
         var objs = new List<string>();
         for (int i = 0; i < bodies.Length; i++)
@@ -691,13 +825,15 @@ public class EpisodeRecorder : MonoBehaviour
             "  \"schema\": \"final_state_v1\",\n" +
             $"  \"scene_id\": {Q(p.sceneId)},\n" +
             $"  \"candidate_id\": {Q(p.cid)},\n" +
+            $"  \"task_variant\": {Q(p.variant.ToString())},\n" +
+            $"  \"pair_id\": {(pairId != null ? Q(pairId) : "null")},\n" +
             "  \"measured_after\": \"end of post_settle steps (objects frozen for the final capture)\",\n" +
             "  \"objects\": [\n" + string.Join(",\n", objs) + "\n  ],\n" +
             $"  \"goal\": {{\"center_world\": {Vec(goalCenter)}, \"radius_m\": {N(goalRadius)}, \"definition\": \"target final center within radius of goal center in XZ, and not fallen\"}},\n" +
             "  \"labels\": {" +
             $"\"goal_reached\": {B(goal)}, \"goal_distance_m\": {N(goalDist)}, \"target_fell\": {B(fell)}, " +
             $"\"target_contact\": {B(targetContact)}, \"first_robot_target_step\": {firstRobotTarget}, \"robot_target_contact_rows\": {robotTargetSteps}, " +
-            $"\"secondary_collision\": {B(secondary)}, \"first_target_secondary_step\": {firstTargetOther}, \"first_robot_secondary_step\": {firstRobotOther}}},\n" +
+            $"\"secondary_applicable\": {B(secApplicable)}, \"secondary_collision\": {secJson}, \"first_target_secondary_step\": {firstTS}, \"first_robot_secondary_step\": {firstRS}}},\n" +
             $"  \"label_params\": {{\"fall_drop_threshold_m\": {N(fallDropThreshold)}}},\n" +
             $"  \"target_mask\": {{\"file\": \"target_mask.png\", \"pixels\": {maskPixels}, \"semantic_color_rgb\": [{targetMaskColor.r}, {targetMaskColor.g}, {targetMaskColor.b}], \"encoding\": \"8-bit gray, 255 = target\"}},\n" +
             $"  \"capture\": {{\"step_with_robot\": {stepWith}, \"step_robot_free\": {stepFree}, \"copied_with_robot\": {B(okWith)}, \"copied_robot_free\": {B(okFree)}}},\n" +
@@ -708,7 +844,7 @@ public class EpisodeRecorder : MonoBehaviour
 
         for (int i = 0; i < bodies.Length; i++) bodies[i].isKinematic = savedKinematic[i];
 
-        Debug.Log($"[EpisodeRecorder] {p.cid} 最終結果: goal={goal}(距離 {goalDist * 1000f:F1} mm), fell={fell}, target_contact={targetContact}, secondary={secondary}, " +
+        Debug.Log($"[EpisodeRecorder] {p.cid} 最終結果: goal={goal}(距離 {goalDist * 1000f:F1} mm), fell={fell}, target_contact={targetContact}, secondary={(secApplicable ? secondary.ToString() : "n/a (Task A)")}, " +
                   $"target 移動 {Vector3.Distance(finalPos[ti], settledPos[ti]) * 1000f:F1} mm, mask {maskPixels} px, 画像 with={okWith} free={okFree}");
     }
 
@@ -866,15 +1002,16 @@ public class EpisodeRecorder : MonoBehaviour
                "    \"joints\": [\n" + string.Join(",\n", joints) + "\n    ]\n  }";
     }
 
-    void WriteSceneJson(string sceneDir, string sceneId, bool settled, float maxDisp, float maxSpeed,
+    void WriteSceneJson(string sceneDir, string sceneId, int sceneIdx, bool settled, float maxDisp, float maxSpeed,
                         string soloDir, int stepWith, int stepFree, bool okWith, bool okFree, bool okCam,
-                        string objectsJson, string robotJson)
+                        string objectsJson, string robotJson, string taskJson)
     {
         var f = new List<string>();
         f.Add(KV("schema", Q("scene_initial_v1")));
         f.Add(KV("scene_id", Q(sceneId)));
-        f.Add(KV("scene_index", sceneIndex.ToString(CultureInfo.InvariantCulture)));
+        f.Add(KV("scene_index", sceneIdx.ToString(CultureInfo.InvariantCulture)));
         f.Add(KV("seed", seed.ToString(CultureInfo.InvariantCulture)));
+        f.Add(KV("task", taskJson));
         f.Add(KV("created_at", Q(DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss", CultureInfo.InvariantCulture))));
         f.Add(KV("unity_version", Q(Application.unityVersion)));
         f.Add(KV("world_frame", Q("Unity world: left-handed, Y-up, meters")));

@@ -7,6 +7,8 @@ TODO5-8: episode フォルダの自動検証
   C. 投影       : 初期・最終の target mask と、target の 3D 箱を camera.json で投影した形が一致するか
                   EEF raster の点の中心と、EEF numeric を投影した位置が一致するか
   D. ラベル     : final_state の target_contact / secondary_collision が contacts.csv から計算し直した値と一致するか
+  T. Task A/B   : scene_initial / candidates / final_state の task_variant が一致、Task A に secondary 物体が無い、
+                  Task B にある(A/B ペア同士の比較は check_task_pair.py)
   E. 時系列     : planned / actions / executed の step 数・時刻・planned_step 対応、contacts の step 範囲、
                   final pose と executed 最終行の一致
 
@@ -18,8 +20,10 @@ TODO5-8: episode フォルダの自動検証
 出力: Episodes/scene_XXXX/validation.json と、コンソールの PASS / FAIL 一覧。全部 PASS なら exit code 0。
 
 別のスクリプトから episode を使うときは:
-    from validate_episode import load_episode
+    from validate_episode import load_episode, find_pair, load_pair_episode
     ep = load_episode("Episodes/scene_0000/candidates/c000")
+    pair = find_pair("Episodes", "pair_0000")              # {"A": Path(scene_0000), "B": Path(scene_0001)}
+    epB = load_pair_episode("Episodes", "pair_0000", "B", "c000")
 """
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"   # cv2 の import より前
@@ -90,11 +94,38 @@ def load_episode(ep_dir):
     ep["final_depth"] = _img(ep_dir / "final" / "robot_free" / "depth.exr")
     ep["final_semantic"] = _img(ep_dir / "final" / "robot_free" / "semantic.png", cv2.IMREAD_COLOR)
 
+    task = ep["scene"].get("task") or {}
+    ep["task_variant"] = task.get("task_variant")   # 古いデータは None
+    ep["pair_id"] = task.get("pair_id")
+
     init = scene_dir / "initial" / "robot_free"
     ep["initial_rgb"] = _img(init / "rgb.png", cv2.IMREAD_COLOR)
     ep["initial_depth"] = _img(init / "depth.exr")
     ep["initial_semantic"] = _img(init / "semantic.png", cv2.IMREAD_COLOR)
     return ep
+
+def find_pair(episodes_root, pair_id):
+    """pair_id から {task_variant: scene_dir} を返す(scene_initial.json の task を見る)"""
+    out = {}
+    for d in sorted(Path(episodes_root).glob("scene_*")):
+        f = d / "scene_initial.json"
+        if not f.is_file():
+            continue
+        task = _json(f).get("task") or {}
+        if task.get("pair_id") == pair_id:
+            v = task.get("task_variant")
+            if v in out:
+                raise ValueError(f"{pair_id} の Task {v} が 2 つある: {out[v].name}, {d.name}")
+            out[v] = d
+    return out
+
+
+def load_pair_episode(episodes_root, pair_id, task_variant, candidate_id):
+    """scene × task(A/B) × candidate を pair_id から読む"""
+    pair = find_pair(episodes_root, pair_id)
+    if task_variant not in pair:
+        raise KeyError(f"{pair_id} に Task {task_variant} が無い(見つかったのは {sorted(pair)})")
+    return load_episode(pair[task_variant] / "candidates" / candidate_id)
 
 # ---------------------------------------------------------------- 幾何
 
@@ -222,14 +253,30 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
     first = lambda l: min(l) if l else -1
     r.check(f"{cid} ラベル: target_contact = contacts から再計算", lab["target_contact"] == bool(robot_target),
             f"label={lab['target_contact']}, contacts={bool(robot_target)}")
-    r.check(f"{cid} ラベル: secondary_collision = contacts から再計算",
-            lab["secondary_collision"] == bool(robot_other or tgt_obj),
-            f"label={lab['secondary_collision']}, robot-他物体={bool(robot_other)}, target-物体={bool(tgt_obj)}")
-    r.check(f"{cid} ラベル: 初回接触 step が一致",
-            (lab["first_robot_target_step"], lab["first_robot_secondary_step"], lab["first_target_secondary_step"])
-            == (first(robot_target), first(robot_other), first(tgt_obj)),
-            f"label=({lab['first_robot_target_step']}, {lab['first_robot_secondary_step']}, {lab['first_target_secondary_step']}) "
-            f"contacts=({first(robot_target)}, {first(robot_other)}, {first(tgt_obj)})")
+    # secondary 物体があるか(古いデータは secondary_applicable が無い → 物体リストで判断)
+    has_secondary = any(o["name"] != tgt_name for o in ep["scene"]["objects"])
+    applicable = lab.get("secondary_applicable", has_secondary)
+    r.check(f"{cid} ラベル: secondary_applicable = scene に secondary 物体がある", applicable == has_secondary,
+            f"label={applicable}, scene objects={[o['name'] for o in ep['scene']['objects']]}")
+    if applicable:
+        r.check(f"{cid} ラベル: secondary_collision = contacts から再計算",
+                lab["secondary_collision"] == bool(robot_other or tgt_obj),
+                f"label={lab['secondary_collision']}, robot-他物体={bool(robot_other)}, target-物体={bool(tgt_obj)}")
+        r.check(f"{cid} ラベル: 初回接触 step が一致",
+                (lab["first_robot_target_step"], lab["first_robot_secondary_step"], lab["first_target_secondary_step"])
+                == (first(robot_target), first(robot_other), first(tgt_obj)),
+                f"label=({lab['first_robot_target_step']}, {lab['first_robot_secondary_step']}, {lab['first_target_secondary_step']}) "
+                f"contacts=({first(robot_target)}, {first(robot_other)}, {first(tgt_obj)})")
+    else:
+        # Task A: 「衝突なし」ではなく「対象なし」= null。contacts にも secondary との接触が無いこと
+        r.check(f"{cid} ラベル: Task A の secondary ラベルが null(対象なし)",
+                lab["secondary_collision"] is None and lab["first_robot_secondary_step"] is None
+                and lab["first_target_secondary_step"] is None,
+                f"secondary_collision={lab['secondary_collision']}, first=({lab['first_robot_secondary_step']}, {lab['first_target_secondary_step']})")
+        r.check(f"{cid} ラベル: Task A の contacts に secondary との接触が無い", not (robot_other or tgt_obj),
+                f"robot-他物体={len(robot_other)} 行, target-物体={len(tgt_obj)} 行")
+        r.check(f"{cid} ラベル: 初回接触 step(robot→target)が一致", lab["first_robot_target_step"] == first(robot_target),
+                f"label={lab['first_robot_target_step']}, contacts={first(robot_target)}")
     goal = ep["final"]["goal"]["center_world"]
     d = float(np.hypot(fo["final_position_world"][0] - goal[0], fo["final_position_world"][2] - goal[2]))
     r.check(f"{cid} ラベル: goal_distance = 最終 pose から再計算", abs(d - lab["goal_distance_m"]) < 1e-4,
@@ -270,10 +317,40 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
             f"diff={np.abs(last - np.array(fo['final_position_world'])).max():.2e} m")
 
 
+def check_task(r, scene_dir, meta):
+    """T. Task A/B の整合(古いデータで task が無ければスキップ)"""
+    scene = _json(scene_dir / "scene_initial.json")
+    task = scene.get("task")
+    if not task:
+        r.check("task: (task 情報なし = P2 より前のデータ。スキップ)", True)
+        return
+    v = task.get("task_variant")
+    cands = _json(scene_dir / "candidates.json")
+    r.check("task: task_variant が A か B", v in ("A", "B"), str(v))
+    r.check("task: metadata / candidates.json の task_variant・pair_id が scene_initial と一致",
+            (meta["ids"].get("task_variant"), meta["ids"].get("pair_id")) == (v, task.get("pair_id"))
+            and (cands.get("task_variant"), cands.get("pair_id")) == (v, task.get("pair_id")),
+            f"scene=({v}, {task.get('pair_id')}), metadata=({meta['ids'].get('task_variant')}, {meta['ids'].get('pair_id')}), "
+            f"candidates=({cands.get('task_variant')}, {cands.get('pair_id')})")
+    names = [o["name"] for o in scene["objects"]]
+    sec = task.get("secondary_object")
+    want = (v == "B")
+    r.check(f"task: secondary 物体 '{sec}' が {'ある' if want else '無い'}(Task {v})", (sec in names) == want, str(names))
+    bad = []
+    for e in meta["episodes"]:
+        fs = scene_dir / "candidates" / e["candidate_id"] / "final" / "final_state.json"
+        f = _json(fs) if fs.is_file() else {}
+        if (e.get("task_variant"), e.get("pair_id")) != (v, task.get("pair_id")) or \
+           (f.get("task_variant"), f.get("pair_id")) != (v, task.get("pair_id")):
+            bad.append(e["candidate_id"])
+    r.check("task: 全 episode.json・final_state.json の task_variant・pair_id が一致", not bad, str(bad))
+
+
 def validate_scene(scene_dir: Path):
     r = Report()
     meta = _json(scene_dir / "metadata.json")
     check_files(r, scene_dir, meta)
+    check_task(r, scene_dir, meta)
     for e in meta["episodes"]:
         ep_dir = scene_dir / "candidates" / e["candidate_id"]
         try:
