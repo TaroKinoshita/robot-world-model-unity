@@ -143,6 +143,9 @@ def check_initial_images(r, A, B, out_dir, shadow_px, far_tol):
             "semantic_diff_px": int(sem_diff.sum()), "depth_diff_px": int(dep_diff.sum())}
 
 
+UNSTABLE_MM = 1.0   # 円柱に触れていないのに A/B の最終位置がこれ以上違えば「不安定」の印を付ける(FAIL にはしない)
+
+
 def compare_results(A, B, cids, tgt, out_dir):
     rows = []
     for cid in cids:
@@ -167,6 +170,8 @@ def compare_results(A, B, cids, tgt, out_dir):
             }
         pa = np.array(row["A"]["target_final_position"]); pb = np.array(row["B"]["target_final_position"])
         row["final_position_diff_A_B_mm"] = round(float(np.linalg.norm(pa - pb)) * 1000, 1)
+        # P4-B: B で円柱に触れていないのに A と結果が違う候補 = シミュレーションが不安定(わずかな計算の違いが大きく育った)
+        row["sim_unstable"] = (not row["B"]["secondary_collision"]) and float(np.linalg.norm(pa - pb)) * 1000 > UNSTABLE_MM
         rows.append(row)
 
         imgs = [cv2.imread(str(S / "candidates" / cid / "final" / k / "rgb.png"), cv2.IMREAD_COLOR)
@@ -220,7 +225,10 @@ def check_pair(root: Path, pair_id: str, shadow_px: int, far_tol: int):
 
     out = {"pair_id": pair_id, "A": A.name, "B": B.name, "passed": r.passed,
            "num_checks": len(r.items), "num_failed": sum(not i["pass"] for i in r.items),
-           "checks": r.items, "initial_image_diff": init, "results": rows}
+           "checks": r.items, "initial_image_diff": init,
+           "sim_unstable_threshold_mm": UNSTABLE_MM,
+           "sim_unstable_candidates": [row["candidate_id"] for row in rows if row["sim_unstable"]],
+           "results": rows}
     (out_dir / "pair_check.json").write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
     write_md(out_dir, pair_id, A, B, init, rows, r)
 
@@ -233,6 +241,7 @@ def check_pair(root: Path, pair_id: str, shadow_px: int, far_tol: int):
               f"secondary A={a['secondary_collision']} B={b['secondary_collision']} | "
               f"初回 robot→secondary B={b['first_robot_secondary_step']}, target→secondary B={b['first_target_secondary_step']} | "
               f"最終位置の差 {row['final_position_diff_A_B_mm']} mm")
+    print(f"  不安定(円柱に触れていないのに A/B が {UNSTABLE_MM} mm 超ずれた): {out['sim_unstable_candidates']}")
     print(f"  出力: {out_dir}")
     return r.passed
 

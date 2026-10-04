@@ -83,6 +83,8 @@ public class EpisodeRecorder : MonoBehaviour
     public ActionRasterSettings actions = new ActionRasterSettings();
     [Tooltip("P4-B: action の画像を骨格線ではなく、メッシュの本描画(マスク + depth)にする")]
     public bool useMeshRaster = true;
+    [Tooltip("テスト用: ここに書いた候補(c000 など)だけ実行する。空なら全部(本番では空にする)")]
+    public string[] debugOnlyCandidates = new string[0];
     [Tooltip("P4-B: contact heatmap のガウスの幅(px)")]
     public float contactHeatmapSigmaPx = 2f;
     RobotRasterizer rasterizer;
@@ -363,7 +365,12 @@ public class EpisodeRecorder : MonoBehaviour
                 if (plansPerVariant[v] == null) continue;
                 yield return SelectVariant(variants[v]);
                 Debug.Log($"[EpisodeRecorder] Task {variants[v]}({sceneIds[v]})の実行開始: 物体 {bodies.Length} 個 [{string.Join(", ", bodies.Select(b => b.name))}]");
-                foreach (var p in plansPerVariant[v]) yield return ExecuteCandidate(p);
+                foreach (var p in plansPerVariant[v])
+                {
+                    // テスト用: debugOnlyCandidates が空でなければ、そこに書いた候補だけ実行する
+                    if (debugOnlyCandidates != null && debugOnlyCandidates.Length > 0 && Array.IndexOf(debugOnlyCandidates, p.cid) < 0) continue;
+                    yield return ExecuteCandidate(p);
+                }
             }
         }
 

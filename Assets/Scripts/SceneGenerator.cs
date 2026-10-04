@@ -32,6 +32,11 @@ public class AutoSceneSettings
     [Tooltip("ゴール方向の候補の押す距離 = ゴールまでの距離 + これ ± goalDirectedLengthSpread(押し始めの隙間などで、実際の移動は押す距離より短い)")]
     public float goalLengthBias = 0.015f;
     public float goalDirectedAngleSpreadDeg = 10f;
+    [Tooltip("単独候補のうち、ターゲットを円柱の方へ押す数(Task B でターゲット → 円柱の衝突を作る)。円柱を置いたあとで作る")]
+    public int numTowardSecondary = 3;
+    [Tooltip("円柱方向の候補の押す距離 = 円柱に届く距離 + この範囲(m)")]
+    public Vector2 towardSecondaryOvershoot = new Vector2(0.03f, 0.06f);
+    public float towardSecondaryAngleSpreadDeg = 10f;
     public float goalDirectedLengthSpread = 0.03f;
     [Tooltip("押す距離(m)。ゴール方向の候補は、ゴールまでの距離 ± goalDirectedLengthSpread")]
     public Vector2 pushLengthRange = new Vector2(0.05f, 0.12f);
@@ -213,7 +218,8 @@ public static class SceneGenerator
             // ---- 単独候補(前半はゴールの方向の近く、後半は全方向) ----
             int singles = 0;
             attempts = 0;
-            while (singles < s.numSingles && attempts < s.maxCandidateAttempts)
+            int nBefore = s.numSingles - s.numTowardSecondary;   // 円柱方向の候補は、円柱を置いたあとで作る
+            while (singles < nBefore && attempts < s.maxCandidateAttempts)
             {
                 attempts++;
                 bool toGoal = singles < s.numGoalDirected;
@@ -223,7 +229,7 @@ public static class SceneGenerator
                 if (!Feasible(c, s, g, tPos, tRot, spec, out var tr)) continue;
                 g.specs.Add(spec); trajs[spec] = tr; singles++;
             }
-            if (singles < s.numSingles) continue;
+            if (singles < nBefore) continue;
 
             // ---- 円柱(matched pair の片方の腕だけが当たる位置) ----
             bool placed = s.numMatchedPairs == 0;   // matched pair が無いときは円柱を動かさない(テスト用)
@@ -234,6 +240,28 @@ public static class SceneGenerator
                 if (placed) g.placementPair = down.matchedPairId;
             }
             if (!placed) continue;
+
+            // ---- 単独候補(円柱の方向へ押す。届かなければ数を満たすまでランダム方向で埋める) ----
+            if (s.numTowardSecondary > 0)
+            {
+                Vector3 toCyl = new Vector3(g.secondaryPos.x - tPos.x, 0f, g.secondaryPos.z - tPos.z);
+                float cylDir = Mathf.Atan2(toCyl.x, toCyl.z) * Mathf.Rad2Deg;
+                int added = 0; attempts = 0;
+                while (added < s.numTowardSecondary && attempts < s.maxCandidateAttempts)
+                {
+                    attempts++;
+                    bool toward = attempts <= s.maxCandidateAttempts / 2;
+                    float dir = toward ? cylDir + U(rng, -s.towardSecondaryAngleSpreadDeg, s.towardSecondaryAngleSpreadDeg) : U(rng, -180f, 180f);
+                    Vector3 u = Dir(dir);
+                    float reach = toCyl.magnitude - s.secondaryRadius - TrajectoryPlanner.Support(u, c.targetHalf, tRot);
+                    float len = toward ? reach + U(rng, s.towardSecondaryOvershoot) : U(rng, s.pushLengthRange);
+                    if (len < 0.03f || len > 0.20f) { if (toward) { Reject(g, "secondary_too_far"); continue; } }
+                    var spec = new CandidateSpec { note = toward ? "single, toward the secondary object" : "single, random direction (no toward-secondary push was feasible)", pushAngleDeg = dir, pushLength = len };
+                    if (!Feasible(c, s, g, tPos, tRot, spec, out var tr)) continue;
+                    g.specs.Add(spec); trajs[spec] = tr; added++;
+                }
+                if (added < s.numTowardSecondary) continue;
+            }
 
             g.targetPos = tPos; g.targetRot = tRot; g.targetYawDeg = yaw;
             g.goal = new Vector3(goal.x, 0f, goal.z); g.goalDirDeg = gDir; g.goalDist = gDist;
