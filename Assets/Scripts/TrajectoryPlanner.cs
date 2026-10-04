@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 /// <summary>1 本の候補軌道の指定(押す方向と距離)</summary>
@@ -11,6 +12,17 @@ public class CandidateSpec
     public float pushAngleDeg = 0f;
     [Tooltip("ターゲットを押し進める距離(m)")]
     public float pushLength = 0.10f;
+
+    [Header("Matched pair (P3)")]
+    [Tooltip("開始姿勢の IK の枝を選ぶ初期値(度、関節 6 個)。空なら初期姿勢そのまま。" +
+             "初期姿勢と同じ手先位置・向きのまま、別の枝(手首の反転など)から始める")]
+    public float[] startBranchSeedDeg = new float[0];
+    [Tooltip("on: 開始 → 押す位置の上 を手先の直線(関節空間ではなく)で動かす。matched pair は両方 on にして手先経路を全区間そろえる")]
+    public bool cartesianTransfer = false;
+    [Tooltip("同じ手先経路を共有する候補に同じ ID を付ける(空 = matched pair ではない)")]
+    public string matchedPairId = "";
+    [Tooltip("例: wrist_down / wrist_up")]
+    public string branchLabel = "";
 }
 
 /// <summary>軌道の作り方の共通設定</summary>
@@ -71,24 +83,49 @@ public static class TrajectoryPlanner
 
         Quaternion rotDes = kin.ToolRotationFor(Vector3.down, u);
 
-        // ---- 1) 押す位置の上の姿勢(複数の初期値から IK) ----
-        if (!SolveMultiSeed(kin, above, rotDes, qInit, out var qAbove, out float pe0, out float ae0))
+        // ---- 0) 開始姿勢(matched pair では、同じ手先の位置・向きのまま別の IK の枝から始める) ----
+        float[] qStart = qInit;
+        if (spec.startBranchSeedDeg != null && spec.startBranchSeedDeg.Length == kin.Dof)
         {
-            tr.error = $"'above' の IK が解けない(pos err {pe0:F4} m, ang err {ae0:F4} rad)";
-            return tr;
+            kin.TcpPose(qInit, out var p0, out var r0);
+            var seed = spec.startBranchSeedDeg.Select(d => d * Mathf.Deg2Rad).ToArray();
+            if (!kin.SolveIK(p0, r0, seed, out qStart, out float peS, out float aeS))
+            {
+                tr.error = $"開始姿勢の枝の IK が解けない(pos err {peS:F4} m, ang err {aeS:F4} rad)";
+                return tr;
+            }
+            tr.maxIkPosErr = Mathf.Max(tr.maxIkPosErr, peS);
+            tr.maxIkAngErr = Mathf.Max(tr.maxIkAngErr, aeS);
         }
 
-        Add(tr, kin, qInit, "start");
-
-        // ---- 2) 初期姿勢 → above(関節空間で min-jerk 補間) ----
+        Add(tr, kin, qStart, "start");
         int nT = Mathf.Max(1, Mathf.RoundToInt(s.transferDuration / dt));
-        for (int k = 1; k <= nT; k++)
+
+        if (spec.cartesianTransfer)
         {
-            float a = MinJerk((float)k / nT);
-            var qk = new float[kin.Dof];
-            for (int j = 0; j < kin.Dof; j++) qk[j] = Mathf.Lerp(qInit[j], qAbove[j], a);
-            Add(tr, kin, qk, "transfer");
-            tr.minTcpHeightTransfer = Mathf.Min(tr.minTcpHeightTransfer, tr.tcp[tr.tcp.Count - 1].y);
+            // ---- 1+2) 開始 → above を手先の直線で(向きは slerp)。前の step の解から続けて解くので枝は変わらない ----
+            kin.TcpPose(qStart, out var p0, out var r0);
+            if (!Line(tr, kin, p0, above, r0, rotDes, nT, "transfer")) return tr;
+            for (int i = 1; i < tr.tcp.Count; i++) tr.minTcpHeightTransfer = Mathf.Min(tr.minTcpHeightTransfer, tr.tcp[i].y);
+        }
+        else
+        {
+            // ---- 1) 押す位置の上の姿勢(複数の初期値から IK) ----
+            if (!SolveMultiSeed(kin, above, rotDes, qStart, out var qAbove, out float pe0, out float ae0))
+            {
+                tr.error = $"'above' の IK が解けない(pos err {pe0:F4} m, ang err {ae0:F4} rad)";
+                return tr;
+            }
+
+            // ---- 2) 初期姿勢 → above(関節空間で min-jerk 補間) ----
+            for (int k = 1; k <= nT; k++)
+            {
+                float a = MinJerk((float)k / nT);
+                var qk = new float[kin.Dof];
+                for (int j = 0; j < kin.Dof; j++) qk[j] = Mathf.Lerp(qStart[j], qAbove[j], a);
+                Add(tr, kin, qk, "transfer");
+                tr.minTcpHeightTransfer = Mathf.Min(tr.minTcpHeightTransfer, tr.tcp[tr.tcp.Count - 1].y);
+            }
         }
 
         // ---- 3) 降りる → 押す → 持ち上げる(手先を直線で動かす) ----
@@ -110,10 +147,19 @@ public static class TrajectoryPlanner
     {
         float dist = Vector3.Distance(from, to);
         int n = Mathf.Max(1, Mathf.CeilToInt(dist / speed / tr.dt));
+        return Line(tr, kin, from, to, rot, rot, n, phase);
+    }
+
+    // 手先を from → to へ直線(min-jerk)、向きは rotFrom → rotTo を slerp。n step
+    static bool Line(PlannedTrajectory tr, ArmKinematics kin, Vector3 from, Vector3 to, Quaternion rotFrom, Quaternion rotTo,
+                     int n, string phase)
+    {
         var qPrev = tr.q[tr.q.Count - 1];
         for (int k = 1; k <= n; k++)
         {
-            Vector3 p = Vector3.Lerp(from, to, MinJerk((float)k / n));
+            float a = MinJerk((float)k / n);
+            Vector3 p = Vector3.Lerp(from, to, a);
+            Quaternion rot = Quaternion.Slerp(rotFrom, rotTo, a);
             if (!kin.SolveIK(p, rot, qPrev, out var qk, out float pe, out float ae))
             {
                 tr.error = $"'{phase}' の {k}/{n} 点目で IK が解けない(pos err {pe:F4} m, ang err {ae:F4} rad)";

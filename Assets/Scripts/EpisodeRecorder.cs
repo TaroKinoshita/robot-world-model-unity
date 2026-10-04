@@ -409,6 +409,9 @@ public class EpisodeRecorder : MonoBehaviour
             index.Add("    {" +
                 $"\"candidate_id\": {Q(cp.cid)}, \"candidate_index\": {cp.index}, \"note\": {Q(cp.spec.note)}, " +
                 $"\"push_angle_deg\": {N(cp.spec.pushAngleDeg)}, \"push_length_m\": {N(cp.spec.pushLength)}, " +
+                $"\"matched_pair_id\": {(string.IsNullOrEmpty(cp.spec.matchedPairId) ? "null" : Q(cp.spec.matchedPairId))}, " +
+                $"\"branch\": {(string.IsNullOrEmpty(cp.spec.branchLabel) ? "null" : Q(cp.spec.branchLabel))}, " +
+                $"\"cartesian_transfer\": {B(cp.spec.cartesianTransfer)}, " +
                 $"\"planned_ok\": {(tr.ok ? "true" : "false")}, \"num_steps\": {tr.q.Count}, " +
                 $"\"planned_trajectory\": {Q($"candidates/{cp.cid}/planned_trajectory.json")}" +
                 (tr.ok ? "" : $", \"error\": {Q(tr.error ?? "")}") + "}");
@@ -488,7 +491,11 @@ public class EpisodeRecorder : MonoBehaviour
         sb.Append($"  \"candidate_index\": {cIndex},\n");
         sb.Append($"  \"planned_ok\": {(tr.ok ? "true" : "false")},\n");
         if (!tr.ok) sb.Append($"  \"error\": {Q(tr.error ?? "")},\n");
-        sb.Append($"  \"spec\": {{\"note\": {Q(spec.note)}, \"push_angle_deg\": {N(spec.pushAngleDeg)}, \"push_length_m\": {N(spec.pushLength)}}},\n");
+        sb.Append($"  \"spec\": {{\"note\": {Q(spec.note)}, \"push_angle_deg\": {N(spec.pushAngleDeg)}, \"push_length_m\": {N(spec.pushLength)}, " +
+                  $"\"matched_pair_id\": {(string.IsNullOrEmpty(spec.matchedPairId) ? "null" : Q(spec.matchedPairId))}, " +
+                  $"\"branch\": {(string.IsNullOrEmpty(spec.branchLabel) ? "null" : Q(spec.branchLabel))}, " +
+                  $"\"start_branch_seed_deg\": [{string.Join(", ", (spec.startBranchSeedDeg ?? new float[0]).Select(v => N(v)))}], " +
+                  $"\"cartesian_transfer\": {B(spec.cartesianTransfer)}}},\n");
         sb.Append($"  \"planner\": {JsonUtility.ToJson(planner)},\n");
         sb.Append($"  \"target\": {{\"name\": {Q(targetObjectName)}, \"center_world\": {Vec(center)}, \"half_extents_world\": {Vec(half)}}},\n");
         sb.Append($"  \"push_direction_world\": {Vec(tr.pushDir)},\n");
@@ -577,7 +584,8 @@ public class EpisodeRecorder : MonoBehaviour
     }
 
     // 物体と腕を「落ち着かせた直後の状態」に戻す(衝突判定モードは変えない、指の関節は触らない)
-    IEnumerator ResetScene(Action<float> done)
+    // qStart: 腕の開始姿勢(matched pair では候補ごとに違う)。指は今までどおり触らない
+    IEnumerator ResetScene(Action<float> done, float[] qStart)
     {
         for (int i = 0; i < bodies.Length; i++)
         {
@@ -587,9 +595,11 @@ public class EpisodeRecorder : MonoBehaviour
             b.rotation = settledRot[i];
             b.transform.SetPositionAndRotation(settledPos[i], settledRot[i]);
         }
-        foreach (var (ab, pos) in initialDofPositions)
+        foreach (var (ab, pos0) in initialDofPositions)
         {
-            if (Array.IndexOf(kin.JointBodies, ab) < 0) continue;
+            int ji = Array.IndexOf(kin.JointBodies, ab);
+            if (ji < 0) continue;
+            float pos = qStart != null ? qStart[ji] : pos0;
             ab.jointPosition = new ArticulationReducedSpace(pos);
             ab.jointVelocity = new ArticulationReducedSpace(0f);
             var d = ab.xDrive;
@@ -607,8 +617,12 @@ public class EpisodeRecorder : MonoBehaviour
             b.isKinematic = savedKinematic[i];
             if (!b.isKinematic) { b.linearVelocity = Vector3.zero; b.angularVelocity = Vector3.zero; }
         }
-        foreach (var (ab, pos) in initialDofPositions)
+        foreach (var (ab, pos0) in initialDofPositions)
+        {
+            int ji = Array.IndexOf(kin.JointBodies, ab);
+            float pos = (ji >= 0 && qStart != null) ? qStart[ji] : pos0;
             err = Mathf.Max(err, Mathf.Abs(ab.jointPosition[0] - pos) * 0.1f);   // rad を m 相当に(0.1 m/rad)
+        }
         done(err);
     }
 
@@ -631,7 +645,7 @@ public class EpisodeRecorder : MonoBehaviour
     {
         var tr = p.tr;
         float resetErr = 0f;
-        yield return ResetScene(e => resetErr = e);
+        yield return ResetScene(e => resetErr = e, tr.q[0]);
         Debug.Log($"[EpisodeRecorder] {p.sceneId}/{p.cid}(Task {p.variant})実行開始(reset err {resetErr:E1})");
 
         if (linkTransforms == null)
