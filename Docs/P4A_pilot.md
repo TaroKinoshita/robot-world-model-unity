@@ -130,3 +130,9 @@ TGS ソルバーと円柱の方向の候補を入れて作り直した（`Docs/P
 - 2 つ前（TGS、円柱が遠くて円柱の方向の候補が届かない）：`Episodes/_archive/p4b_tgs_far_cyl_*`
 - 3 つ前（PGS ソルバー、作り直し 3）：`Episodes/_archive/p4b_pgs_3seeds_*`
 - 検証：全部 PASS。goal 18/48、衝突 16/48（Task B）、倒れた 0、不安定 0
+
+---
+
+## 作り直し 5（2026-10-05、git `f46109c`）← 今のパイロット
+
+P5（ドライブ値をそろえた、ロボット↔机の判定、SOLO の定義ファイル）を入れて作り直した。詳細は `Docs/P5_small_fixes.md`。1 つ前のデータは `Episodes/_archive/p4b_v4_preP5_*`。
