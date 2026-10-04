@@ -119,3 +119,14 @@ Task B で衝突した候補：
 - 1 つ前のデータ：`Episodes/_archive/p4b_closedgrip_3seeds_20261004_140158/`（閉じた指）
 - 2 つ前のデータ：`Episodes/_archive/p4a_auto_skeleton_20261004_132712/`（骨格線）
 - 点検の結果は `Docs/P4B_input_spec.md` §8
+
+---
+
+## 作り直し 4（2026-10-05、git `9c76bc8`）← 今のパイロット
+
+TGS ソルバーと円柱の方向の候補を入れて作り直した（`Docs/P4B_input_spec.md` §9–10）。seed 1〜3、`pair_0000`〜`pair_0002`。
+
+- 1 つ前（TGS、ほかの候補への当たりの制限なし。seed 3 で 15/16 が円柱に当たった）：`Episodes/_archive/p4b_tgs_v2_*`
+- 2 つ前（TGS、円柱が遠くて円柱の方向の候補が届かない）：`Episodes/_archive/p4b_tgs_far_cyl_*`
+- 3 つ前（PGS ソルバー、作り直し 3）：`Episodes/_archive/p4b_pgs_3seeds_*`
+- 検証：全部 PASS。goal 18/48、衝突 16/48（Task B）、倒れた 0、不安定 0
