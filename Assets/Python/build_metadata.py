@@ -87,6 +87,8 @@ def build_episode(scene_dir: Path, scene_id: str, cand: dict, missing: list, tas
             "fullbody_numeric": f"{base}/actions/fullbody_numeric.csv",
             "eef_raster_dir": f"{base}/actions/eef_raster",
             "fullbody_raster_dir": f"{base}/actions/fullbody_raster",
+            **({"eef_depth_dir": f"{base}/actions/eef_depth", "fullbody_depth_dir": f"{base}/actions/fullbody_depth"}
+               if (scene_dir / base / "actions" / "eef_depth").is_dir() else {}),
         },
         "executed": {
             "meta": f"{base}/executed/executed_meta.json",
@@ -95,6 +97,10 @@ def build_episode(scene_dir: Path, scene_id: str, cand: dict, missing: list, tas
         },
         "final": {
             "state": f"{base}/final/final_state.json",
+            **({"contact_heatmaps": f"{base}/final/contact_heatmaps.json",
+                "contact_heatmap_target": f"{base}/final/contact_heatmap_target.png",
+                "contact_heatmap_secondary": f"{base}/final/contact_heatmap_secondary.png"}
+               if (scene_dir / base / "final" / "contact_heatmaps.json").is_file() else {}),
             "robot_free_rgb": f"{base}/final/robot_free/rgb.png",
             "robot_free_depth": f"{base}/final/robot_free/depth.exr",
             "robot_free_semantic": f"{base}/final/robot_free/semantic.png",

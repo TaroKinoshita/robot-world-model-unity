@@ -98,6 +98,10 @@ def load_episode(ep_dir):
     steps = ep["actions_meta"]["raster_steps"]
     ep["eef_raster"] = np.stack([_img(ep_dir / "actions" / "eef_raster" / f"step_{s:04d}.png", cv2.IMREAD_GRAYSCALE) for s in steps])
     ep["fullbody_raster"] = np.stack([_img(ep_dir / "actions" / "fullbody_raster" / f"step_{s:04d}.png", cv2.IMREAD_GRAYSCALE) for s in steps])
+    # P4-B(actions_meta v2): メッシュの本描画。raster = マスク、depth = 16bit(mm、0 = 何も無い)
+    if (ep_dir / "actions" / "eef_depth").is_dir():
+        ep["eef_depth"] = np.stack([_img(ep_dir / "actions" / "eef_depth" / f"step_{s:04d}.png") for s in steps])
+        ep["fullbody_depth"] = np.stack([_img(ep_dir / "actions" / "fullbody_depth" / f"step_{s:04d}.png") for s in steps])
 
     ep["executed_meta"] = _json(ep_dir / "executed" / "executed_meta.json")
     ep["executed"] = _csv(ep_dir / "executed" / "executed_trajectory.csv")
@@ -108,6 +112,10 @@ def load_episode(ep_dir):
     ep["final_rgb"] = _img(ep_dir / "final" / "robot_free" / "rgb.png", cv2.IMREAD_COLOR)
     ep["final_depth"] = _img(ep_dir / "final" / "robot_free" / "depth.exr")
     ep["final_semantic"] = _img(ep_dir / "final" / "robot_free" / "semantic.png", cv2.IMREAD_COLOR)
+    if (ep_dir / "final" / "contact_heatmaps.json").is_file():
+        ep["contact_heatmaps"] = _json(ep_dir / "final" / "contact_heatmaps.json")
+        ep["heatmap_target"] = _img(ep_dir / "final" / "contact_heatmap_target.png", cv2.IMREAD_GRAYSCALE)
+        ep["heatmap_secondary"] = _img(ep_dir / "final" / "contact_heatmap_secondary.png", cv2.IMREAD_GRAYSCALE)
 
     task = ep["scene"].get("task") or {}
     ep["task_variant"] = task.get("task_variant")   # 古いデータは None
@@ -117,6 +125,10 @@ def load_episode(ep_dir):
     ep["initial_rgb"] = _img(init / "rgb.png", cv2.IMREAD_COLOR)
     ep["initial_depth"] = _img(init / "depth.exr")
     ep["initial_semantic"] = _img(init / "semantic.png", cv2.IMREAD_COLOR)
+    wr = scene_dir / "initial" / "with_robot"
+    if (wr / "depth.exr").is_file():
+        ep["initial_with_robot_depth"] = _img(wr / "depth.exr")
+        ep["initial_with_robot_semantic"] = _img(wr / "semantic.png", cv2.IMREAD_COLOR)
     return ep
 
 def find_pair(episodes_root, pair_id):
@@ -210,6 +222,119 @@ def check_files(r, scene_dir, meta):
     r.check("files: 全パスが実在(再確認)", not missing, str(missing))
 
 
+def cam_z(cam, pts):
+    """world 点のカメラ座標の z(前方向の距離、m)"""
+    T = np.array(cam["T_world_to_cam_cv"], dtype=float)
+    P = np.c_[np.asarray(pts, dtype=float), np.ones(len(pts))]
+    return (P @ T.T)[:, 2]
+
+
+def check_mesh_raster(r, ep, steps):
+    """P4-B: メッシュの本描画(マスク + depth)の検証"""
+    cid = ep["episode"]["candidate_id"]
+    cam = ep["camera"]
+    H, W = cam["height"], cam["width"]
+    em, fm = ep["eef_raster"], ep["fullbody_raster"]
+    ed, fd = ep["eef_depth"].astype(np.float64), ep["fullbody_depth"].astype(np.float64)
+    r.check(f"{cid} 本描画: depth の枚数・大きさ = マスク", ed.shape == em.shape and fd.shape == fm.shape, f"{ed.shape} {em.shape}")
+    r.check(f"{cid} 本描画: マスク = (depth > 0)", np.array_equal(em > 127, ed > 0) and np.array_equal(fm > 127, fd > 0))
+    r.check(f"{cid} 本描画: どの画像にもロボットが写っている", bool((em > 127).any(axis=(1, 2)).all() and (fm > 127).any(axis=(1, 2)).all()))
+    # 全身はグリッパーを含むので、グリッパーの画素は全身の画素でもあり、depth は全身 ≤ グリッパー(手前が勝つ)
+    sub = (em > 127) & ~(fm > 127)
+    both = (ed > 0) & (fd > 0)
+    r.check(f"{cid} 本描画: グリッパーのマスク ⊂ 全身のマスク、全身の depth ≤ グリッパーの depth",
+            not sub.any() and bool((fd[both] <= ed[both] + 0.5).all()), f"はみ出し {int(sub.sum())} px")
+    # TCP: 投影した画素のまわり(5 px 以内)にグリッパーが写っていて、その depth が TCP のカメラ z と 3 cm 以内
+    _, eef = ep["eef_numeric"]
+    worst_px, worst_dz, n = 0.0, 0.0, 0
+    for k, s in enumerate(steps):
+        p = [eef["tcp_x"][s], eef["tcp_y"][s], eef["tcp_z"][s]]
+        uv, z = project(cam, [p])
+        u, v = uv[0]
+        if z[0] <= 0 or not (5 <= u < W - 5 and 5 <= v < H - 5):
+            continue
+        ys, xs = np.nonzero(em[k] > 127)
+        d = np.hypot(xs - u, ys - v)
+        j = int(np.argmin(d))
+        worst_px = max(worst_px, float(d[j]))
+        win = ed[k, max(0, int(v) - 5):int(v) + 6, max(0, int(u) - 5):int(u) + 6]
+        win = win[win > 0]
+        if len(win):
+            worst_dz = max(worst_dz, float(np.min(np.abs(win / 1000.0 - z[0]))))
+        n += 1
+    r.check(f"{cid} 本描画: TCP の投影から 5 px 以内にグリッパー、depth が TCP の z と 3 cm 以内",
+            n > 0 and worst_px <= 5.0 and worst_dz <= 0.03, f"最大 {worst_px:.2f} px / {worst_dz * 1000:.1f} mm({n} 枚)")
+    # カメラ幾何: 最初の step の全身の本描画 vs Perception の初期画像(ロボットあり)。開始姿勢が初期姿勢と同じ候補だけ
+    if "initial_with_robot_depth" in ep and steps and steps[0] == 0:
+        q0 = np.array(ep["planned"]["steps"]["q"][0], dtype=float)
+        jpos = {j["name"]: j["position"] for j in (ep["scene"].get("robot") or {}).get("joints", [])}
+        names = ep["planned"].get("joint_names", [])
+        qi = np.array([jpos[n] for n in names], dtype=float) if names and all(n in jpos for n in names) else None
+        same_start = qi is not None and len(qi) == len(q0) and np.allclose(q0, qi, atol=1e-3)
+        if same_start:
+            robot_px = np.any(ep["initial_with_robot_semantic"] != ep["initial_semantic"], axis=2)
+            ren = fm[0] > 127
+            v = iou(robot_px, ren)
+            pd = ep["initial_with_robot_depth"]
+            pd = pd[:, :, 2] if pd.ndim == 3 else pd   # Perception の depth は R チャンネル(cv2 は BGRA の順)
+            m = robot_px & ren
+            dz = np.abs(pd[m].astype(np.float64) - fd[0][m] / 1000.0)
+            med = float(np.median(dz)) if m.any() else float("inf")
+            r.check(f"{cid} 本描画: step 0 の全身 vs Perception の初期画像(ロボットあり): マスク IoU ≥ 0.9、depth の差の中央値 ≤ 5 mm",
+                    v >= 0.9 and med <= 0.005, f"IoU={v:.3f}, 中央値 {med * 1000:.2f} mm, 90% 点 {float(np.percentile(dz, 90)) * 1000 if m.any() else -1:.2f} mm")
+
+
+def _heat(points_uv, W, H, sigma):
+    acc = np.zeros((H, W), dtype=np.float64)
+    rad = int(np.ceil(3 * sigma))
+    for u, v in points_uv:
+        cx, cy = int(round(u)), int(round(v))
+        for y in range(max(0, cy - rad), min(H - 1, cy + rad) + 1):
+            for x in range(max(0, cx - rad), min(W - 1, cx + rad) + 1):
+                acc[y, x] += np.exp(-((x - u) ** 2 + (y - v) ** 2) / (2 * sigma * sigma))
+    mx = acc.max()
+    return np.zeros((H, W), np.uint8) if mx <= 0 else np.round(255.0 * acc / mx).astype(np.uint8)
+
+
+def check_heatmaps(r, ep):
+    """P4-B: contact heatmap を contacts.csv と camera.json から作り直して照合"""
+    cid = ep["episode"]["candidate_id"]
+    cam = ep["camera"]
+    H, W = cam["height"], cam["width"]
+    meta = ep["contact_heatmaps"]
+    tgt = ep["planned"]["target"]["name"]
+    sec = (ep["scene"].get("task") or {}).get("secondary_object", "SecondObject")
+    tol = meta.get("touch_tolerance_m", 0.001)
+    _, c = ep["contacts"]
+    n = len(c["step"]) if c else 0
+    pt, ps = [], []
+    for i in range(n):
+        if c["event"][i] == "exit" or not (float(c["min_separation"][i]) <= tol):
+            continue
+        body, bk, other, ok = c["body"][i], c["body_kind"][i], c["other"][i], c["other_kind"][i]
+        to_t = bk == "object" and body == tgt and ok == "robot_link"
+        to_s = (bk == "object" and body == sec and ok == "robot_link") or \
+               (bk == "object" and ok == "object" and {body, other} == {tgt, sec})
+        if not (to_t or to_s):
+            continue
+        uv, z = project(cam, [[float(c["px"][i]), float(c["py"][i]), float(c["pz"][i])]])
+        if z[0] <= 0:
+            continue
+        (pt if to_t else ps).append(uv[0])
+    for name, pts, img in [("target", pt, ep["heatmap_target"]), ("secondary", ps, ep["heatmap_secondary"])]:
+        ref = _heat(pts, W, H, meta["sigma_px"])
+        d = int(np.abs(ref.astype(int) - img.astype(int)).max())
+        r.check(f"{cid} heatmap: {name} を contacts から作り直して一致(差 ≤ 2)", d <= 2 and len(pts) == meta[name]["rows"],
+                f"最大差 {d}, 行 {len(pts)} vs {meta[name]['rows']}")
+    lab = ep["final"]["labels"]
+    r.check(f"{cid} heatmap: target が空でない ⇔ target_contact", bool(ep["heatmap_target"].any()) == bool(lab["target_contact"]))
+    if lab.get("secondary_applicable", True):
+        r.check(f"{cid} heatmap: secondary が空でない ⇔ secondary_collision",
+                bool(ep["heatmap_secondary"].any()) == bool(lab["secondary_collision"]))
+    else:
+        r.check(f"{cid} heatmap: Task A の secondary は空", not ep["heatmap_secondary"].any())
+
+
 def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
     cid = ep["episode"]["candidate_id"]
     cam = ep["camera"]
@@ -242,10 +367,10 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
     r.check(f"{cid} 投影: target_mask の画素数 = final_state 記録値", int(fm.sum()) == ep["final"]["target_mask"]["pixels"],
             f"{int(fm.sum())} vs {ep['final']['target_mask']['pixels']}")
 
-    # ---- C. 投影: EEF raster の点 vs EEF numeric
+    # ---- C. 投影: EEF raster の点 vs EEF numeric(骨格線の古いデータだけ)
     _, eef = ep["eef_numeric"]
     worst, n = 0.0, 0
-    for k, s in enumerate(steps):
+    for k, s in enumerate(steps if "eef_depth" not in ep else []):
         uv, z = project(cam, [eef["tcp_x"][s], eef["tcp_y"][s], eef["tcp_z"][s]])
         u, vv = uv[0]
         if z[0] <= 0 or not (3 <= u < W - 3 and 3 <= vv < H - 3):
@@ -255,7 +380,12 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
             worst = float("inf"); break
         worst = max(worst, float(np.hypot(xs.mean() - u, ys.mean() - vv)))
         n += 1
-    r.check(f"{cid} 投影: EEF raster の点の中心 vs EEF numeric ≤ {tol_px}px", n > 0 and worst <= tol_px, f"最大 {worst:.3f}px({n} 枚)")
+    if "eef_depth" in ep:
+        check_mesh_raster(r, ep, steps)
+    else:
+        r.check(f"{cid} 投影: EEF raster の点の中心 vs EEF numeric ≤ {tol_px}px", n > 0 and worst <= tol_px, f"最大 {worst:.3f}px({n} 枚)")
+    if "contact_heatmaps" in ep:
+        check_heatmaps(r, ep)
 
     # ---- D. ラベル vs contacts
     _, c = ep["contacts"]

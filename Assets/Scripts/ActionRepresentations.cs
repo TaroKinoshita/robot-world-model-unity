@@ -10,8 +10,10 @@ using UnityEngine.Experimental.Rendering;
 [System.Serializable]
 public class ActionRasterSettings
 {
-    [Tooltip("何ステップごとに画像を作るか(dt 0.02 s × 5 = 10 Hz)。最後のステップは必ず作る")]
+    [Tooltip("何ステップごとに画像を作るか(dt 0.02 s × 5 = 10 Hz)。最後のステップは必ず作る。rasterFrames > 0 のときは使わない")]
     public int rasterStride = 5;
+    [Tooltip("P4-B: 画像を何枚作るか(最初と最後を含めて等間隔)。0 なら rasterStride を使う")]
+    public int rasterFrames = 25;
     public float eefRadiusPx = 3f;          // EEF の点の半径
     public float bodyLineRadiusPx = 1.5f;   // 腕の線の太さ(半径)
     public float bodyJointRadiusPx = 2.5f;  // 関節の点の半径
@@ -30,6 +32,13 @@ public static class ActionRepresentations
     public static void Write(ArmKinematics kin, PlannedTrajectory tr, Camera cam, string candDir,
                              ActionRasterSettings s, string sceneId, string cid)
     {
+        Write(kin, tr, cam, candDir, s, sceneId, cid, null);
+    }
+
+    /// <summary>P4-B: rr があれば、raster を骨格線ではなくメッシュの本描画(マスク + depth)にする</summary>
+    public static void Write(ArmKinematics kin, PlannedTrajectory tr, Camera cam, string candDir,
+                             ActionRasterSettings s, string sceneId, string cid, RobotRasterizer rr)
+    {
         string dir = Path.Combine(candDir, "actions");
         if (Directory.Exists(dir)) Directory.Delete(dir, true);   // 前の実行の画像を消す
         string eefDir = Path.Combine(dir, "eef_raster");
@@ -45,11 +54,26 @@ public static class ActionRepresentations
         var eefImg = new byte[W * H];
         var bodyImg = new byte[W * H];
         int stride = Mathf.Max(1, s.rasterStride);
+        var rasterSet = new HashSet<int>();
+        int nSteps = tr.q.Count;
+        if (s.rasterFrames > 0)
+        {
+            int F = Mathf.Min(s.rasterFrames, nSteps);
+            for (int f = 0; f < F; f++) rasterSet.Add(F == 1 ? nSteps - 1 : Mathf.RoundToInt((float)f * (nSteps - 1) / (F - 1)));
+        }
+        else
+            for (int i = 0; i < nSteps; i++) if (i % stride == 0 || i == nSteps - 1) rasterSet.Add(i);
+        string eefDepthDir = Path.Combine(dir, "eef_depth"), bodyDepthDir = Path.Combine(dir, "fullbody_depth");
+        if (rr != null) { Directory.CreateDirectory(eefDepthDir); Directory.CreateDirectory(bodyDepthDir); }
+        var depthBuf = new float[W * H];
+        int L = kin.LinkNames.Length;
+        var lpos = new Vector3[L]; var lrot = new Quaternion[L];
 
         var eef = new StringBuilder("step,t,phase,tcp_x,tcp_y,tcp_z,rot_x,rot_y,rot_z,rot_w,gripper_open\n");
         var body = new StringBuilder("step,t,phase," +
             string.Join(",", kin.JointNames.Select(n => "q_" + n)) + "," +
-            string.Join(",", kin.KeypointNames.SelectMany(n => new[] { n + "_x", n + "_y", n + "_z" })) + "\n");
+            string.Join(",", kin.KeypointNames.SelectMany(n => new[] { n + "_x", n + "_y", n + "_z" })) + "," +
+            string.Join(",", kin.KeypointNames.SelectMany(n => new[] { n + "_rx", n + "_ry", n + "_rz", n + "_rw" })) + "\n");
         var rasterSteps = new List<int>();
 
         for (int i = 0; i < tr.q.Count; i++)
@@ -67,9 +91,25 @@ public static class ActionRepresentations
             body.Append(i).Append(',').Append(N(tr.t[i])).Append(',').Append(tr.phase[i]);
             foreach (var v in q) body.Append(',').Append(N(v));
             foreach (var p in pts) body.Append(',').Append(N(p.x)).Append(',').Append(N(p.y)).Append(',').Append(N(p.z));
+            // P4-B: 各キーポイントの向き(リンクの回転。TCP は tool の回転)
+            kin.LinkPoses(q, lpos, lrot);
+            for (int k = 0; k < K; k++)
+            {
+                Quaternion qr = k < L ? lrot[k] : r;
+                body.Append(',').Append(N(qr.x)).Append(',').Append(N(qr.y)).Append(',').Append(N(qr.z)).Append(',').Append(N(qr.w));
+            }
             body.Append('\n');
 
-            if (i % stride == 0 || i == tr.q.Count - 1)
+            if (rasterSet.Contains(i) && rr != null)
+            {
+                string name = $"step_{i:D4}.png";
+                rr.Render(q, cam, W, H, true, depthBuf);
+                WriteMaskDepth(depthBuf, W, H, Path.Combine(eefDir, name), Path.Combine(eefDepthDir, name));
+                rr.Render(q, cam, W, H, false, depthBuf);
+                WriteMaskDepth(depthBuf, W, H, Path.Combine(bodyDir, name), Path.Combine(bodyDepthDir, name));
+                rasterSteps.Add(i);
+            }
+            else if (rasterSet.Contains(i))
             {
                 for (int k = 0; k < K; k++) vis[k] = Project(cam, pts[k], H, out uv[k]);
                 System.Array.Clear(eefImg, 0, eefImg.Length);
@@ -92,6 +132,8 @@ public static class ActionRepresentations
         File.WriteAllText(Path.Combine(dir, "eef_numeric.csv"), eef.ToString(), utf8);
         File.WriteAllText(Path.Combine(dir, "fullbody_numeric.csv"), body.ToString(), utf8);
 
+        if (rr != null) { WriteMetaV2(kin, tr, dir, s, sceneId, cid, W, H, rasterSteps, rr); return; }
+
         string meta = "{\n" +
             "  \"schema\": \"action_representations_v1\",\n" +
             $"  \"scene_id\": {Q(sceneId)},\n" +
@@ -111,8 +153,50 @@ public static class ActionRepresentations
         File.WriteAllText(Path.Combine(dir, "actions_meta.json"), meta, utf8);
     }
 
+    // P4-B: マスク(8bit、255 = ロボット)と depth(16bit、mm、0 = 何も無い)
+    static void WriteMaskDepth(float[] depth, int W, int H, string maskPath, string depthPath)
+    {
+        var mask = new byte[W * H];
+        var dmm = new ushort[W * H];
+        for (int y = 0; y < H; y++)
+            for (int x = 0; x < W; x++)
+            {
+                float z = depth[y * W + x];
+                if (z <= 0f) continue;
+                int o = (H - 1 - y) * W + x;   // PNG エンコーダは下の行から並べる前提
+                mask[o] = 255;
+                dmm[o] = (ushort)Mathf.Clamp(Mathf.RoundToInt(z * 1000f), 1, 65535);
+            }
+        File.WriteAllBytes(maskPath, ImageConversion.EncodeArrayToPNG(mask, GraphicsFormat.R8_UNorm, (uint)W, (uint)H));
+        File.WriteAllBytes(depthPath, ImageConversion.EncodeArrayToPNG(dmm, GraphicsFormat.R16_UNorm, (uint)W, (uint)H));
+    }
+
+    static void WriteMetaV2(ArmKinematics kin, PlannedTrajectory tr, string dir, ActionRasterSettings s, string sceneId, string cid,
+                            int W, int H, List<int> rasterSteps, RobotRasterizer rr)
+    {
+        string meta = "{\n" +
+            "  \"schema\": \"action_representations_v2\",\n" +
+            $"  \"scene_id\": {Q(sceneId)},\n" +
+            $"  \"candidate_id\": {Q(cid)},\n" +
+            "  \"source\": \"planned_trajectory.json (planned, not executed)\",\n" +
+            $"  \"dt\": {N(tr.dt)},\n" +
+            $"  \"num_steps\": {tr.q.Count},\n" +
+            "  \"frames\": {\"world\": \"Unity world: left-handed, Y-up, meters\", \"image\": \"same camera as ../../camera.json; OpenCV pixel convention (pixel (0,0) center = top-left pixel)\"},\n" +
+            "  \"eef_numeric\": {\"file\": \"eef_numeric.csv\", \"point\": \"TCP (midpoint of finger pads)\", \"rotation\": \"tool link rotation, quaternion xyzw\", \"gripper_open\": \"1 (constant; fingers are held closed at their initial angle, see planned_trajectory.json gripper)\"},\n" +
+            "  \"fullbody_numeric\": {\"file\": \"fullbody_numeric.csv\", \"joints_rad\": [" + string.Join(", ", kin.JointNames.Select(Q)) + "], " +
+            "\"keypoints\": [" + string.Join(", ", kin.KeypointNames.Select(Q)) + "], \"keypoint_definition\": \"link origins along the chain root -> tool, then TCP\", " +
+            "\"rotations\": \"<keypoint>_rx/_ry/_rz/_rw = link rotation (TCP: tool rotation), quaternion xyzw, world frame\"},\n" +
+            $"  \"eef_raster\": {{\"mask_dir\": \"eef_raster\", \"depth_dir\": \"eef_depth\", \"width\": {W}, \"height\": {H}, \"parts\": \"gripper meshes only (links outside the arm chain)\", \"triangles\": {rr.EefTriangleCount}}},\n" +
+            $"  \"fullbody_raster\": {{\"mask_dir\": \"fullbody_raster\", \"depth_dir\": \"fullbody_depth\", \"width\": {W}, \"height\": {H}, \"parts\": \"all visible robot meshes\", \"triangles\": {rr.TriangleCount}}},\n" +
+            "  \"raster_encoding\": {\"mask\": \"8-bit gray PNG, 255 = robot, 0 = background\", \"depth\": \"16-bit gray PNG, camera-frame z (forward distance) in mm, 0 = background\", " +
+            "\"renderer\": \"CPU z-buffer rasterization of the visual meshes at the planned joint angles (no scene objects, no occlusion by them); pixel centers; depth interpolated in 1/z\"},\n" +
+            $"  \"raster_frames\": {rasterSteps.Count},\n" +
+            "  \"raster_steps\": [" + string.Join(", ", rasterSteps) + "]\n}\n";
+        File.WriteAllText(Path.Combine(dir, "actions_meta.json"), meta, new UTF8Encoding(false));
+    }
+
     // world → OpenCV 規約のピクセル座標。カメラの前にあれば true
-    static bool Project(Camera cam, Vector3 w, int H, out Vector2 uv)
+    public static bool Project(Camera cam, Vector3 w, int H, out Vector2 uv)
     {
         Vector3 sp = cam.WorldToScreenPoint(w);                // 左下原点、ピクセルの角が整数
         uv = new Vector2(sp.x - 0.5f, (H - sp.y) - 0.5f);

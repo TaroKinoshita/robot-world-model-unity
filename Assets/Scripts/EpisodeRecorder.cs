@@ -81,6 +81,11 @@ public class EpisodeRecorder : MonoBehaviour
     };
     public PlannerSettings planner = new PlannerSettings();
     public ActionRasterSettings actions = new ActionRasterSettings();
+    [Tooltip("P4-B: action の画像を骨格線ではなく、メッシュの本描画(マスク + depth)にする")]
+    public bool useMeshRaster = true;
+    [Tooltip("P4-B: contact heatmap のガウスの幅(px)")]
+    public float contactHeatmapSigmaPx = 2f;
+    RobotRasterizer rasterizer;
     [Header("Execution (5. 実行)")]
     public DriveSettings drives = new DriveSettings();
     [Tooltip("軌道の最後のあと、物体が止まるまで記録を続けるステップ数")]
@@ -204,7 +209,15 @@ public class EpisodeRecorder : MonoBehaviour
         // 運動学は初期姿勢(指は RobotInitialPose の角度)で作る
         kin = ArmKinematics.Build(robotRoot, toolLinkName, armJointNames, fingerPadA, fingerPadB, out kinError);
         if (kin == null) Debug.LogError($"[EpisodeRecorder] 運動学を作れない: {kinError}");
-        else kin.GripperPointsLocal = CollectGripperPoints();
+        else
+        {
+            kin.GripperPointsLocal = CollectGripperPoints();
+            if (useMeshRaster)
+            {
+                rasterizer = RobotRasterizer.Build(kin, robotRoot);
+                Debug.Log($"[EpisodeRecorder] 本描画用のメッシュ: 三角形 {rasterizer.TriangleCount} 個(うちグリッパー {rasterizer.EefTriangleCount} 個)");
+            }
+        }
 
         string root = string.IsNullOrEmpty(outputRoot)
             ? Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Episodes"))
@@ -491,7 +504,7 @@ public class EpisodeRecorder : MonoBehaviour
             Directory.CreateDirectory(dir);
             WritePlannedJson(Path.Combine(dir, "planned_trajectory.json"), sceneId, cp.cid, cp.index, cp.spec, tr, cp.center, cp.half);
             WritePlannedCsv(Path.Combine(dir, "planned_trajectory.csv"), tr);
-            if (tr.ok) ActionRepresentations.Write(kin, tr, perceptionCamera.GetComponent<Camera>(), dir, actions, sceneId, cp.cid);
+            if (tr.ok) ActionRepresentations.Write(kin, tr, perceptionCamera.GetComponent<Camera>(), dir, actions, sceneId, cp.cid, useMeshRaster ? rasterizer : null);
             if (tr.ok) results.Add(new PlanResult { cid = cp.cid, dir = dir, tr = tr, sceneId = sceneId, variant = v });
 
             index.Add("    {" +
@@ -992,7 +1005,70 @@ public class EpisodeRecorder : MonoBehaviour
         Debug.Log($"[EpisodeRecorder] {p.cid} 実行完了: {total} steps, reset err {resetErr:E1}, 追従誤差 最大 {maxJointErr * Mathf.Rad2Deg:F2}° / TCP 最大 {maxTcpErr * 1000f:F1} mm(RMS {rmsTcp * 1000f:F1} mm), " +
                   $"接触: robot-target 初回 step {firstRobotTarget}({robotTargetSteps} steps), target-物体 初回 {firstTargetOther}, robot-他物体 初回 {firstRobotOther}, robot-環境 初回 {firstRobotEnv}");
 
+        WriteContactHeatmaps(p, contactRows);
         yield return SaveFinal(p, firstRobotTarget, robotTargetSteps, firstTargetOther, firstRobotOther);
+    }
+
+    // ---------- P4-B: contact heatmap ----------
+
+    // 触れた接触(隙間 ≤ contactTouchTolerance)の点をカメラへ投影し、ガウスで足して最大 = 255 にする。
+    // target: ロボット → ターゲット、secondary: ロボット → secondary と ターゲット ↔ secondary(Task A では空)
+    void WriteContactHeatmaps(PlanResult p, List<string> contactRows)
+    {
+        var cam = perceptionCamera.GetComponent<Camera>();
+        int W = cam.pixelWidth, H = cam.pixelHeight;
+        string fDir = Path.Combine(p.dir, "final");
+        Directory.CreateDirectory(fDir);
+        var accT = new double[W * H]; var accS = new double[W * H];
+        int nT = 0, nS = 0;
+        string sec = secondaryObjectName;
+        foreach (var row in contactRows)
+        {
+            var f = row.Split(',');
+            if (f[2] == "exit" || f.Length < 17 || !IsTouching(f[16])) continue;
+            string body = f[3], bodyKind = f[4], other = f[5], otherKind = f[6];
+            bool toTarget = bodyKind == "object" && body == targetObjectName && otherKind == "robot_link";
+            bool toSec = (bodyKind == "object" && body == sec && otherKind == "robot_link") ||
+                         (bodyKind == "object" && otherKind == "object" && ((body == targetObjectName && other == sec) || (body == sec && other == targetObjectName)));
+            if (!toTarget && !toSec) continue;
+            var w = new Vector3(float.Parse(f[8], CultureInfo.InvariantCulture), float.Parse(f[9], CultureInfo.InvariantCulture), float.Parse(f[10], CultureInfo.InvariantCulture));
+            if (!ActionRepresentations.Project(cam, w, H, out var uv)) continue;
+            Splat(toTarget ? accT : accS, W, H, uv, contactHeatmapSigmaPx);
+            if (toTarget) nT++; else nS++;
+        }
+        WriteHeat(accT, W, H, Path.Combine(fDir, "contact_heatmap_target.png"));
+        WriteHeat(accS, W, H, Path.Combine(fDir, "contact_heatmap_secondary.png"));
+        File.WriteAllText(Path.Combine(fDir, "contact_heatmaps.json"),
+            "{\n  \"schema\": \"contact_heatmaps_v1\",\n" +
+            $"  \"target\": {{\"file\": \"contact_heatmap_target.png\", \"rows\": {nT}, \"pairs\": \"robot link -> target\"}},\n" +
+            $"  \"secondary\": {{\"file\": \"contact_heatmap_secondary.png\", \"rows\": {nS}, \"pairs\": \"robot link -> secondary, target <-> secondary\"}},\n" +
+            $"  \"sigma_px\": {N(contactHeatmapSigmaPx)}, \"radius_sigmas\": 3, \"touch_tolerance_m\": {N(contactTouchTolerance)},\n" +
+            "  \"definition\": \"each touching contact row (executed/contacts.csv, averaged contact point) is projected with the camera (OpenCV pixel convention) and splatted as exp(-d^2 / (2 sigma^2)); the sum is scaled so that its max = 255 (all 0 if no row)\"\n}\n",
+            new UTF8Encoding(false));
+    }
+
+    static void Splat(double[] acc, int W, int H, Vector2 c, float sigma)
+    {
+        int r = Mathf.CeilToInt(3f * sigma);
+        int cx = Mathf.RoundToInt(c.x), cy = Mathf.RoundToInt(c.y);
+        double s2 = 2.0 * sigma * sigma;
+        for (int y = Mathf.Max(0, cy - r); y <= Mathf.Min(H - 1, cy + r); y++)
+            for (int x = Mathf.Max(0, cx - r); x <= Mathf.Min(W - 1, cx + r); x++)
+            {
+                double dx = x - c.x, dy = y - c.y;
+                acc[y * W + x] += Math.Exp(-(dx * dx + dy * dy) / s2);
+            }
+    }
+
+    static void WriteHeat(double[] acc, int W, int H, string path)
+    {
+        double mx = 0; foreach (var v in acc) if (v > mx) mx = v;
+        var img = new byte[W * H];
+        if (mx > 0)
+            for (int y = 0; y < H; y++)
+                for (int x = 0; x < W; x++)
+                    img[(H - 1 - y) * W + x] = (byte)Math.Round(255.0 * acc[y * W + x] / mx);
+        File.WriteAllBytes(path, ImageConversion.EncodeArrayToPNG(img, UnityEngine.Experimental.Rendering.GraphicsFormat.R8_UNorm, (uint)W, (uint)H));
     }
 
     // ---------- 6. final ----------

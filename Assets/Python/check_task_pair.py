@@ -64,7 +64,9 @@ def check_plans(r, A, B, cids):
         r.check(f"{cid} action: actions_meta.json が scene_id 以外同一",
                 _drop(_json(a / "actions" / "actions_meta.json")) == _drop(_json(b / "actions" / "actions_meta.json")))
         diff = []
-        for sub in ["eef_raster", "fullbody_raster"]:
+        for sub in ["eef_raster", "fullbody_raster", "eef_depth", "fullbody_depth"]:
+            if not (a / "actions" / sub).is_dir() and not (b / "actions" / sub).is_dir():
+                continue   # 古いデータ(depth なし)
             na = sorted(p.name for p in (a / "actions" / sub).glob("*.png"))
             nb = sorted(p.name for p in (b / "actions" / sub).glob("*.png"))
             if na != nb:
