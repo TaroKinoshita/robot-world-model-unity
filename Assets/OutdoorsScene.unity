@@ -7923,7 +7923,7 @@ Transform:
   m_GameObject: {fileID: 596438828}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0.12, y: 0.853, z: 0.2}
+  m_LocalPosition: {x: -0.24, y: 0.853, z: -0.03}
   m_LocalScale: {x: 0.096, y: 0.08, z: 0.096}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -18887,6 +18887,10 @@ MonoBehaviour:
   sceneIndex: 0
   seed: 0
   outputRoot: 
+  generateTaskPair: 1
+  taskVariant: 1
+  pairIndex: 0
+  secondaryObjectName: SecondObject
   settleFixedSteps: 100
   settleMaxDisplacement: 0.001
   settleMaxSpeed: 0.001
@@ -18909,10 +18913,11 @@ MonoBehaviour:
   targetObjectName: Target
   numCandidates: 2
   candidateSpecs:
-  - note: push sideways away from SecondObject (-X)
+  - note: push toward -X (goal side); arm stays clear of SecondObject
     pushAngleDeg: -90
     pushLength: 0.1
-  - note: push toward SecondObject
+  - note: push at 130 deg; in Task B the upper arm grazes SecondObject during transfer
+      (hand path unchanged)
     pushAngleDeg: 130
     pushLength: 0.1
   planner:
