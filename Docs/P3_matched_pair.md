@@ -115,3 +115,12 @@ elbow-down の前腕が天板の奥の端を下からくぐる形になり、天
 （1 step = 物理 1 ステップ 0.02 s。どれも机とは 10 cm 以上離れている）
 
 → 6 方向中 5 方向で、手首の反転ペアが作れる。肘は約 20 cm 違う。ただし「片方だけ衝突」するかどうかは secondary の置き場所しだいで、1 つの置き場所ですべてのペアを片方だけ衝突させるのは無理。
+
+## 7. 決定（2026-10-04、Taro）
+
+- **H5 の matched pair は「同じ手先経路を、別の IK 解（手首の反転：wrist-down / wrist-up、どちらも elbow-up）で実行する 2 候補」にする。** 今のシーン（机・カメラ・ロボットの置き方）のまま量産する。
+- elbow-up / elbow-down は使わない（理由は §1・§5：今の配置では elbow-down の肘が天板より下を通る）。
+- 論文・中間報告での言い方（案）：
+  - matched pair: two candidates that share the same end-effector path (TCP position and orientation; max difference < 0.1 mm) but are executed with different inverse-kinematics solutions (wrist-down vs. wrist-up, both elbow-up), so that the forearm and wrist differ by about 20 cm.
+  - H5: Full-body representations distinguish matched-pair candidates (same end-effector path, different arm configuration) more accurately than end-effector-only representations.
+  - elbow-down was not used because, with the robot mounted at table height, the elbow of the elbow-down solution passes below the tabletop.
