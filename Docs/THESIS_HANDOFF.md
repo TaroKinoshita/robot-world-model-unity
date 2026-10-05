@@ -6,6 +6,7 @@
   - 新しいチャットの最初に、このファイルを丸ごと貼る
   - Claude はこれを「現時点の正」として扱う。ここに書いていない数値・設定は推測せず、Taro に確認する
 - 追記（2026-10-05 午後）：P6（バッチ実行）完了。§6.9・§8・§12・§14.2 を更新
+- 追記（2026-10-06）：P7（20 シーンの点検）の結果を §7.5 に追加
 - この版で変えたこと：
   - TODO6（UR5e）、P0〜P5 の結果を全部反映した
   - 現在の仕様（§5〜§7）と、全期間の経緯（§9）を 1 本にまとめた
@@ -747,6 +748,22 @@ BatchRunner（Editor、EditorApplication.update で動く）
 
 ---
 
+### 7.5 P7：20 シーンの量産と点検（2026-10-06、git `feff9e2`）
+
+- 出力：`Episodes/_p7_20scenes/`（seed 4〜23、scene_0000〜0039、640 episode）。点検は `Assets/Python/inspect_batch.py` → `inspection.md/.json`
+- バッチ：20/20 成功、生成の失敗 0、Play 中央 7.9 分。Python の検証は 16/20 PASS（FAIL 4 は全部「円柱がターゲットを隠す」、下の 2）
+
+| 点検項目 | 結果 | 判定 |
+|---|---|---|
+| goal を種類だけで当てる | 基準 64% → 種類だけで 93%（ゴール方向 89% True、ほかは 3〜5%） | 偏りが強い |
+| 衝突を種類だけで当てる | 基準 76% → 79%。どの種類も 0 / 100% ではない | パイロットより改善、OK |
+| matched pair の「片方だけ衝突」 | 40 組中 28（1 組 = 12 シーン、2 組 = 8 シーン）。両方 1・どちらも 11 | OK |
+| 円柱の高さ | 32 cm が 19/20、34 cm が 1 | 偏り（低い方から試して最初に見つかった高さを使うため。24〜30 cm は置ける場所がない） |
+| 円柱がターゲットを隠す | 初期画像で半分隠れる 2 シーン（scene_0035・0037、IoU 0.57・0.60）。最終で半分以上隠れる 30/320 本、全部隠れる 3 本 | 要修正（robot-free 初期画像にターゲットが写らないと入力が壊れる） |
+| 追従誤差（TCP 最大） | 中央 2.0・95% 2.9・最大 8.3 mm。5 mm 超 4 本（3 本は c003 = mp1 の wrist-up） | ほぼ OK、外れ値だけ要確認 |
+| 倒れた・ロボ↔机・A/B 不安定 | 0・0・0 | OK |
+| 外した候補 | near_base 1038・secondary_too_far 150・joint_step 71・ik_failed 15 | 無駄は多いが失敗はなし |
+
 ## 8. スクリプト一覧
 
 Unity（`Assets/Scripts/`）：
@@ -778,6 +795,7 @@ Python（`Assets/Python/`）：
 | `check_verification_a.py`・`check_verification_b.py` | 検証 A・B |
 | `bench_training_cost.py`・`bench_data_loading.py` | P1.5 の計測 |
 | `run_pipeline.py` | P6：1 ペア分の 4 本を順に回して、ログと結果 JSON を書く |
+| `inspect_batch.py` | P7：量産データの偏りの点検 → `<root>/inspection.md/.json` |
 
 Editor（`Assets/Editor/`）：`BatchRunner.cs`（P6、`Tools > P6 Batch`）
 
