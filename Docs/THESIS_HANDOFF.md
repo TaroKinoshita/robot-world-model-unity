@@ -7,6 +7,7 @@
   - Claude はこれを「現時点の正」として扱う。ここに書いていない数値・設定は推測せず、Taro に確認する
 - 追記（2026-10-05 午後）：P6（バッチ実行）完了。§6.9・§8・§12・§14.2 を更新
 - 追記（2026-10-06）：P7（20 シーンの点検）の結果を §7.5 に追加
+- 追記（2026-10-12）：P9 = `main` を `63447a4` まで進めて tag `p8-complete`。P10（学習用データの読み込み）を §7.7 に追加
 - 追記（2026-10-12）：P8（偏りの修正と再点検）を §7.6 に追加。候補の並びは c000〜003 matched pair、c004〜006 ゴール方向、c007〜009 ゴールの縁、c010〜012 ランダム、c013〜015 円柱の方向
 - この版で変えたこと：
   - TODO6（UR5e）、P0〜P5 の結果を全部反映した
@@ -787,6 +788,24 @@ BatchRunner（Editor、EditorApplication.update で動く）
 | 倒れた・ロボ↔机 | 0・0 | 0・0 |
 
 - 追従誤差の外れ値は、腕が円柱に当たって押し戻された瞬間（P7 の c003 で確認：descend の step 228 付近、上腕の遅れ 0.7°、同じ step で前腕・手首 1 が円柱に接触）
+
+### 7.7 P10：学習用データの読み込み（2026-10-12）
+
+- コードはプロジェクト直下の `Learning/`（Unity の外、.meta なし）。Windows の Python 3.11（torch 2.5.1+cu121・cv2・h5py 3.15）で動く
+  - `wm_cache.py`：episode → HDF5 1 ファイル（既定 `<root>/_cache/wm_128x25.h5`、Episodes の中なので git に入らない）
+  - `wm_dataset.py`：`WMDataset(cache, rep, task, split)`・`make_splits()`・`prepare_batch()`
+  - `test_wm_dataset.py`：検証と速度測定 → `<cache>_check.json`
+- キャッシュの中身：
+  - 画像は 256 → 128 px。mask・RGB・heatmap は面積平均、depth は 2×2 の中で 0 でない画素の平均（mm の uint16）
+  - action は 25 枚のまま。A/B で同じなので、ペア × 候補ごとに 1 回だけ保存（保存前に A/B の CSV がバイト単位で同じか確かめる）
+  - 数値の action は全 step（50 Hz）のまま、最長（P8 の 20 シーンで 604）に合わせて 0 埋め＋長さ
+  - 予測ターゲット：最終位置・goal・衝突（A は -1）・倒れた・最終 mask・heatmap 2 種・最初の接触点（ロボット → ターゲット、触れた接触）
+  - 入力の共通部分：robot-free 初期画像（RGB＋depth）、ゴールの中心（world の xz と画面上の位置）
+  - lzf 圧縮・1 件ずつの chunk。P8 の 20 シーン（640 episode）で 76 MB・変換 37 秒 → 1 万 episode で約 1.2 GB・約 10 分の見込み
+- 分け方：ペア（= seed、Task A/B 一緒）単位で train / val / test = 0.7 / 0.15 / 0.15、seed 0。`<cache>_splits.json` に保存（一度作ったら固定）。同じシーンの 16 候補（matched pair を含む）は必ず同じ側
+- 画像の action は Dataset から整数のまま（`action_mask` uint8・`action_depth` int16 mm）出して、`prepare_batch()` で GPU に送ってから float にする（CPU で float にすると 200 件/s 程度で詰まった）
+- 検証（`_p8_20scenes`）：23/23 PASS（件数・mask の面積の差 中央 0.02%・ラベル一致・128 px の K で TCP 投影 297/300・初期 depth ±0.5 mm・A/B 共有・分割の重なりなし・4 表現 × A/B の形）
+- 速度（2 epoch 目、GPU に送るまで）：full_img 363 件/s（workers 0）・701（workers 4）・941（in_memory）、full_num 831〜2109 件/s。P1.5 の仮モデル（128 px・25 枚・batch 16 で 0.059 s ≒ 270 件/s）より速いので、読み込みは詰まらない
 
 ## 8. スクリプト一覧
 
