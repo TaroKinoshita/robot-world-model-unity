@@ -1,0 +1,312 @@
+{
+  "fig1": {
+    "scene": "scene_0001",
+    "tcp_max_mm": 0.0728971036380109,
+    "forearm_mean_cm": 21.26451187921078,
+    "wrist1_mean_cm": 19.998558081317707,
+    "collides": "c001",
+    "first_contact_step": 301
+  },
+  "fig2": {
+    "old_n": 16,
+    "old_tilted_gt30": 16,
+    "old_drop_ge20": 0,
+    "old_goal_true": 8,
+    "old_goal_true_and_tilted": 8,
+    "new_n": 640,
+    "new_tilted_gt30": 0,
+    "new_max_tilt": 0.27891559669238414
+  },
+  "fig3": {
+    "task_b_episodes": 320,
+    "with_reported_contact": 111,
+    "touching": 98,
+    "reported_not_touching": 13,
+    "max_gap_mm": 11.51049
+  },
+  "fig4": {
+    "pgs_n": 45,
+    "pgs_max_mm": 12.6,
+    "pgs_gt1": 2,
+    "pgs_zero": 43,
+    "tgs_n": 222,
+    "tgs_max_mm": 2.1,
+    "tgs_gt1": 2,
+    "tgs_zero": 220,
+    "pgs_sorted_top": [
+      0.0,
+      1.1,
+      12.6
+    ]
+  },
+  "fig5": {
+    "P7: before (goal-directed 6)": {
+      "matched pair": {
+        "False/False": 48,
+        "False/True": 28,
+        "True/False": 2,
+        "True/True": 2
+      },
+      "toward goal": {
+        "True/False": 105,
+        "True/True": 2,
+        "False/False": 12,
+        "False/True": 1
+      },
+      "goal edge": {},
+      "random": {
+        "False/False": 67,
+        "False/True": 13,
+        "True/False": 4
+      },
+      "toward cylinder": {
+        "False/True": 31,
+        "True/True": 1,
+        "False/False": 4
+      }
+    },
+    "P8: now (3 goal + 3 goal-edge)": {
+      "matched pair": {
+        "False/False": 48,
+        "False/True": 28,
+        "True/False": 2,
+        "True/True": 2
+      },
+      "toward goal": {
+        "True/False": 44,
+        "False/False": 5,
+        "False/True": 4,
+        "True/True": 7
+      },
+      "goal edge": {
+        "True/False": 28,
+        "False/True": 3,
+        "True/True": 3,
+        "False/False": 26
+      },
+      "random": {
+        "False/True": 11,
+        "False/False": 57,
+        "True/False": 6,
+        "True/True": 1
+      },
+      "toward cylinder": {
+        "False/True": 39,
+        "False/False": 6
+      }
+    }
+  },
+  "shortcut": {
+    "P7": {
+      "goal(A)": {
+        "baseline": 0.6375,
+        "by_type": 0.93125
+      },
+      "goal(B)": {
+        "baseline": 0.6375,
+        "by_type": 0.93125
+      },
+      "衝突(B)": {
+        "baseline": 0.75625,
+        "by_type": 0.84375
+      }
+    },
+    "P8": {
+      "goal(A)": {
+        "baseline": 0.709375,
+        "by_type": 0.846875
+      },
+      "goal(B)": {
+        "baseline": 0.709375,
+        "by_type": 0.846875
+      },
+      "衝突(B)": {
+        "baseline": 0.69375,
+        "by_type": 0.796875
+      }
+    }
+  },
+  "fig6": {
+    "p7_worst_scene": "scene_0035",
+    "p7_worst_initial_iou": 0.569,
+    "P7": {
+      "height_cm": {
+        "32": 19,
+        "34": 1
+      },
+      "occlusion_final": {
+        "median": 1.0,
+        "lt50": 30,
+        "lt25": 17,
+        "zero": 3
+      },
+      "validation_failed": [
+        "scene_0009",
+        "scene_0027",
+        "scene_0035",
+        "scene_0037"
+      ]
+    },
+    "P8": {
+      "height_cm": {
+        "40": 6,
+        "32": 2,
+        "38": 3,
+        "36": 6,
+        "34": 3
+      },
+      "occlusion_final": {
+        "median": 1.0,
+        "lt50": 0,
+        "lt25": 0,
+        "zero": 0
+      },
+      "validation_failed": []
+    }
+  },
+  "pilot": {
+    "pilot3_P5": {
+      "scenes": 6,
+      "episodes": 96,
+      "goal_A": [
+        18,
+        48
+      ],
+      "goal_B": [
+        18,
+        48
+      ],
+      "coll_B": [
+        16,
+        48
+      ],
+      "robot_to_cyl": 7,
+      "target_to_cyl": 9,
+      "fell": 0,
+      "robot_table": 0,
+      "tracking_mm": {
+        "median": 1.9672242900000003,
+        "p95": 2.78213224,
+        "max": 2.78624566,
+        "over3": 0,
+        "over5": 0
+      },
+      "matched_pair": {
+        "pairs": 6,
+        "片方だけ": 3,
+        "どちらも当たらない": 3,
+        "per_scene_one_sided": {
+          "1": 3
+        },
+        "collided_branch": {
+          "wrist_down": 2,
+          "wrist_up": 1
+        }
+      },
+      "sim_unstable": [],
+      "validation_failed": [],
+      "pair_failed": [],
+      "height_cm": {
+        "32": 3
+      },
+      "batch": null,
+      "batch_failed": null,
+      "checks": {
+        "A": [
+          1740,
+          1740
+        ],
+        "B": [
+          1692,
+          1692
+        ],
+        "pair": [
+          321,
+          321
+        ]
+      }
+    },
+    "p8_20": {
+      "scenes": 40,
+      "episodes": 640,
+      "goal_A": [
+        93,
+        320
+      ],
+      "goal_B": [
+        93,
+        320
+      ],
+      "coll_B": [
+        98,
+        320
+      ],
+      "robot_to_cyl": 60,
+      "target_to_cyl": 40,
+      "fell": 0,
+      "robot_table": 0,
+      "tracking_mm": {
+        "median": 2.0100432450000003,
+        "p95": 2.8669216515,
+        "max": 7.867231969999999,
+        "over3": 10,
+        "over5": 3
+      },
+      "matched_pair": {
+        "pairs": 40,
+        "片方だけ": 28,
+        "どちらも当たらない": 11,
+        "両方": 1,
+        "per_scene_one_sided": {
+          "2": 9,
+          "1": 10,
+          "0": 1
+        },
+        "collided_branch": {
+          "wrist_up": 22,
+          "wrist_down": 8
+        }
+      },
+      "sim_unstable": [
+        [
+          "pair_0012",
+          "c005"
+        ],
+        [
+          "pair_0012",
+          "c008"
+        ]
+      ],
+      "validation_failed": [],
+      "pair_failed": [],
+      "height_cm": {
+        "40": 6,
+        "32": 2,
+        "38": 3,
+        "36": 6,
+        "34": 3
+      },
+      "batch": 20,
+      "batch_failed": 0,
+      "checks": {
+        "A": [
+          11600,
+          11600
+        ],
+        "B": [
+          11280,
+          11280
+        ],
+        "pair": [
+          2140,
+          2140
+        ]
+      },
+      "play_min": [
+        7.839779615402222,
+        8.066488265991211
+      ],
+      "cache_mb": 76.034108
+    }
+  }
+}
