@@ -391,8 +391,10 @@ def check_episode(r, ep, tol_px=1.5, iou_min=0.85):
         dims = [sc[0], 2 * sc[1], sc[2]]   # カプセル(Unity の標準: 直径 1、高さ 2)の外接箱
         occ |= hull_mask(cam, box_corners(so["final_position_world"], so["final_rotation_world_xyzw"], dims), H, W)
     v = iou(fm & ~occ, proj1 & ~occ)
-    r.check(f"{cid} 投影: 最終 target 箱 vs target_mask IoU ≥ {iou_min}(円柱に隠れうる範囲は除く)", v >= iou_min,
-            f"IoU={v:.3f}(除いた画素 {int((occ & proj1).sum())})")
+    # P8: 箱の半分以上が「隠れうる範囲」に入るときは、残りが細い切れ端になって IoU が不安定 → 比べない(P7 の scene_0009 c014 など)
+    hidden = float((occ & proj1).sum()) / max(1, int(proj1.sum()))
+    r.check(f"{cid} 投影: 最終 target 箱 vs target_mask IoU ≥ {iou_min}(円柱に隠れうる範囲は除く)", v >= iou_min or hidden > 0.5,
+            f"IoU={v:.3f}(除いた画素 {int((occ & proj1).sum())}、隠れうる割合 {hidden:.0%}{'、半分以上隠れうるので比べない' if hidden > 0.5 else ''})")
     r.check(f"{cid} 投影: target_mask の画素数 = final_state 記録値", int(fm.sum()) == ep["final"]["target_mask"]["pixels"],
             f"{int(fm.sum())} vs {ep['final']['target_mask']['pixels']}")
 

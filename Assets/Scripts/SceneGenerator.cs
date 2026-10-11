@@ -41,6 +41,12 @@ public class AutoSceneSettings
     public float secondaryNearTargetWeight = 0.05f;
     [Tooltip("円柱が、matched pair 以外の候補(計画済みのもの)の腕・手に当たると予測される数の上限")]
     public int maxOtherRobotHits = 3;
+    [Tooltip("P8: 単独候補のうち、ゴールの縁を狙う数(届くか届かないかギリギリ)。ゴール方向の候補(numGoalDirected)のあとに作る")]
+    public int numGoalEdge = 3;
+    [Tooltip("P8: ゴールの縁の候補で、押す向きをずらす量の絶対値(度)。角度でずらすか距離でずらすかは半々")]
+    public Vector2 goalEdgeAngleOffsetDeg = new Vector2(10f, 20f);
+    [Tooltip("P8: ゴールの縁の候補で、押す距離をずらす量の絶対値(m)。短すぎ・長すぎは半々")]
+    public Vector2 goalEdgeLengthOffset = new Vector2(0.015f, 0.045f);
     public float goalDirectedLengthSpread = 0.03f;
     [Tooltip("押す距離(m)。ゴール方向の候補は、ゴールまでの距離 ± goalDirectedLengthSpread")]
     public Vector2 pushLengthRange = new Vector2(0.05f, 0.12f);
@@ -61,8 +67,8 @@ public class AutoSceneSettings
 
     [Header("Secondary(Task B の円柱)")]
     public float secondaryRadius = 0.048f;
-    [Tooltip("円柱の高さの候補(m)。低い方から試して、片方だけ当たる置き場所が見つかった高さを使う")]
-    public Vector2 secondaryHeightRange = new Vector2(0.24f, 0.40f);
+    [Tooltip("円柱の高さの候補(m)。P8: seed で決まるランダムな順に試して、片方だけ当たる置き場所が見つかった高さを使う(低い方から試すと毎回 32 cm になった)")]
+    public Vector2 secondaryHeightRange = new Vector2(0.32f, 0.40f);
     public float secondaryHeightStep = 0.02f;
     [Tooltip("matched pair の片方の腕が円柱に重なる深さの範囲(m)")]
     public Vector2 armOverlapRange = new Vector2(0.003f, 0.010f);
@@ -74,6 +80,12 @@ public class AutoSceneSettings
     public float targetPathClearance = 0.03f;
     [Tooltip("ゴールの中心と円柱の中心の距離の下限(m)")]
     public float goalClearance = 0.06f;
+    [Tooltip("P8: カメラから見て、円柱がターゲット(初期位置)とゴールの手前に重ならないようにする")]
+    public bool avoidOcclusion = true;
+    [Tooltip("P8: 隠れの判定で、ゴールの位置の箱を xz 方向にこれだけ広げる(m、ゴールの半径)")]
+    public float occlusionGoalRadius = 0.03f;
+    [Tooltip("P8: 画面上の重なりの判定に足す余白(画面幅 = 1)")]
+    public float occlusionMarginView = 0.01f;
     public float gridStep = 0.01f;
 
     public int maxSceneAttempts = 20;
@@ -98,6 +110,7 @@ public class GeneratedScene
     public string placementPair, overlapBranch;
     public float armOverlap, otherClearance, handClear;
     public int sceneAttempts, plannedCandidates, rejectedCandidates;
+    public List<float> heightOrder = new List<float>();   // P8: 試した高さの順
     public Dictionary<string, int> rejectReasons = new Dictionary<string, int>();
     public List<string> placementLog = new List<string>();
 }
@@ -140,6 +153,34 @@ public static class SceneGenerator
             if (v.z <= 0f || v.x < s.viewMargin || v.x > 1f - s.viewMargin || v.y < s.viewMargin || v.y > 1f - s.viewMargin) return false;
         }
         return true;
+    }
+
+    // P8: 箱の 8 つの角を画面に投影した範囲(viewport)と、中心の奥行き
+    static Rect ViewRect(Context c, Vector3 center, Vector3 half, Quaternion rot, out float depth)
+    {
+        float x0 = float.PositiveInfinity, y0 = float.PositiveInfinity, x1 = float.NegativeInfinity, y1 = float.NegativeInfinity;
+        for (int i = 0; i < 8; i++)
+        {
+            var o = new Vector3((i & 1) == 0 ? -half.x : half.x, (i & 2) == 0 ? -half.y : half.y, (i & 4) == 0 ? -half.z : half.z);
+            var v = c.cam.WorldToViewportPoint(center + rot * o);
+            x0 = Mathf.Min(x0, v.x); x1 = Mathf.Max(x1, v.x); y0 = Mathf.Min(y0, v.y); y1 = Mathf.Max(y1, v.y);
+        }
+        depth = c.cam.WorldToViewportPoint(center).z;
+        return Rect.MinMaxRect(x0, y0, x1, y1);
+    }
+
+    // P8: 円柱(中心 cx, cz、高さ H)が、カメラから見てターゲットの初期位置かゴールの手前に重なるか
+    static bool Occludes(Context c, AutoSceneSettings s, float cx, float cz, float H, Vector3 tPos, Quaternion tRot, Vector3 goal)
+    {
+        if (!s.avoidOcclusion) return false;
+        var cyl = ViewRect(c, new Vector3(cx, c.tableTop + 0.5f * H, cz), new Vector3(s.secondaryRadius, 0.5f * H, s.secondaryRadius), Quaternion.identity, out float dCyl);
+        float m = s.occlusionMarginView;
+        cyl = Rect.MinMaxRect(cyl.xMin - m, cyl.yMin - m, cyl.xMax + m, cyl.yMax + m);
+        var t0 = ViewRect(c, new Vector3(tPos.x, c.targetCenterY, tPos.z), c.targetHalf, tRot, out float dT0);
+        if (dCyl < dT0 && cyl.Overlaps(t0)) return true;
+        float hxz = Mathf.Max(c.targetHalf.x, c.targetHalf.z) * 1.4142f + s.occlusionGoalRadius;   // 向きに関係なく箱が入る大きさ + ゴールの半径
+        var tg = ViewRect(c, new Vector3(goal.x, c.targetCenterY, goal.z), new Vector3(hxz, c.targetHalf.y, hxz), Quaternion.identity, out float dTg);
+        return dCyl < dTg && cyl.Overlaps(tg);
     }
 
     static PlannedTrajectory PlanSpec(Context c, Vector3 tPos, Quaternion tRot, CandidateSpec spec)
@@ -228,9 +269,31 @@ public static class SceneGenerator
             {
                 attempts++;
                 bool toGoal = singles < s.numGoalDirected;
-                float dir = toGoal ? gDir + U(rng, -s.goalDirectedAngleSpreadDeg, s.goalDirectedAngleSpreadDeg) : U(rng, -180f, 180f);
-                float len = toGoal ? Mathf.Clamp(gDist + s.goalLengthBias + U(rng, -s.goalDirectedLengthSpread, s.goalDirectedLengthSpread), 0.03f, 0.15f) : U(rng, s.pushLengthRange);
-                var spec = new CandidateSpec { note = toGoal ? "single, toward the goal" : "single, random direction", pushAngleDeg = dir, pushLength = len };
+                bool toEdge = !toGoal && singles < s.numGoalDirected + s.numGoalEdge;
+                float dir, len; string note;
+                if (toGoal)
+                {
+                    dir = gDir + U(rng, -s.goalDirectedAngleSpreadDeg, s.goalDirectedAngleSpreadDeg);
+                    len = Mathf.Clamp(gDist + s.goalLengthBias + U(rng, -s.goalDirectedLengthSpread, s.goalDirectedLengthSpread), 0.03f, 0.15f);
+                    note = "single, toward the goal";
+                }
+                else if (toEdge)
+                {
+                    // P8: ゴールの縁を狙う。向きをずらす(左右)か、距離をずらす(手前・奥)かを半々で選ぶ
+                    float sign = rng.Next(2) == 0 ? -1f : 1f;
+                    bool byAngle = rng.Next(2) == 0;
+                    dir = gDir + (byAngle ? sign * U(rng, s.goalEdgeAngleOffsetDeg) : U(rng, -5f, 5f));
+                    len = Mathf.Clamp(gDist + s.goalLengthBias + (byAngle ? 0f : sign * U(rng, s.goalEdgeLengthOffset)), 0.03f, 0.15f);
+                    note = byAngle ? (sign < 0 ? "single, near the goal edge (angle -)" : "single, near the goal edge (angle +)")
+                                   : (sign < 0 ? "single, near the goal edge (short)" : "single, near the goal edge (long)");
+                }
+                else
+                {
+                    dir = U(rng, -180f, 180f);
+                    len = U(rng, s.pushLengthRange);
+                    note = "single, random direction";
+                }
+                var spec = new CandidateSpec { note = note, pushAngleDeg = dir, pushLength = len };
                 if (!Feasible(c, s, g, tPos, tRot, spec, out var tr)) continue;
                 g.specs.Add(spec); trajs[spec] = tr; singles++;
             }
@@ -411,7 +474,13 @@ public static class SceneGenerator
                             WorldPoints(c, trD, handPts, true, yMax), WorldPoints(c, trU, handPts, true, yMax) };
         // ほかの候補(腕 + 手)の点。円柱がほとんど全部の候補の通り道に立たないようにする
         var otherLists = others.Select(tr => { var l = WorldPoints(c, tr, armPts, false, yMax); l.AddRange(WorldPoints(c, tr, handPts, true, yMax)); return l; }).ToList();
-        for (float H = s.secondaryHeightRange.x; H <= s.secondaryHeightRange.y + 1e-4f; H += s.secondaryHeightStep)
+        // P8: 高さは seed で決まるランダムな順に試す
+        var heights = new List<float>();
+        for (float H = s.secondaryHeightRange.x; H <= s.secondaryHeightRange.y + 1e-4f; H += s.secondaryHeightStep) heights.Add(H);
+        var hr = new System.Random(g.seed * 7919 + g.sceneAttempts * 31 + (down.matchedPairId ?? "").Sum(ch => (int)ch));
+        for (int i = heights.Count - 1; i > 0; i--) { int j = hr.Next(i + 1); float t = heights[i]; heights[i] = heights[j]; heights[j] = t; }
+        g.heightOrder = heights;
+        foreach (float H in heights)
             if (PlaceSecondaryAt(c, s, g, tPos, tRot, goal, down, up, maps, lists, H, otherLists)) { g.secondaryHeight = H; return true; }
         return false;
     }
@@ -430,7 +499,7 @@ public static class SceneGenerator
 
         // ---- 1) 格子で候補を集める(近似) ----
         var cands = new List<Cand>();
-        int gPath = 0, gGoal = 0, gHand = 0, gRange = 0, gView = 0;
+        int gPath = 0, gGoal = 0, gHand = 0, gRange = 0, gView = 0, gOcc = 0;
         float gBestOv = float.NegativeInfinity;
         float m = s.tableMargin + s.secondaryRadius;
         for (float x = s.tableXZ.xMin + m; x <= s.tableXZ.xMax - m; x += s.gridStep)
@@ -439,6 +508,7 @@ public static class SceneGenerator
                 var p2 = new Vector2(x, z);
                 if (SegDist2D(p2, a, b) < s.secondaryRadius + tRad + s.targetPathClearance) { gPath++; continue; }
                 if ((p2 - new Vector2(goal.x, goal.z)).magnitude < s.goalClearance + s.secondaryRadius) { gGoal++; continue; }
+                if (Occludes(c, s, x, z, H, tPos, tRot, goal)) { gOcc++; continue; }
                 float h = Mathf.Min(Clearance(s, handD, x, z, top, 0.1f), Clearance(s, handU, x, z, top, 0.1f));
                 if (h < s.handClearance - slack) { gHand++; continue; }
                 float cD = Clearance(s, armD, x, z, top, 0.1f), cU = Clearance(s, armU, x, z, top, 0.1f);
@@ -453,7 +523,7 @@ public static class SceneGenerator
                     break;
                 }
             }
-        if (cands.Count == 0) { g.placementLog.Add($"{down.matchedPairId} H{H * 100f:F0}cm: 格子の候補 0(通り道 {gPath}, ゴール {gGoal}, 手 {gHand}, 重なり {gRange}, 画面 {gView}, 片方だけの最大の重なり {gBestOv * 1000f:F0} mm)"); return false; }
+        if (cands.Count == 0) { g.placementLog.Add($"{down.matchedPairId} H{H * 100f:F0}cm: 格子の候補 0(通り道 {gPath}, ゴール {gGoal}, 隠れ {gOcc}, 手 {gHand}, 重なり {gRange}, 画面 {gView}, 片方だけの最大の重なり {gBestOv * 1000f:F0} mm)"); return false; }
 
         // ---- 2) 良さそうな順に、頂点とカプセルの距離で正確に測る ----
         var wArmD = lists[0]; var wArmU = lists[1]; var wHandD = lists[2]; var wHandU = lists[3];
@@ -494,6 +564,7 @@ public static class SceneGenerator
                 if ((p2 - new Vector2(goal.x, goal.z)).magnitude < s.goalClearance + s.secondaryRadius) continue;
                 var center = new Vector3(cx, c.tableTop + 0.5f * H, cz);
                 if (!InView(c, s, center, new Vector3(s.secondaryRadius, 0.5f * H, s.secondaryRadius), Quaternion.identity)) continue;
+                if (Occludes(c, s, cx, cz, H, tPos, tRot, goal)) continue;   // P8
                 int otherHits = 0;
                 foreach (var ol in otherLists) if (CapsuleClearance(ol, cx, cz, c.tableTop, H, s.secondaryRadius) < 0.002f) otherHits++;
                 if (otherHits > s.maxOtherRobotHits) { nOthers++; continue; }
@@ -532,6 +603,7 @@ public static class SceneGenerator
         sb.Append($"  \"secondary\": {{\"position_world\": {V(g.secondaryPos)}, \"radius_m\": {N(s.secondaryRadius)}, \"height_m\": {N(g.secondaryHeight)}, " +
                   $"\"placed_for_pair\": \"{g.placementPair}\", \"overlapping_branch\": \"{g.overlapBranch}\", \"arm_overlap_m\": {N(g.armOverlap)}, " +
                   $"\"other_branch_clearance_m\": {N(g.otherClearance)}, \"hand_clearance_m\": {N(g.handClear)}, \"predicted_other_robot_hits\": {g.otherRobotHits}, " +
+                  "\"height_order_m\": [" + string.Join(", ", g.heightOrder.Select(N)) + "], \"avoid_occlusion\": " + (s.avoidOcclusion ? "true" : "false") + ", " +
                   "\"method\": \"planned link poses x collider vertices (every 2nd step); xz grid to pre-select, then exact vertex-to-capsule distance\"},\n");
         sb.Append($"  \"attempts\": {{\"scene\": {g.sceneAttempts}, \"planned_candidates\": {g.plannedCandidates}, \"rejected_candidates\": {g.rejectedCandidates}, " +
                   $"\"reject_reasons\": {{{string.Join(", ", g.rejectReasons.Select(kv => $"\"{kv.Key}\": {kv.Value}"))}}}}},\n");

@@ -20,8 +20,8 @@ import statistics as stx
 from collections import Counter, defaultdict
 from pathlib import Path
 
-KINDS = ["matched_pair", "goal_dir", "random", "toward_secondary"]
-KIND_JA = {"matched_pair": "matched pair", "goal_dir": "ゴール方向", "random": "ランダム", "toward_secondary": "円柱の方向"}
+KINDS = ["matched_pair", "goal_dir", "goal_edge", "random", "toward_secondary"]
+KIND_JA = {"matched_pair": "matched pair", "goal_dir": "ゴール方向", "goal_edge": "ゴールの縁", "random": "ランダム", "toward_secondary": "円柱の方向"}
 
 
 def _json(p):
@@ -34,6 +34,8 @@ def kind_of(c):
         return "matched_pair"
     if "secondary" in note:
         return "toward_secondary"
+    if "goal edge" in note:
+        return "goal_edge"
     if "goal" in note:
         return "goal_dir"
     if "random" in note:
