@@ -7,7 +7,7 @@
   - Claude はこれを「現時点の正」として扱う。ここに書いていない数値・設定は推測せず、Taro に確認する
 - 追記（2026-10-05 午後）：P6（バッチ実行）完了。§6.9・§8・§12・§14.2 を更新
 - 追記（2026-10-06）：P7（20 シーンの点検）の結果を §7.5 に追加
-- 追記（2026-10-12）：P9 = `main` を `63447a4` まで進めて tag `p8-complete`。P10（学習用データの読み込み）を §7.7 に追加
+- 追記（2026-10-12）：P9 = `main` を `63447a4` まで進めて tag `p8-complete`。P10（学習用データの読み込み）を §7.7、P11（評価コード）を §7.8 に追加
 - 追記（2026-10-12）：P8（偏りの修正と再点検）を §7.6 に追加。候補の並びは c000〜003 matched pair、c004〜006 ゴール方向、c007〜009 ゴールの縁、c010〜012 ランダム、c013〜015 円柱の方向
 - この版で変えたこと：
   - TODO6（UR5e）、P0〜P5 の結果を全部反映した
@@ -806,6 +806,31 @@ BatchRunner（Editor、EditorApplication.update で動く）
 - 画像の action は Dataset から整数のまま（`action_mask` uint8・`action_depth` int16 mm）出して、`prepare_batch()` で GPU に送ってから float にする（CPU で float にすると 200 件/s 程度で詰まった）
 - 検証（`_p8_20scenes`）：23/23 PASS（件数・mask の面積の差 中央 0.02%・ラベル一致・128 px の K で TCP 投影 297/300・初期 depth ±0.5 mm・A/B 共有・分割の重なりなし・4 表現 × A/B の形）
 - 速度（2 epoch 目、GPU に送るまで）：full_img 363 件/s（workers 0）・701（workers 4）・941（in_memory）、full_num 831〜2109 件/s。P1.5 の仮モデル（128 px・25 枚・batch 16 で 0.059 s ≒ 270 件/s）より速いので、読み込みは詰まらない
+
+### 7.8 P11：評価コードの骨組み（2026-10-12）
+
+- `Learning/wm_eval.py`（評価）・`Learning/test_wm_eval.py`（仮の予測値で動作確認）
+- 予測ファイル：モデル 1 つ × 学習 seed 1 つ = npz（`ep`・`final_pos`・`goal`・`coll`、任意で `final_mask`・`contact_point`）。`save_predictions()` で書く
+- 指標（Task A/B 別、衝突系は B だけ）：
+
+| 指標 | 定義（今の実装） |
+|---|---|
+| pos_err_mm | 最終位置の誤差、XZ の距離（mm）の平均 |
+| goal_auprc・coll_auprc | AUPRC（sklearn の average_precision と一致を確認、同点はまとめる） |
+| mask_iou | 予測 ≥ 0.5、正解 ≥ 128 で 2 値化した IoU の平均（両方空は数えない） |
+| contact_err_mm | 最初の接触点（ロボット → ターゲット）の誤差。正解の接触がある episode だけ |
+| success_rate・coll_rate | シーンごとに score 最大の候補を選ぶ（A: P(goal)、B: P(goal)×(1−P(coll))、同点は候補番号の小さい方）。選んだ候補が goal かつ衝突なしの割合／衝突した割合 |
+| regret | 最良候補の成功（0/1）− 選んだ候補の成功。参考に dist_regret_mm（選んだ候補のゴール距離 − 衝突しない候補の最小） |
+| ranking_acc | シーン内の「成功」と「失敗」の組で、score の順が正しい割合（同点 0.5） |
+| h5_acc | 片方だけ衝突する matched pair で、衝突する方に高い衝突確率（同点 0.5） |
+| random_success・oracle_success | 下限（ランダム = シーン内の成功率）と上限（正解を知っている） |
+
+- bootstrap：評価するペア（シーン）を復元抽出。全モデル・全 seed・両 Task で同じ抽出（paired）。各抽出で seed ごとに指標を出して平均。95% CI はパーセンタイル（既定 2000 回）
+- 仮説（`judge_hypotheses`、proposal §2.6 どおり）：H1 は Task A の 3 指標（位置 3 mm・goal AUPRC 0.05・ranking 0.05）の低下の CI 上限がマージン以下で supported、どれかの下限がマージン超で rejected。H2・H5 は差の CI 下限 > 0。H3 は Task A/B × 範囲ごと。H4 は衝突率と regret の低下がどちらも CI 下限 > 0 かつ同じ形式で H2。H2・H5 は 2 形式の Holm 補正 p も出す（片側 p = 差 ≤ 0 の割合）
+- 動作確認（`_p8_20scenes` の 640 episode、仮モデル 4 表現 × 3 seed ＋ 完璧・ランダム・コピー、bootstrap 2000 回で約 50 秒）：21/21 PASS
+  - 作り込んだ差（腕全体は衝突の予測が良い・画像は mask が良い）を H2・H3・H5 で検出、同じモデルどうしの差は 0・CI [0, 0]、完璧な予測は AUPRC 1・regret 0
+  - 気づき：意思決定の指標（成功率・regret・衝突率）はシーン 1 つにつき値 1 つなので、20 シーンだと CI の幅が ±0.1 前後。本番のテストのシーン数で H4 の検出力が決まる
+- 未決：regret の効用（今は成功の 0/1）、位置誤差を XZ にしたこと、接触点の定義（最初の接触）、mask の 2 値化のしきい値
 
 ## 8. スクリプト一覧
 
