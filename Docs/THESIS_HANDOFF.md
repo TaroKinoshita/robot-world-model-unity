@@ -1,146 +1,71 @@
 # 卒論ハンドオフ文書（Claude 引き継ぎ用）
 
-- 最終更新：2026-10-12（前の版：2026-10-05）。**まず §00 を読む**（10/05 以降の変更のまとめ。§0・§14 は 10/05 時点のまま）
+- 最終更新：2026-10-12（前の版：2026-10-05）
 - 対象：Taro Kinoshita（S1140213）の BSc AI 卒論（Radboud University, SOW-BKI300）
 - 使い方：
   - 新しいチャットの最初に、このファイルを丸ごと貼る
   - Claude はこれを「現時点の正」として扱う。ここに書いていない数値・設定は推測せず、Taro に確認する
-- 追記（2026-10-05 午後）：P6（バッチ実行）完了。§6.9・§8・§12・§14.2 を更新
-- 追記（2026-10-06）：P7（20 シーンの点検）の結果を §7.5 に追加
-- 追記（2026-10-12）：P9 = `main` を `63447a4` まで進めて tag `p8-complete`。P10（学習用データの読み込み）を §7.7、P11（評価コード）を §7.8、P12（中間報告の材料）を §7.9 に追加
-- 追記（2026-10-12）：P8（偏りの修正と再点検）を §7.6 に追加。候補の並びは c000〜003 matched pair、c004〜006 ゴール方向、c007〜009 ゴールの縁、c010〜012 ランダム、c013〜015 円柱の方向
 - この版で変えたこと：
-  - TODO6（UR5e）、P0〜P5 の結果を全部反映した
-  - 現在の仕様（§5〜§7）と、全期間の経緯（§9）を 1 本にまとめた
+  - P6〜P12 と「量産の準備」（10/05〜10/12）の結果を全部反映し、§0・§3〜§8・§10〜§16 を書き直した
+  - 経緯は §9.17〜§9.24 に追加。表の生データは `Docs/P6_P12_経緯_20261012.md`
 - 細かい生データ（表・試行の全部）は、プロジェクトの `Docs/` にある経緯文書を見る：
-  - `P1_P1.5_経緯_20261004.md`
-  - `P2_P3_経緯_20261004.md`
-  - `P4_P5_経緯_20261005.md`
+  - `P1_P1.5_経緯_20261004.md`・`P2_P3_経緯_20261004.md`・`P4_P5_経緯_20261005.md`・`P6_P12_経緯_20261012.md`
 - 優先順位：
-  - 数値が食い違ったら、新しい方を正とする：`P4_P5` ＞ `P2_P3` ＞ `P1_P1.5`
-  - 本書は全部をまとめた版なので、上の 3 本と食い違ったら本書を正とする
+  - 数値が食い違ったら、新しい方を正とする：`P6_P12` ＞ `P4_P5` ＞ `P2_P3` ＞ `P1_P1.5`
+  - 本書は全部をまとめた版なので、経緯文書と食い違ったら本書を正とする
 
 ---
 
-## 00. 最新の状態（2026-10-12、まずここを読む）
-
-### いまどこ
-
-```
-[P6] バッチ実行 ✅ → [P7] 20 シーン点検 ✅ → [P8] 偏りの修正・再点検 ✅ → [P9] main を進めて tag ✅
-[P10] 学習用データ読み込み ✅ → [P11] 評価コード ✅ → [P12] 中間報告の材料 ✅ → [整理] 量産の準備 ✅
-                                                                                   ↓
-                                                    次：量産（約 1 万 episode、無人で約 42 時間）→ 学習モデルの設計
-```
-
-- 詳しい結果：P6 = §6.9、P7 = §7.5、P8 = §7.6、P10 = §7.7、P11 = §7.8、P12 = §7.9、整理 = §7.10
-- 中間報告（10/30）の材料：`Docs/interim_20261030/materials.md`（英語、図 6 枚）
-
-### 10/05 から変わった仕様（§5・§6 より新しい）
-
-| 項目 | 今 |
-|---|---|
-| 候補の内訳（16 本） | c000〜003 matched pair 2 組 / c004〜006 ゴール方向 3 / c007〜009 ゴールの縁 3（向き ±10〜20° か距離 ±1.5〜4.5 cm ずらす）/ c010〜012 ランダム 3 / c013〜015 円柱の方向 3 |
-| 円柱の高さ | 32〜40 cm を seed ごとのランダム順に試す（前は 24 cm から順で、ほぼ毎回 32 cm） |
-| 円柱の置き場所 | カメラから見てターゲット（初期）とゴールの手前に立たない（`avoidOcclusion`）。さらに「ターゲットを円柱の方へ押す候補が作れる所」を優先（`requireTowardSecondaryFeasible`、見つからなければ絞らずに置く。`scene_generation.json` の `toward_secondary_strict`） |
-| 検証 | 押したあとのターゲットが半分以上「隠れうる範囲」に入るときは、最終 mask の IoU を比べない |
-| 量産の仕組み | `Tools > P6 Batch > Start`（§6.9）。設定の `resume: true` で、Unity が落ちたあとも出力先のフォルダから続きを探して再開（途中のペアは `_failed/interrupted_seed<N>_…` へ移して同じ seed で作り直す、Play 済みで Python がまだのペアは Python だけ回す） |
-
-### フォルダ（`Episodes/`）
-
-| 場所 | 中身 |
-|---|---|
-| `_main_v1/` | **量産データの置き場所**（BatchRunner の既定の出力先。仕様を変えたら `_main_v2`） |
-| `_p8_20scenes/` | 今の仕様（A3 の前）の 20 シーン。`_cache/wm_128x25.h5`（学習コードの動作確認用）、`inspection.md`、`_eval_dummy/` |
-| `_ur5e_test/` | P6 以降のテスト（`p6_*`・`p8_try1`・`p9_prep`） |
-| `_slide_capture/` | Taro のスライド用 |
-| `_archive/` | 古いデータ。整理で `p7_20scenes_*`（P8 の前）、`pilot_p5_*`（3 シーンのパイロット、もとは直下）、`ur5e_test_preP6_*`（P6 より前のテスト、`collider_points_local.json`・`kin_chain.json` もここ）を移した |
-
-### git
-
-- `todo6-ur5e` と `main` は同じ線の上（`main` は P9 で `63447a4` まで fast-forward、tag `p8-complete`）。その後の commit は `todo6-ur5e` にだけある
-- このリポジトリに `core.autocrlf false` を設定した（それまでは Git 本体の `true` が効いていて、古い 179 ファイルが作業フォルダだけ CRLF だった → 中身は同じまま LF にそろえた）
-- push は Taro。Claude は commit まで
-
-### 量産の始め方（次にやるとき）
-
-1. 作業フォルダが clean か確認（commit 済み）
-2. `Episodes/_batch_config.json` を書く（例）：
-   ```json
-   {"outputRoot": "Episodes/_main_v1", "numScenes": 320, "seedStart": 1000, "sceneIndexStart": 0, "pairIndexStart": 0,
-    "requireCleanGit": true, "runPython": true, "resume": true}
-   ```
-   - 320 ペア = 10,240 episode。seed は既存（1〜23）と重ならない番号から
-   - `resume: true` にしておけば、途中で止まっても同じ設定で Start し直すだけ
-3. `Tools > P6 Batch > Start`。止めるときは `Stop after current`
-4. 途中・最後に `python Assets/Python/inspect_batch.py --episodes Episodes/_main_v1` で偏りを見る
-5. 終わったら `python Learning/wm_cache.py --episodes Episodes/_main_v1` → `test_wm_dataset.py`
-- 注意：Windows のスリープを切っておく（Unity が止まる）。1 シーン約 8 分、容量は 1 万 episode で約 20 GB（C ドライブの空き 289 GB）
-
-### 残っている課題
-
-- A/B のずれ：触れていない候補 222 本中 2 本が 1.7・2.1 mm（3 mm 以内）。量産データでも `inspection.md` の「A/B の不安定」を見る
-- 衝突は候補の種類からある程度当たる（円柱の方向 87% が衝突）。物理的に当然なので今は直さない
-- 決めていない定義（§7.8）：regret の効用、位置誤差を XZ にしたこと、接触点 = 最初の接触、mask のしきい値
-- 学習モデル：未設計。GPU の相談（Rekha か Jordy）もまだ
-
----
-
-## 0. 30 秒で分かる現状（10/05 時点。最新は §00）
+## 0. 30 秒で分かる現状（2026-10-12）
 
 - **テーマ**：「How Much of the Robot Should a World Model See?」
   - world model に渡すロボットの action 表現を **範囲（手先だけ / 腕全体）× 形式（数値 / カメラ視点の画像）の 2×2** で比べる
-- **proposal**：2026-09-30 付の版で、10/2 締切に提出済み（内容は §2）
-- **データ生成は「本番の仕様」まで完成**
+- **proposal**：2026-09-30 付の版で、10/2 締切に提出済み（§2）
+- **データ生成は本番の仕様で完成、量産の準備も完了**（量産はまだ回していない）
   - ロボット：UR5e＋Robotiq 2F-140
-  - Play 1 回 ＝ seed 1 個 ＝ 1 シーン。次の 2 つが自動で作られる：
-    - Task A（円柱なし）16 episode
-    - Task B（円柱あり）16 episode
-  - 16 候補の中に matched pair（同じ手先経路・腕の形だけ違う 2 本）が 2 組入る
-  - action 表現 4 種：
-    - 画像 2 種は、メッシュの本描画（mask＋depth）
-    - 数値 2 種には、位置＋向きが入る
-  - 予測ターゲット 5 種：最終位置・goal・衝突・最終 mask・contact heatmap
-  - 自動検証の結果：全項目 PASS
-- **パイロット**：3 シーン × 16 候補 × A/B ＝ 96 episode（git `f46109c` から作成）
-  - 10/16 の最低ライン（P4-A）と、10/30 の理想形（P4-B）は、どちらも達成済み
+  - Play 1 回 ＝ seed 1 個 ＝ 1 シーン ＝ Task A（円柱なし）16 episode ＋ Task B（円柱あり）16 episode、約 8 分
+  - 16 候補 ＝ matched pair 2 組 ＋ ゴール方向 3 ＋ ゴールの縁 3 ＋ ランダム 3 ＋ 円柱の方向 3
+  - action 表現 4 種（画像 2 種 = メッシュの本描画 mask＋depth、数値 2 種 = 位置＋向き）、予測ターゲット 5 種
+  - **無人のバッチ実行**（`Tools > P6 Batch`）。Unity が落ちても `resume` で続きから
+- **学習・評価の土台もできた**
+  - 学習用キャッシュ（128 px・25 枚、HDF5 1 ファイル）＋ PyTorch Dataset（4 表現 × Task A/B、ペア単位の分割）
+  - 評価コード（AUPRC・位置誤差・IoU・regret・ranking・H5、シーン単位の paired bootstrap、H1〜H5 の判定）
+  - 学習モデルは**まだ何も決めていない**
+- **中間報告（10/30）の材料**：`Docs/interim_20261030/materials.md`（英語）と図 6 枚
+
+今の仕様の 20 シーン（P8、seed 4〜23、`Episodes/_p8_20scenes`）：
 
 | 項目 | 結果 |
 |---|---|
-| 自動検証 | A 580/580・B 564/564・ペア 107/107（3 シーンとも） |
-| goal True | 18 / 48（38%） |
-| 衝突 True（Task B） | 16 / 48（33%） |
-| 倒れた | 0 |
-| ロボット↔机 | 0 |
-| 追従誤差（TCP） | 最大 2.8 mm |
-| A/B の不安定（触れていないのにずれる） | 0 |
+| 生成 | 20/20 成功、1 シーン 7.8 分 |
+| 自動検証 | A 11600/11600・B 11280/11280・ペア 2140/2140 |
+| goal（A / B） | 93/320（29%）／ 93/320 |
+| 衝突（B）：ロボ → 円柱 / ターゲット → 円柱 | 98/320（31%）：60 / 40 |
+| 片方だけ衝突する matched pair | 28/40 |
+| 倒れた・ロボット↔机 | 0・0 |
+| 追従誤差（TCP）中央 / 95% / 最大 | 2.0 / 2.9 / 7.9 mm（5 mm 超は全部、腕が円柱に当たった候補） |
+| A/B の不安定（触れていないのに 1 mm 超） | 2/222（1.7・2.1 mm） |
+| 円柱の高さ | 32〜40 cm にばらけた |
 
-- **proposal から変えたこと**：6 つ（§2.10）。10/30 の中間報告で説明する
-- **git**：
-  - 作業ブランチは `todo6-ur5e`。この文書を commit する前の HEAD は `cf679b3`（push 済み）
-  - `main` は `776fe3c`（UR3 版）のまま。28 commit 遅れている
-- **次にやること**（詳しくは §14）：
-  1. 量産用のまとめて回す仕組み（バッチ実行）を作る
-  2. 量産と、偏りの点検
+- その後の「量産の準備」（§7.10）で、円柱の置き場所を「円柱の方向へ押す候補が作れる所」に優先して置くようにした（P8 では 20 シーン中 5 シーンでその候補が作れなかった → テストの 5 シーンでは 0）
+- **git**：作業ブランチ `todo6-ur5e`、HEAD は本書の commit（その前は `94123fc`）。`main` は `63447a4`（tag `p8-complete`）。push は Taro
+- **次にやること**（§14）：
+  1. 量産（`Episodes/_main_v1`、約 1 万 episode、無人で約 42 時間）→ 点検 → キャッシュ
+  2. 学習モデルの設計（GPU の相談も）
   3. 10/30 の中間報告
-  4. GPU の相談（Rekha か Jordy へ）
-  5. 学習モデルの設計。まだ何も決めていない
 
 ```
-[proposal]   何を比べるか                          ← 提出済み（10/2）
+[proposal]   何を比べるか                                   ← 提出済み（10/2）
+[TODO1〜5]   撮影環境・robot-free・1 episode                 ← 完了（UR3 時代）
+[P0〜P5]     UR5e・Task A/B・matched pair・本番の入力・修正  ← 完了（tag todo6-complete、10/05）
+[P6]         バッチ実行                                      ← 完了
+[P7・P8]     20 シーンの点検 → 偏りの修正 → 再点検           ← 完了
+[P9]         main を進めて tag p8-complete                  ← 完了
+[P10・P11]   学習用データの読み込み・評価コード              ← 完了（仮の予測値で確認）
+[P12]        中間報告の材料                                  ← 完了
+[整理]       再開機能・円柱の置き場所・コメント・データの整理 ← 完了（10/12）
      │
-[TODO1〜5]   撮影環境・robot-free・1 episode        ← 完了（UR3 時代）
-     │
-[P0・P1]     TODO5 クローズ・UR5e＋2F-140 に交換    ← 完了（tag todo6-complete）
-[P1.5]       学習コストの概算                      ← 完了
-     │
-[P2・P3]     Task A/B ペア・matched pair           ← 完了（matched pair＝手首の反転）
-     │
-[P4-A]       10/16 の最低ライン                    ← 達成
-[P4-B]       ブレの修正・押し方・自動生成・本番入力  ← 達成
-[P5]         小さい修正                            ← 完了
-     │
-[次]         バッチ実行 → 量産 → 学習 → 評価 → 執筆
+[次]         量産 → 学習モデル → 学習 → 評価 → 執筆
 ```
 
 ---
@@ -264,12 +189,12 @@ How Much of the Robot Should a World Model See? Comparing End-Effector and Full-
 
 ### 2.8 スケジュール（proposal 記載）と今の位置
 
-| 作業 | 期限 | 状態（10/05） |
+| 作業 | 期限 | 状態（10/12） |
 |---|---|---|
 | proposal 提出 | 2026-10-02 | ✅ |
 | 環境構築＋パイロットデータ（2 週） | **2026-10-16** | ✅ 前倒しで達成 |
-| 中間チェックポイント | 2026-10-30 | 準備中（§14.3） |
-| 本番データ生成＋学習（7 週） | 2026-12-04 | バッチ実行は完成（P6）。次は量産と点検（P7）。学習モデルは未設計 |
+| 中間チェックポイント | 2026-10-30 | 材料はできた（`Docs/interim_20261030/`、§7.9） |
+| 本番データ生成＋学習（7 週） | 2026-12-04 | 量産の準備・読み込み・評価コードまで完了。量産はこれから。学習モデルは未設計 |
 | 評価＋執筆（6 週） | 2027-01-14 | — |
 | 最終提出 | 2027-01-15 | — |
 | 発表準備（2 週） | 発表日前 | — |
@@ -296,7 +221,9 @@ How Much of the Robot Should a World Model See? Comparing End-Effector and Full-
 | 3 | goal = 3 cm 以内で静止 | 3 cm 以内 **かつ 倒れていない（2 cm 下がる or 30° 超傾く）かつ 速さ < 5 mm/s** | 立方体は横倒しでも中心の高さが変わらず、高さだけの判定では見逃した | P4-B |
 | 4 | 衝突 = ロボ or ターゲットが secondary に接触 | 同じ。ただし **隙間 ≤ 1 mm の「触れた」接触だけ**を数える | PhysX は contactOffset 以内に近づくだけで接触を報告する | P4-B |
 | 5 | （物理の設定は記載なし） | **TGS ソルバー**、候補ごとに新しい物理シーン | 円柱に触れていないのに、円柱があるだけで Task B の結果がずれた（最大 12.6 mm）。同じ Play の中で、前の候補の履歴が残っていた | P4-B |
-| 6 | 16 候補（内訳の記載なし） | **matched pair 2 組 ＋ ゴール方向 6 ＋ ランダム 3 ＋ 円柱の方向 3**。円柱の位置・高さ（24〜40 cm）はシーンごと | 1 か所の円柱では、全部のペアを片方だけ衝突させられない。衝突ラベルを確保するため | P4-B |
+| 6 | 16 候補（内訳の記載なし） | **matched pair 2 組 ＋ ゴール方向 3 ＋ ゴールの縁 3 ＋ ランダム 3 ＋ 円柱の方向 3**。円柱の位置・高さ（32〜40 cm）はシーンごと。円柱はカメラから見てターゲットとゴールの手前に立てない | 1 か所の円柱では、全部のペアを片方だけ衝突させられない／goal がゴール方向の候補だけでほぼ当たっていた（P7：種類だけで 93%）／円柱がターゲットを隠すことがあった | P4-B、P8・整理で更新 |
+
+- 中間報告用の英語の説明・図：`Docs/interim_20261030/materials.md`（§7.9）
 
 論文・報告で使う言い方（案）：
 
@@ -308,12 +235,12 @@ How Much of the Robot Should a World Model See? Comparing End-Effector and Full-
 
 ---
 
-## 3. proposal の本番仕様と今のパイプライン（対応状況）
+## 3. proposal の本番仕様と今のパイプライン（対応状況、10/12）
 
 | proposal の本番仕様 | 今のパイプライン | 状態 | どこで |
 |---|---|---|---|
 | ロボット UR5e + Robotiq 2F-140 | UR5e＋2F-140。当たり判定は凸分割し直し | ✅ | P1 |
-| 1 シーン 16 候補 | seed から自動生成（§6.2） | ✅ | P4-B |
+| 1 シーン 16 候補 | seed から自動生成（§6.2） | ✅ | P4-B・P8・整理 |
 | matched pair | 手首の反転で 2 組／シーン。Task B で片方だけ衝突する円柱を自動配置 | ✅（定義を変更） | P3・P4-B |
 | Task A / B のペア | Play 1 回で両方。planned は 1 回だけ作って共有（バイト単位で同じ） | ✅ | P2 |
 | 画像表現 = mask + depth の本描画 | CPU の z-buffer でメッシュを描く。Perception の画像と IoU 0.997・depth 差 0.25 mm | ✅ | P4-B |
@@ -322,11 +249,13 @@ How Much of the Robot Should a World Model See? Comparing End-Effector and Full-
 | goal 定義 | シーンごとにランダム、半径 3 cm、倒れていない・止まっている | ✅ | P4-B |
 | 衝突定義 | 触れた接触だけ | ✅ | P4-B |
 | planned から action、executed と分離 | 実装済み | ✅ | TODO5 |
-| robot-free 初期画像 | 実装済み。検証 A・B を UR5e でもやり直して合格 | ✅ | TODO4・P1 |
-| 再現性（同じ入力 → 同じ結果） | 候補ごとの物理シーン＋TGS。Play をまたいでも 1 ビットも同じ | ✅ | P4-B |
-| 本番データ（数千〜1 万 episode） | バッチ実行（P6）はできた。量産はこれから | 🔶 | §6.9・§14.2 |
-| 学習モデル | 仮モデルでコストを測っただけ。本番の設計は未着手 | ❌ | §14.5 |
-| GPU | 手元は RTX 4060 Laptop 8 GB。大学のクラスタが使えるか未確認 | ❌ | §14.4 |
+| robot-free 初期画像 | 実装済み。円柱がターゲットを隠さない置き方に | ✅ | TODO4・P1・P8 |
+| 再現性（同じ入力 → 同じ結果） | 候補ごとの物理シーン＋TGS。Play をまたいでも、バッチでも 1 ビットも同じ | ✅ | P4-B・P6 |
+| 本番データ（数千〜1 万 episode） | 無人のバッチ実行・再開・点検の仕組みは完成。量産はまだ | 🔶 | P6〜整理 |
+| 学習用の読み込み | HDF5 キャッシュ（128 px・25 枚）＋ PyTorch Dataset、ペア単位の分割 | ✅ | P10 |
+| 評価（AUPRC・IoU・regret・ranking・H5・paired bootstrap・H1〜H5） | 実装済み。仮の予測値で確認 | ✅ | P11 |
+| 学習モデル | 仮モデルでコストを測っただけ。本番の設計は未着手 | ❌ | §14 |
+| GPU | 手元は RTX 4060 Laptop 8 GB。大学のクラスタが使えるか未確認 | ❌ | §14 |
 
 ---
 
@@ -341,35 +270,37 @@ How Much of the Robot Should a World Model See? Comparing End-Effector and Full-
 | Unity プロジェクト | `C:\UnityProjects\PerceptionTestHDRP` |
 | シーン | `Assets/OutdoorsScene.unity` |
 | リポジトリ | `TaroKinoshita/robot-world-model-unity`（private） |
-| 作業ブランチ | `todo6-ur5e`（HEAD `cf679b3`、push 済み） |
-| `main` | `776fe3c`（UR3 版のまま） |
-| tag | `todo4-verified`（421a4a4）、`todo5-complete`（776fe3c、付け替え済み）、`todo6-complete`（9b6030b） |
+| 作業ブランチ | `todo6-ur5e`（HEAD は本書の commit。§12） |
+| `main` | `63447a4`（P9 で fast-forward。それ以降の commit は `todo6-ur5e` だけ） |
+| tag | `todo4-verified`（421a4a4）、`todo5-complete`（776fe3c）、`todo6-complete`（9b6030b）、`p8-complete`（63447a4） |
 | 解像度 | 256 × 256（Game View `capture_256`） |
 | Asynchronous Shader Compilation | オフ |
-| SOLO 出力 | `C:\Users\kinos\AppData\LocalLow\DefaultCompany\PerceptionTestHDRP\solo_N\sequence.0\`（Play ごとに番号が増える。パイロット作成時は solo_124 前後） |
-| git 設定 | `core.autocrlf false` |
+| SOLO 出力 | `C:\Users\kinos\AppData\LocalLow\DefaultCompany\PerceptionTestHDRP\solo_N\sequence.0\`（Play ごとに番号が増える。10/12 で 189 個・0.5 GB） |
+| git 設定 | **リポジトリに `core.autocrlf false`**（Git 本体の設定は `true`。10/12 に設定し、作業フォルダの改行を全部 LF にそろえた） |
 | `.gitignore` に入っているもの | `/Captures/`、`/Episodes/`、`/CaptureLogs/`、`/_import_backup/`、`__pycache__/`、`__pycache__.meta`、`/Claude outputs/`、`Library/`、`Temp/` など |
 | GPU（手元） | NVIDIA GeForce RTX 4060 Laptop、8,188 MiB、ドライバ 610.74 |
-| Python（Windows） | 3.11.9、PyTorch 2.5.1+cu121、cv2 あり。検証・ベンチマークはこれで回す |
+| Python（Windows） | `C:\Users\kinos\AppData\Local\Programs\Python\Python311\python.exe`（3.11.9）。PyTorch 2.5.1+cu121（CUDA 可）、numpy 1.26.4、cv2 4.11、h5py 3.15.1、matplotlib 3.10.9、sklearn・scipy・pandas あり。検証・キャッシュ・評価・図はこれで回す |
+| C ドライブの空き | 289 GB（10/12）。量産 1 万 episode で約 20 GB |
 
 ### 4.1 Claude からの操作
 
 | 道具 | 中身 | 注意 |
 |---|---|---|
-| Unity MCP | CoplayDev MCP for Unity **v10.2.0 で固定**（`manifest.json` の git URL 末尾 `#v10.2.0`）。有効ツールグループは `core` だけ。「Configure All Detected Clients」は押さない | `execute_code` は CodeDom（C# 6）。1 回の呼び出しは 60 秒で応答なしになる |
-| 手元のシェル（device_bash） | Taro の PC の Linux VM。プロジェクトは `$HOME/mnt/PerceptionTestHDRP` に見える | Python 3.10 で cv2 なし。ファイルの読み書き・検索に使う。git はここから触らない |
-| クラウド側のシェル | Claude のサンドボックス | 重い計算（IK の総当たりなど）を数分単位に分けて回す |
-| git・Windows の Python | Unity の `execute_code` から `System.Diagnostics.Process` で起動 | 標準出力と標準エラーを同時に非同期で読む。`GIT_TERMINAL_PROMPT=0`。タイムアウト付き |
-| 長い処理（パイプライン） | 別プロセスで起動して、結果を `Episodes/_pipeline_log.txt` に書かせる | MCP の 60 秒制限を避けるため |
+| Unity MCP | CoplayDev MCP for Unity **v10.2.0 で固定**（`manifest.json` の git URL 末尾 `#v10.2.0`）。有効ツールグループは `core` だけ。「Configure All Detected Clients」は押さない | `execute_code` は CodeDom（C# 6）。1 回の呼び出しは 60 秒で応答なしになる。Unity を閉じていると使えない（git も使えなくなる） |
+| 手元のシェル（device_bash） | Taro の PC の Linux VM。プロジェクトは `$HOME/mnt/PerceptionTestHDRP` に見える | Python 3.10（numpy・PIL はあり、cv2・h5py なし）。ファイルの読み書き・検索・`mv` に使う。git はここから触らない。消すことはできない（移すだけ）。共有フォルダ越しなので `du` などは遅い（.NET から測る方が速い） |
+| クラウド側のシェル | Claude のサンドボックス | 画像を見るとき（device_stage_files で持ってくる）、重い計算 |
+| git・Windows の Python | Unity の `execute_code` から `System.Diagnostics.Process` で起動 | 標準出力と標準エラーを同時に非同期で読む。`GIT_TERMINAL_PROMPT=0`。タイムアウト付き。commit メッセージは `Temp/*.txt` に書いて `-F` で渡す |
+| 長い処理 | `cmd /c "python ... > log 2>&1"` を待たずに起動して、ログを device_bash で読む | MCP の 60 秒制限を避けるため。`PYTHONIOENCODING=utf-8` を付ける |
+| 量産 | BatchRunner（§6.9）。状態は `Temp/p6_batch/`、ログは `<出力先>/_batch/batch_log.txt` | 待つあいだは `send_later` で様子を見に来る予定を入れるとよい |
 
-- 方針：汎用の操作は CoplayDev、研究固有の操作だけ Custom Tool にする（候補：`run_robot_free_capture`、`run_verification_b`、`export_camera`。必要になったら作る）
+- 方針：汎用の操作は CoplayDev、研究固有の操作だけ Custom Tool にする（今のところ作っていない）
 - スクショは `Captures/` に保存する（`Assets/Screenshots` に入ると git が汚れる）
 - スクリプトを書き換えたら、コンパイルが終わって idle になってから Play する
 - 細かいルールは §11
 
 ---
 
-## 5. シーン設定（現在値、git `f46109c`〜`cf679b3`）
+## 5. シーン設定（現在値、10/12）
 
 ### 5.1 ロボット
 
@@ -404,7 +335,7 @@ UR5e の寸法（公式 xacro、kinetic-devel から展開）：
 
 | | Target | SecondObject（Task B だけ） |
 |---|---|---|
-| 形 | 立方体 8 cm | カプセル、半径 0.048 m（直径 9.6 cm）、**高さはシーンごと 24〜40 cm**（パイロットは 3 シーンとも 32 cm） |
+| 形 | 立方体 8 cm | カプセル、半径 0.048 m（直径 9.6 cm）、**高さはシーンごと 32〜40 cm**（seed ごとのランダム順に試す。P8 の 20 シーンで 32×2・34×3・36×6・38×3・40×6） |
 | 位置 | **seed で自動**：x −0.15〜0.15、z 0.22〜0.42、底面が天板にぴったり（y 中心 0.813） | **seed で自動**（§6.2）。y 中心 = 0.773 ＋ 高さ / 2 |
 | 向き | yaw 0〜90°（自動） | 立てる |
 | 質量 | 0.3 kg | 0.55 kg（高さを変えても質量は変えていない） |
@@ -414,7 +345,7 @@ UR5e の寸法（公式 xacro、kinetic-devel から展開）：
 | contactOffset | — | 0.001 m（実行中に設定） |
 
 - 机の上面は y = 0.773（机 y = 0.748、厚さ 0.05）。机の範囲は XZ で x −0.5〜0.5、z −0.15〜0.65
-- シーンファイル上の SecondObject は (0.20, 0.913, 0.10)・高さ 28 cm（P4-A のまま）。**自動生成が on のときは Play 中に上書きされる**
+- シーンファイル上の SecondObject は (0.20, 0.913, 0.10)・高さ 28 cm（P4-A のまま、Tooltip にも記載）。**自動生成が on のときは Play 中に上書きされる**
 - Task A では、SecondObject を GameObject ごと無効化する
 
 ### 5.3 ラベル（Perception）
@@ -518,7 +449,9 @@ Play を止める（SOLO の annotation_definitions.json はここで書かれ�
  → build_metadata.py → validate_episode.py → check_task_pair.py → summarize_labels.py
 ```
 
-- 1 シーン（A/B で 32 episode）で約 10 分
+- 1 シーン（A/B で 32 episode）で約 8 分（P8 の 20 シーンで中央 7.8 分）
+- BatchRunner から起動されたときは、Start の最初に `Temp/p6_batch/job.json` を読んで消し（`BatchJob.TryConsume`）、seed・sceneIndex・pairIndex・outputRoot を Play 中だけ上書きする。終わったら `result.json`（ok / stage / reason / 候補数）を書く（§6.9）
+- scene フォルダは、シーンの生成に成功してから作る（生成に失敗した seed で空のフォルダを残さない）
 - scene ID：A = `sceneIndex`、B = `sceneIndex + 1`（`scene_0000` / `scene_0001`）。`pair_id` = `pair_XXXX`（`pairIndex`）
   - `scene_0000A` のような ID は使わない。番号を数値として扱う処理で壊れるため
 
@@ -529,10 +462,11 @@ Play を止める（SOLO の annotation_definitions.json はここで書かれ�
 | ターゲット | x −0.15〜0.15、z 0.22〜0.42、yaw 0〜90°。箱の 8 つの角が、画面の端から 5% 以上内側に写ること |
 | ゴール | ターゲットから 6〜12 cm。方向は「ターゲットの面の法線 ± 10°」で、計画できる方向。半径 3 cm |
 | matched pair（2 組 = 4 本） | wrist-down と wrist-up。同じ手先経路を手先の直線で transfer（`cartesianTransfer`）。どちらかが計画できなければ `gripperYawFlip`（接近方向まわりに 180°）で計画し直す |
-| ゴール方向（6 本） | ゴールの方向 ± 10°、距離 = ゴールまで ＋ 1.5 cm ± 3 cm |
+| ゴール方向（3 本） | ゴールの方向 ± 10°、距離 = ゴールまで ＋ 1.5 cm ± 3 cm |
+| ゴールの縁（3 本、P8） | ゴール方向の押し方から、向きを ±10〜20° ずらす（左右に外す）か、距離を ±1.5〜4.5 cm ずらす（手前・奥に外す）。どちらにするか・± は半々。P8 の 20 シーンで goal 52%（届くか届かないかギリギリ） |
 | ランダム（3 本） | 方向ランダム、距離 5〜12 cm |
-| 円柱の方向（3 本） | 円柱を置いたあとに作る。ターゲット → 円柱 ± 10°、距離 = 届く距離 ＋ 3〜6 cm（最大 22 cm） |
-| 候補の並び | c000〜c003 = mp0（wrist-down, wrist-up）・mp1（同）、c004〜c009 = ゴール方向、c010〜c012 = ランダム、c013〜c015 = 円柱の方向 |
+| 円柱の方向（3 本） | 円柱を置いたあとに作る。ターゲット → 円柱 ± 10°、距離 = 届く距離 ＋ 3〜6 cm（最大 22 cm）。150 回試して作れなければ、ランダム方向で埋める（note に `no toward-secondary push was feasible`。点検ではランダムに数える） |
+| 候補の並び | c000〜c003 = mp0（wrist-down, wrist-up）・mp1（同）、c004〜c006 = ゴール方向、c007〜c009 = ゴールの縁、c010〜c012 = ランダム、c013〜c015 = 円柱の方向 |
 | 外す条件（`reject_reasons`） | `near_base`：押し始めが土台から 25 cm 未満／`target_end_off_table`：押した後のターゲットが机の端から 6 cm 以内／`ik_failed`／`joint_step`：1 step で関節が 2° 超／`secondary_too_far` |
 | 試す回数 | シーン 20 回まで、候補 300 回まで |
 
@@ -546,7 +480,9 @@ Play を止める（SOLO の annotation_definitions.json はここで書かれ�
 | ターゲットの通り道との隙間 | 3 cm 以上 |
 | ゴールとの距離 | 6 cm 以上 |
 | ほかの候補が当たると予測される数 | 3 本以下（`maxOtherRobotHits`） |
-| 高さ | 24〜40 cm を 2 cm 刻みで、低い方から試す |
+| 高さ | 32〜40 cm を 2 cm 刻みで、**seed で決まるランダムな順**に試す（P8。低い方からだと毎回 32 cm だった。24〜30 cm は腕が上を通るので置けない）。試した順は `height_order_m` |
+| カメラから見た隠れ（P8） | 円柱の画面上の範囲（＋余白 1%）が、ターゲットの初期位置の箱・ゴールの位置の箱（ゴールの半径 3 cm を足す）と重なり、しかも円柱の方がカメラに近いなら置かない（`avoidOcclusion`） |
+| 円柱の方向の候補が作れるか（整理） | まず「ターゲットから円柱の真ん中へ、いちばん短い押し方（届く距離 ＋ 3 cm）が 0.21 m 以内・押し始めが土台から 26 cm 以上・押した後が机の上」の場所に絞って探す。どの高さでも見つからなければ絞らずに探す（`requireTowardSecondaryFeasible`、結果は `toward_secondary_strict`） |
 | ターゲットに近い所を優先 | 15 cm より遠いと 10 cm ごとに 5 mm 分の減点（`secondaryNearTargetWeight` 0.05） |
 | 机・画面 | 机の端から余裕、画面に写る |
 
@@ -690,9 +626,15 @@ Episodes/
 ├─ scene_0001/                     （Task B、pair_0000。同じ構成）
 ├─ pairs/pair_0000/  pair_check.json, comparison.md, initial_robot_free.png, cXXX_final.png
 ├─ label_summary.md / .json
-├─ _pipeline_log.txt
+├─ _pipeline_log.txt               （手で回したときの Python のログ。バッチのときは _batch/logs/）
+├─ _batch/                         （BatchRunner：batch_log.txt、logs/pair_XXXX.txt・.json、batch_summary_*.json）
+├─ _failed/                        （生成に失敗・途中で止まったペアのフォルダ。消さずに移す）
+├─ _cache/                         （学習用キャッシュ wm_128x25.h5・_splits.json・_check.json、§7.7）
+├─ inspection.md / .json           （点検、inspect_batch.py）
 ├─ _archive/                       （古いデータ。§13）
 └─ _ur5e_test/                     （テスト出力。§13）
+
+※ 上は 1 つの出力先（例：`Episodes/_main_v1/`）の中身。量産データは `Episodes/_main_v1/`、今の仕様の 20 シーンは `Episodes/_p8_20scenes/`（§13）
 ```
 
 学習コードからの読み込み：
@@ -720,12 +662,15 @@ load_pair_episode("Episodes", "pair_0000", "B", "c001")
 | `validate_episode.py` | 1 シーン分。下の表 |
 | `check_task_pair.py` | A/B ペア：planned・action（depth も）がバイト単位で同じ／条件（カメラ・ターゲット・初期関節角・ゴール）が同じ／初期画像の差が secondary だけ（semantic・depth は secondary の画素の中だけ、RGB は secondary から 40 px より外で 3 階調以下）／結果の比較。触れていないのに A/B が 1 mm 超ずれた候補を `sim_unstable_candidates` に書く（FAIL にはしない） |
 | `summarize_labels.py` | ラベル分布と matched pair の差（TCP・向き・前腕・手首 1）を集計 |
+| `run_pipeline.py`（P6） | 1 ペア分の上の 4 本を順に回して、ログ（`_batch/logs/pair_XXXX.txt`）と結果 JSON を書く。BatchRunner が使う |
+| `inspect_batch.py`（P7） | 出力先全体の偏りの点検 → `inspection.md/.json`：候補の種類 × ラベル、種類だけで当てたときの正解率、matched pair、円柱の高さ・置き方、追従誤差、生成の失敗・外した理由、円柱による隠れ、A/B の不安定、検証の FAIL |
 
 `validate_episode.py` の主な中身：
 
 - ファイルがそろっているか、枚数・大きさ・時系列が planned と一致するか
 - カメラ行列で、ターゲットの投影と mask が一致するか（初期 IoU・最終 IoU。円柱に隠れうる範囲は除く）
 - ラベルを最終 pose・contacts から計算し直して一致するか（傾き・倒れた・速さ・goal・触れた接触だけ・Task A は null）
+- 最終 mask の IoU：円柱に隠れうる範囲を除いて比べる。箱の半分以上がその範囲に入るときは比べない（P8。残りが細い切れ端になって不安定なため）
 - 本描画：
   - mask = (depth > 0)
   - グリッパー ⊂ 全身、全身の depth ≤ グリッパーの depth
@@ -757,18 +702,35 @@ BatchRunner（Editor、EditorApplication.update で動く）
   2. `Episodes/_batch_config.json` を書く（無ければ `Tools > P6 Batch > Start` で雛形ができる）
   3. `Tools > P6 Batch > Start`
   - 止める：`Stop after current`（今のシーンの後）／`Abort now`（すぐ）。状態：`Status`
-- 設定（`Config`）：`outputRoot`（相対 or 絶対）、`numScenes`（成功させるペア数）、`seedStart` か `seeds`、`maxSeedAttempts`（0 = numScenes×2＋5）、`sceneIndexStart`・`pairIndexStart`、`playTimeoutMin` 30、`pythonTimeoutMin` 30、`pythonExe`（Python311）、`requireCleanGit`、`runPython`
+- 設定（`Config`）：`outputRoot`（既定 `Episodes/_main_v1`）、`numScenes`（成功させるペア数）、`seedStart` か `seeds`、`maxSeedAttempts`（0 = numScenes×2＋5）、`sceneIndexStart`・`pairIndexStart`、`playTimeoutMin` 30、`pythonTimeoutMin` 30、`pythonExe`（Python311）、`requireCleanGit`、`runPython`、`resume`
+- **再開（`resume: true`、整理で追加）**：状態は Temp にあって Unity を閉じると消えるので、出力先のフォルダから続きを探す
+  - scene の A・B がそろって完成（`c015/final/final_state.json` と初期画像がある）→ 成功に数える。`pairs/pair_XXXX/pair_check.json` がなければ、最初に Python だけ回す
+  - 途中までのペア → `_failed/interrupted_seed<N>_<日時>/` へ移して、同じ seed から作り直す
+  - `_failed/seed<N>_…`（生成の失敗）も「使った seed」に数えて、その次から
+  - 確認：Play の途中で止めて、1 ペア分の `pair_check` を外へ移した状態から再開 → 6/6 成功（`_ur5e_test/p9_prep`）
 - 安全装置：出力先に同じ番号の `scene_XXXX`・`pairs/pair_XXXX` があると始めない（上書きしない）。`debugOnlyCandidates` が空でないと始めない
 - EpisodeRecorder の変更：scene フォルダはシーンの生成に成功してから作る。生成失敗は `LogWarning`
 - 実測：1 シーン（32 episode）Play 約 8 分＋Python 約 10 秒。1 万 episode なら約 42 時間
 - 検証（git `198d0d6`、clean）：`_ur5e_test/p6_accept` に seed 1〜3 を無人で連続 → 3/3 PASS（A 580/580・B 564/564・ペア 107/107）。executed と labels はパイロット（`f46109c`）と 96/96 で 1 ビットも同じ
-- 失敗の経路は、タイムアウト 1 分で確認（`_ur5e_test/p6_failpath`：途中のフォルダを `_failed/` へ移して次の seed へ、上限で終了）。生成失敗（stage = generate）は同じ経路を通るが、実際に失敗する seed ではまだ試していない
+- 失敗の経路は、タイムアウト 1 分で確認（`_ur5e_test/p6_failpath`：途中のフォルダを `_failed/` へ移して次の seed へ、上限で終了）。生成失敗（stage = generate）は同じ経路を通るが、ここまでの 46 seed で生成に失敗したものが 1 つもないので、実際には通っていない
 
 ---
 
-## 7. 今のパイロット（git `f46109c`、作り直し 5 回目）
+## 7. データと結果
 
-### 7.1 シーン
+どのデータがどこにあるか：
+
+| データ | 場所 | 仕様 | 節 |
+|---|---|---|---|
+| 3 シーンのパイロット（seed 1〜3） | `Episodes/_archive/pilot_p5_20261011_205852/`（もとは `Episodes/` の直下） | P5（`f46109c`） | §7.1〜7.4 |
+| 20 シーン（P8 の修正前、seed 4〜23） | `Episodes/_archive/p7_20scenes_20261011_205852/` | `feff9e2` | §7.5 |
+| **20 シーン（今の仕様、seed 4〜23）** | `Episodes/_p8_20scenes/`（学習コードの動作確認に使うキャッシュもここ） | `efc35ac`（整理の A3 の前） | §7.6 |
+| 6 シーン（整理の確認、seed 4・6・10・18・19・22） | `Episodes/_ur5e_test/p9_prep/` | 整理の最終コード（commit 前の作業フォルダ） | §7.10 |
+| 量産 | `Episodes/_main_v1/`（まだ無い） | — | §14 |
+
+### 7.0 3 シーンのパイロット（P5、git `f46109c`、作り直し 5 回目）
+
+#### 7.1 シーン
 
 | pair | scene（A / B） | seed | ターゲット (x, z)・向き | ゴール（方向・距離） | 円柱 (x, z)・高さ | 重なる枝・深さ | ほかの候補への当たり予測 |
 |---|---|---|---|---|---|---|---|
@@ -778,13 +740,13 @@ BatchRunner（Editor、EditorApplication.update で動く）
 
 - 生成はどれも 1 回目で成功（seed 1：計画した候補 22、外した 5 ＝ near_base 3・ik_failed 2）
 
-### 7.2 検証
+#### 7.2 検証
 
 - 3 シーンとも：A 580/580、B 564/564、ペア 107/107
 - 不安定 0、欠損 0
 - SOLO の定義ファイル：6 シーンにコピー済み
 
-### 7.3 ラベル
+#### 7.3 ラベル
 
 | 候補の種類 | 本数 | goal True | 衝突（Task B） | 倒れた |
 |---|---|---|---|---|
@@ -804,19 +766,20 @@ BatchRunner（Editor、EditorApplication.update で動く）
   - c000（mp0 wrist-down）：ロボット → 円柱 step 216
   - c013〜c015（円柱の方向）：ターゲット → 円柱 step 409〜419
 
-### 7.4 気になっている偏り（量産で見る）
+#### 7.4 パイロットで気になっていた偏り → その後どうなったか
 
-1. 「片方だけ衝突」の matched pair は 1 シーン 1 組だけ
-2. ランダム方向の候補は goal True が 0
-3. ゴール方向の候補は衝突 0、円柱の方向の候補は goal 0 → 候補の種類とラベルがほぼ 1 対 1。モデルが「方向」だけで当てられてしまう可能性
-4. TGS にしてから、追従誤差の最大が 0.3 mm → 2.8 mm に増えた
-5. 円柱の高さが 3 シーンとも 32 cm（24〜40 cm のうち、低い方から試して最初に見つかった高さ）
-
----
+| # | 10/05 に気になっていたこと | 結果 |
+|---|---|---|
+| 1 | 「片方だけ衝突」の matched pair は 1 シーン 1 組だけ | P8 の 20 シーンで 28/40 組、2 組あるシーンが 9 |
+| 2 | ランダム方向の候補は goal True が 0 | P8 で 9%（少ないが 0 ではない） |
+| 3 | 候補の種類とラベルがほぼ 1 対 1 | P7 で確認（goal を種類だけで 93%）→ P8 でゴールの縁を足して 85%。衝突は 80%（円柱の方向は物理的に当たりやすい） |
+| 4 | TGS で追従誤差の最大が 2.8 mm に | P8 でも中央 2.0 mm。5 mm を超えるのは腕が円柱に当たった候補だけ（最大 7.9 mm、整理のテストで 17.7 mm が 1 本） |
+| 5 | 円柱の高さが 32 cm ばかり | P8 で 32〜40 cm のランダム順に → ばらけた |
 
 ### 7.5 P7：20 シーンの量産と点検（2026-10-06、git `feff9e2`）
 
-- 出力：`Episodes/_p7_20scenes/`（seed 4〜23、scene_0000〜0039、640 episode）。点検は `Assets/Python/inspect_batch.py` → `inspection.md/.json`
+- 出力：`Episodes/_p7_20scenes/`（seed 4〜23、scene_0000〜0039、640 episode。整理で `Episodes/_archive/p7_20scenes_20261011_205852/` へ移した）。点検は `Assets/Python/inspect_batch.py` → `inspection.md/.json`
+- ※ 下の表の「種類だけで当てる」「ランダム」の数字は、`inspect_batch.py` の数え方を直す前（円柱の方向に届かずランダムで埋めた候補を「円柱の方向」に数えていた）。直した後の P7 の数字は §7.6 の表
 - バッチ：20/20 成功、生成の失敗 0、Play 中央 7.9 分。Python の検証は 16/20 PASS（FAIL 4 は全部「円柱がターゲットを隠す」、下の 2）
 
 | 点検項目 | 結果 | 判定 |
@@ -920,49 +883,69 @@ BatchRunner（Editor、EditorApplication.update で動く）
 - そのほか：A/B の不安定 0、隠れ 0、片方だけ衝突の matched pair 9/12
 - 気づき：seed 18 の c003（matched pair の wrist-up）で追従誤差 17.7 mm。腕が円柱に当たって押し込み、そのあと手も円柱に触れた（衝突ラベルは正しい）。円柱がターゲットに近い所に置かれるようになったので、腕が当たったあとの動きが大きくなる候補が出る。量産データで追従誤差の分布を見る
 
-## 8. スクリプト一覧
+## 8. スクリプト一覧（10/12）
 
 Unity（`Assets/Scripts/`）：
 
 | ファイル | 行数 | 役割 | 状態 |
 |---|---|---|---|
-| `EpisodeRecorder.cs` | 1433 | 本体（§6.1・§6.5・§6.6） | 有効 |
-| `SceneGenerator.cs` | 542 | シーンの自動生成（P4-B で新規） | 有効 |
-| `RobotRasterizer.cs` | 116 | メッシュの CPU 描画（P4-B で新規） | 有効 |
+| `EpisodeRecorder.cs` | 1479 | 本体（§6.1・§6.5・§6.6）。BatchJob の受け取りと結果の書き出し（P6） | 有効 |
+| `SceneGenerator.cs` | 644 | シーンの自動生成（P4-B、P8・整理で更新） | 有効 |
 | `TrajectoryPlanner.cs` | 270 | 候補の指定・軌道の生成。yaw・pitch・flip、形から決める押し始め、向きのある箱 | 有効 |
 | `ArmKinematics.cs` | 293 | FK・数値 IK・腕の点・`GripperPointsLocal`・`LinkNames`・`LinkPoses` | 有効 |
 | `ActionRepresentations.cs` | 237 | 4 種の action 表現（v2） | 有効 |
+| `RobotRasterizer.cs` | 116 | メッシュの CPU 描画（P4-B） | 有効 |
 | `ContactRecorder.cs` | 53 | 接触の記録（物体に付ける）。`min_separation` | 有効 |
-| `CameraExporter.cs` | 153 | カメラ行列の書き出し（Play ごとに `CaptureLogs/` へ書く） | 有効 |
-| `RobotInitialPose.cs` | 61 | Play 開始時の初期姿勢・指の角度（P1 で新規、`[DefaultExecutionOrder(-100)]`） | 有効 |
+| `CameraExporter.cs` | 154 | カメラ行列の書き出し | 有効 |
+| `RobotInitialPose.cs` | 64 | Play 開始時の初期姿勢・指の角度（`[DefaultExecutionOrder(-100)]`） | 有効 |
 | `DisableRobotGravity.cs` | 28 | 重力オフ＋ドライブ | 有効 |
-| `BatchJob.cs` | 77 | P6：BatchRunner との受け渡し（job.json / result.json） | 有効 |
-| `RobotFreeCapture.cs` | 248 | TODO4 のペア撮影（`freezeObjectsDuringCapture` 既定 on、UR5e 用 16 姿勢） | **無効**（検証 B をやり直すときだけ on にして、EpisodeController を off） |
+| `BatchJob.cs` | 77 | P6：BatchRunner との受け渡し（`Temp/p6_batch/job.json`・`result.json`） | 有効 |
+| `RobotFreeCapture.cs` | 248 | TODO4 のペア撮影（UR5e 用 16 姿勢） | **無効**（検証 B をやり直すときだけ on にして、EpisodeController を off） |
 
-Python（`Assets/Python/`）：
+Editor（`Assets/Editor/`）：
 
-| ファイル | 役割 |
-|---|---|
-| `build_metadata.py` | metadata・episode.json・SOLO 定義のコピー（`--scene`） |
-| `validate_episode.py` | 自動検証、`load_episode`・`find_pair`・`load_pair_episode`（`--scene`） |
-| `check_task_pair.py` | A/B ペアの比較（`--pair`、`--shadow-px 40`、`--far-tol 3`） |
-| `summarize_labels.py` | ラベル分布・matched pair の集計 → `Episodes/label_summary.md/.json` |
-| `check_camera.py` | カメラ行列の検証 |
-| `check_verification_a.py`・`check_verification_b.py` | 検証 A・B |
-| `bench_training_cost.py`・`bench_data_loading.py` | P1.5 の計測 |
-| `run_pipeline.py` | P6：1 ペア分の 4 本を順に回して、ログと結果 JSON を書く |
-| `inspect_batch.py` | P7：量産データの偏りの点検 → `<root>/inspection.md/.json` |
+| ファイル | 行数 | 役割 |
+|---|---|---|
+| `BatchRunner.cs` | 634 | P6：無人のバッチ実行（`Tools > P6 Batch > Start / Stop after current / Abort now / Status`）、`resume`（整理） |
 
-Editor（`Assets/Editor/`）：`BatchRunner.cs`（P6、`Tools > P6 Batch`）
+Python（`Assets/Python/`、Windows の Python 3.11 で回す）：
+
+| ファイル | 行数 | 役割 |
+|---|---|---|
+| `build_metadata.py` | 276 | metadata・episode.json・SOLO 定義のコピー（`--episodes`・`--scene`） |
+| `validate_episode.py` | 604 | 自動検証、`load_episode`・`find_pair`・`load_pair_episode`（`--scene`） |
+| `check_task_pair.py` | 271 | A/B ペアの比較（`--pair`、`--shadow-px 40`、`--far-tol 3`） |
+| `summarize_labels.py` | 157 | ラベル分布・matched pair の集計 → `<root>/label_summary.md/.json` |
+| `run_pipeline.py` | 100 | P6：1 ペア分の 4 本を順に回す（BatchRunner が使う） |
+| `inspect_batch.py` | 311 | P7：偏りの点検 → `<root>/inspection.md/.json` |
+| `check_camera.py`・`check_verification_a.py`・`check_verification_b.py` | — | カメラ行列・検証 A・B |
+| `bench_training_cost.py`・`bench_data_loading.py` | — | P1.5 の計測 |
+
+学習・評価（`Learning/`、Unity の外。.meta なし）：
+
+| ファイル | 行数 | 役割 |
+|---|---|---|
+| `wm_cache.py` | 351 | P10：episode → HDF5 キャッシュ（§7.7） |
+| `wm_dataset.py` | 181 | P10：`WMDataset`・`make_splits`・`prepare_batch` |
+| `test_wm_dataset.py` | 174 | P10：キャッシュと Dataset の検証・速度 |
+| `wm_eval.py` | 376 | P11：指標・bootstrap・H1〜H5（§7.8） |
+| `test_wm_eval.py` | 173 | P11：仮の予測値で動作確認 |
+
+資料（`Docs/`）：`THESIS_HANDOFF.md`（本書）、経緯文書 4 本、P1.5〜P5 の各報告、`interim_20261030/`（中間報告の材料と `make_figures.py` 398 行）
+
+Taro が作ったもの（`Assets/Capture/`、10/12 に commit）：スライド用の画像・動画と `Tools/StepFrameRecorder.cs`（Play 中だけ足して使う撮影ツール。シーンには付いていない）
 
 `EpisodeController` の主な設定（今の値）：
 
 | 項目 | 値 |
 |---|---|
-| `sceneIndex` / `seed` / `pairIndex` | 0 / 1 / 0 |
-| `outputRoot` | 空（= `Episodes`）。テストのときだけ `Episodes/_ur5e_test/...` |
+| `sceneIndex` / `seed` / `pairIndex` | 0 / 1 / 0（バッチのときは Play 中だけ上書き） |
+| `outputRoot` | 空（= `Episodes`）。バッチのときは Play 中だけ上書き |
 | `generateTaskPair` | on |
-| `autoScene.enabled` | on（このとき `numCandidates`・`candidateSpecs`・`goalCenter` は使われない。シーンには P4-A の 8 候補が残っている） |
+| `autoScene.enabled` | on（このとき `numCandidates`・`candidateSpecs`・`goalCenter` は使われない。シーンには P4-A の 8 候補が残っている。Tooltip に記載） |
+| `autoScene` の候補 | `numMatchedPairs` 2・`numSingles` 12（うち `numGoalDirected` 3・`numGoalEdge` 3・`numTowardSecondary` 3、残り 3 がランダム） |
+| `autoScene` のゴールの縁 | `goalEdgeAngleOffsetDeg` 10〜20・`goalEdgeLengthOffset` 0.015〜0.045 |
+| `autoScene` の円柱 | `secondaryHeightRange` 0.32〜0.40（2 cm 刻み）・`avoidOcclusion` on・`requireTowardSecondaryFeasible` on・`maxOtherRobotHits` 3・`armOverlapRange` 3〜10 mm |
 | `settleFixedSteps` / `framesBeforeStart` / `hideSettleFrames` | 100 / 30 / 1 |
 | `validateKinematics` / `fkToleranceM` | on / 0.001 |
 | `postSettleSteps` / `resetHoldSteps` | 50 / 3 |
@@ -971,7 +954,7 @@ Editor（`Assets/Editor/`）：`BatchRunner.cs`（P6、`Tools > P6 Batch`）
 | `ignoreRobotSelfCollision` / `freshPhysicsScenePerCandidate` | on / on |
 | `contactTouchTolerance` / `robotContactOffset` / `secondaryContactOffset` | 0.001 / 0.002 / 0.001 |
 | `goalRadius` / `fallDropThreshold` / `fallTiltDeg` / `goalMaxSpeed` | 0.03 / 0.02 / 30 / 0.005 |
-| `debugOnlyCandidates` | 空 |
+| `debugOnlyCandidates` | 空（空でないとバッチは始まらない） |
 | `robotRoot` | UR5e（空なら `ur5e_with_gripper` → `ur3_with_gripper` の順に探す） |
 
 ---
@@ -1548,6 +1531,100 @@ A/B のずれ（seed 1 の c002）：
 - 経緯の文書 `Docs/P4_P5_経緯_20261005.md`（`cf679b3`）
 - 本書（`THESIS_HANDOFF.md` 2026-10-05 版）
 
+
+### 9.17 P6：バッチ実行（`198d0d6`・`feff9e2`、10/05）
+
+作ったもの：
+
+- `BatchRunner.cs`（Editor）：`EditorApplication.update` で状態を進める。next → enterPlay → playing → stopping → python → next
+- `BatchJob.cs`：job.json / result.json の受け渡し。値は Play 中のインスタンスにだけ入るので、シーンファイルは変わらない
+- `run_pipeline.py`：Python 4 本を順に回す
+- EpisodeRecorder：job の受け取り、結果の書き出し、生成に成功してからフォルダを作る、生成失敗は `LogWarning`
+
+詰まったところ・決めたこと：
+
+1. Play の開始・終了でドメインリロードが走り、static の値が消える → 状態は `Temp/p6_batch/state.json` に書く
+2. Unity がバックグラウンドでも `EditorApplication.update` は回る（テストで確認）。`delayCall` は使わない
+3. Python は 2 シーン分で約 10 秒と速く、Play（約 8 分）と並べて回す必要はなかった
+
+結果：
+
+- テスト 2 シーン（`p6_batch2`）と、clean な commit からの 3 シーン（`p6_accept`）が全部 PASS
+- パイロット（`f46109c`）と、executed・labels が 96/96 で 1 ビットも同じ
+- 失敗の経路はタイムアウト 1 分で確認（`p6_failpath`）
+
+### 9.18 P7：20 シーンの量産と点検（`b8232f2`・`be1347b`、10/06）
+
+- seed 4〜23 を無人で 20/20。Play 中央 7.9 分。点検用に `inspect_batch.py` を作った
+- 見つかったこと（§7.5）：
+  1. goal が候補の種類だけで 93% 当たる（ゴール方向 89% True、ほかは 3〜5%）
+  2. 円柱の高さが 32 cm ばかり（19/20）
+  3. **円柱がカメラとターゲットの間に立つ**：初期画像でターゲットが半分隠れたシーン 2、最終で半分以上隠れた候補 30。検証の FAIL 4 シーンは全部これ（最終 mask の IoU が、細い切れ端どうしの比較になる）
+  4. 追従誤差の外れ値（最大 8.3 mm）は、腕が狙いどおり円柱に当たって押し戻された瞬間（descend の step 228 付近、上腕が 0.7° 遅れる）
+- Taro の判断：goal の偏りは「B：届くか届かないかギリギリの候補を足す」
+
+### 9.19 P8：偏りの修正と再点検（`987be30`・`efc35ac`・`63447a4`、10/11〜12）
+
+直したこと：
+
+| 問題 | 直し方 |
+|---|---|
+| 円柱がターゲット・ゴールを隠す | 画面上の範囲が重なり、しかも円柱の方が手前なら置かない（`avoidOcclusion`） |
+| 高さが 32 cm ばかり | 試す範囲を 32〜40 cm にして、seed ごとのランダム順 |
+| goal が種類だけで当たる | ゴール方向を 6 → 3 本にして、ゴールの縁 3 本を追加 |
+| 検証の FAIL | 最終 mask の IoU は、箱の半分以上が隠れうるときは比べない |
+
+詰まったところ：
+
+1. シーンの設定（`numGoalDirected` など）はシーンファイルに保存されている → コードの既定値を変えても効かない。`SerializedObject` ではなく、値を入れて `SaveScene` した
+2. `Assets/Capture/`（Taro のスライド用、git に入っていなかった）があると「clean な commit から」のチェックで止まる → Taro の判断で commit（`efc35ac`）
+3. 点検スクリプトが、円柱の方向に届かずランダムで埋めた候補を「円柱の方向」に数えていた → ランダムに数えるよう直した（`63447a4`）
+
+結果（§7.6）：検証 20/20 PASS、隠れ 0、高さがばらけた、goal を種類だけで当てる差 +29 → +14 ポイント、ゴールの縁の goal 率 52%。新たに A/B の不安定 2 本（1.7・2.1 mm）と、円柱の方向の候補が作れないペア 5/20 が見えた
+
+### 9.20 P9：区切り（10/12）
+
+- Taro の判断：`main` を進める＋ tag。`main` を `776fe3c` → `63447a4` に fast-forward（`main` が `todo6-ur5e` の祖先なのを確かめてから `branch -f`）、tag `p8-complete`（注釈付き）
+
+### 9.21 P10：学習用データの読み込み（`020dfe3`、10/12）
+
+- 置き場所は Unity の外の `Learning/`（.meta を作らないため）
+- 詰まったところ：
+  1. 最初の版は 1 episode 読むのに遅かった（100 件/s）→ 原因は 2 つ
+     - HDF5 の chunk が複数件まとめてだったので、1 件読むたびに複数件を展開していた → 1 件ずつの chunk に（変換も 299 → 37 秒）
+     - CPU で float に変換していた（1 件 3 MB）→ 整数のまま出して `prepare_batch()` で GPU に送ってから変換。workers 4 で 701 件/s
+  2. 初期 depth の検証で、縮小前後の「中央値」を比べたら 9 mm ずれた → 縮小のやり方（0 を除いた平均）で縁の重みが変わるだけで、比べ方が悪かった。4 画素とも何かある所の平均との差（±0.5 mm）で比べるようにした
+  3. Windows の DataLoader は worker の起動に数秒かかる → 速度は 2 epoch 目で測る（`persistent_workers`）
+
+### 9.22 P11：評価コード（`2cc7091`、10/12）
+
+- AUPRC は自前で書き、sklearn と 200 通りで一致を確認（同点はまとめる）。bootstrap 用に重み付き
+- bootstrap は「ペアの重み」を作って、全モデル・全 seed・両 Task で同じ重みを使う（paired）
+- 詰まったところ：numpy の bool どうしの引き算でエラー（`succ.max() - succ[j]`）→ float にしてから
+- 気づき：意思決定の指標はシーン 1 つにつき 1 値なので、20 シーンだと CI が ±0.1 前後。テストのシーン数で H4 の検出力が決まる
+
+### 9.23 P12：中間報告の材料（`f4a8765`、10/12）
+
+- Taro の `Assets/Capture/`（動画・画像）は見た目で伝える役なので、数字で示す図にした
+- 詰まったところ：
+  1. 立方体は横倒しでも見た目がほとんど同じ → 押し方の比較は画像ではなく「傾き × 高さの低下」の散布図に
+  2. fig4（PGS → TGS）はシーンも候補も違う比較 → きちんとそろえた証拠は表 2（同じ seed の同じ候補で 12.6 → 0.000 mm）とキャプションに明記
+  3. ラベルの重なり・軸の切れ → 全部の図を目で見て直した
+
+### 9.24 整理：量産の準備（`94123fc`、10/12）
+
+Taro と決めたこと：A1・A2・A3・B1・B2 をやる、量産先は `_main_v1`、古いデータは `_archive` へ、量産はまだ回さない
+
+詰まったところ：
+
+1. **改行**：HANDOFF には `core.autocrlf false` とあったが、実際はリポジトリに設定がなく Git 本体の `true` が効いていた。作業フォルダだけ CRLF の古いファイルが 179 個
+   - `git checkout -- <files>` は「変わっていない」とみなされて何もしなかった → .NET で CRLF → LF に書き換え → `git status` が一時的に 179 ファイル「変更あり」（stat だけ）→ `git add` で中身が同じことを確かめて clean
+2. **Unity の AssetDatabase.Refresh(ForceUpdate)** で再インポートが走り、しばらく compiling になった → 普段は `refresh_unity` の後に idle を待つ
+3. **円柱の方向の候補が作れない理由**は 2 つ：円柱が遠い（ターゲットから約 30 cm）と、押し始めが土台に近い。最初の判定（±10° の 3 方向とも、届く距離 ＋ 6 cm ≤ 22 cm）は厳しすぎて seed 6 で絞った置き場所が見つからなかった → 真ん中の向き・いちばん短い押し方だけで判定するよう緩めた → 5/5 で作れた
+4. 再開機能のテスト：Play の途中で Abort → `pairs/pair_0000` を外へ移す（Python がまだの状態を作る）→ resume で両方とも正しく処理
+
+結果：§7.10
+
 ---
 
 ## 10. ハマりどころ（全期間、再発防止）
@@ -1580,6 +1657,15 @@ A/B のずれ（seed 1 の c002）：
 | depth の差が 980 mm | EXR の index 0 を読んでいた | index 2（R チャンネル） |
 | 頂点が読めない | `.dae` が Read/Write off | on にする |
 | `executed_meta.json` が壊れる | 補間しない文字列に `}}` | `}` 1 個にする |
+| 円柱がターゲットを隠して、検証の最終 IoU が落ちる | 円柱がカメラとターゲットの間に立つ | 置き場所の条件に隠れを追加（P8）。検証は半分以上隠れうるときは比べない |
+| 円柱の高さが毎回 32 cm | 低い方から試して最初に置けた高さを使っていた | ランダム順（P8） |
+| 円柱の方向の候補が作れない | 円柱が遠い／押し始めが土台に近い | 置き場所を作れる所に優先して絞る（整理） |
+| バッチの途中で Unity が落ちると最初から | 状態が Temp にある | `resume: true` で出力先のフォルダから続きを探す（整理） |
+| `git status` が改行だけで「変更あり」になりうる | Git 本体の `core.autocrlf true` が効いていた | リポジトリに `core.autocrlf false`、作業フォルダを LF にそろえた（整理） |
+| Windows の Python が書いた JSON が CRLF | `Path.write_text` は Windows だとテキストモードで `\r\n` | git に入れるファイルは `newline="\n"` を付ける |
+| HDF5 の読み込みが遅い | chunk が複数件まとめて | 1 件ずつの chunk（P10） |
+| DataLoader が 200 件/s で詰まる | CPU で float に変換（1 件 3 MB） | 整数のまま出して GPU で変換（`prepare_batch`） |
+| シーンの設定をコードで変えても効かない | 値はシーンファイルに保存されている | Inspector の値を変えて `SaveScene`、commit |
 
 クラッシュログの確認：
 
@@ -1615,6 +1701,11 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 | PowerShell に画面ログ（`PS C:\...>` 付き）を貼ると全行エラー | コードブロックの中身だけをコピーする |
 | 送ったファイルのコピーがプロジェクト直下（`Claude outputs/`）に置かれる | `.gitignore` 済み |
 | 一時的な設定変更が正式データに混ざる危険 | 出力先をテスト用にする。データは必ず clean な commit から作る（commit → Play → 止める → Python） |
+| バッチの Play 中は MCP が使いにくい（生成中はメインスレッドが止まる） | 進み具合は device_bash で `_batch/batch_log.txt` を読む。待ちは 1 回 3 分弱の sleep か `send_later` |
+| device_bash が 190 秒で「応答なし」になることがある | 同じコマンドをすぐ繰り返さない。少し待ってから短いコマンドで状態を確認 |
+| `AssetDatabase.Refresh(ImportAssetOptions.ForceUpdate)` で再インポートが走る | 普段は `refresh_unity`（compile request）の後に idle を待つ |
+| 画像を見たいとき | device_stage_files でクラウド側に持ってきて Read。共有フォルダの画像はそのままでは見られない |
+| Unity を閉じていると git も Windows の Python も使えない | commit・検証は Unity が開いているときに。閉じていたら Taro にコマンドを渡す |
 
 ---
 
@@ -1653,21 +1744,40 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 | `cf679b3` | `Docs/P4_P5_経緯_20261005.md` |
 | `b2c6a16` | `Docs/THESIS_HANDOFF.md`（push 済み） |
 | `198d0d6` | P6：バッチ実行 |
+| `feff9e2` | P6：HANDOFF 更新 |
+| `b8232f2` | P7：inspect_batch.py と 20 シーンの点検 |
+| `be1347b` | P7：inspect_batch.py.meta |
+| `987be30` | P8：隠れ・高さ・ゴールの縁 |
+| `efc35ac` | Taro の `Assets/Capture/`（スライド用の画像・動画・StepFrameRecorder） |
+| `63447a4` | P8：再点検と HANDOFF §7.6（**`main`・tag `p8-complete`**） |
+| `020dfe3` | P10：学習用データの読み込み |
+| `2cc7091` | P11：評価コード |
+| `f4a8765` | P12：中間報告の材料 |
+| `94123fc` | 整理：再開・円柱の置き場所・コメント・データの整理 |
+| （本書の commit） | HANDOFF 10/12 版・経緯文書 `P6_P12_経緯_20261012.md` |
 
-- 10/05 の時点で `cf679b3` まで push 済み。`main` より 28 commit 先にある
-- この文書（`Docs/THESIS_HANDOFF.md`）は、その次の commit で追加する
-- tag：`todo4-verified`（421a4a4）、`todo5-complete`（776fe3c）、`todo6-complete`（9b6030b）。P2 以降の tag はまだない
+- 10/12 の時点で `94123fc` まで push 済み（本書の commit は Taro が push する）
+- `main` は `63447a4`。`todo6-ur5e` はそこから先に進んでいる（区切りのたびに fast-forward する方針）
+- tag：`todo4-verified`（421a4a4）、`todo5-complete`（776fe3c）、`todo6-complete`（9b6030b）、`p8-complete`（63447a4）
 - 運用：
   - Claude は commit まで。**push は Taro**
   - 通常：`git push origin todo6-ur5e`
-  - tag：`git push origin <tag名>`
+  - `main` を進めたとき：`git push origin main`、tag：`git push origin <tag名>`
   - 未 push の確認：`git log --oneline origin/todo6-ur5e..HEAD`
 - GitHub に上げないもの：`Episodes/`・`CaptureLogs/`・`Captures/`・`Library/`・`Temp/` など
   - どの commit から作ったデータかは、`metadata.json` の git 欄で追える
 
----
+## 13. データの置き場所（10/12、消していない）
 
-## 13. 退避・テスト用のデータ（消していない）
+`Episodes/`：
+
+| フォルダ | 中身 |
+|---|---|
+| `_main_v1/` | **量産データの置き場所**（まだ無い。BatchRunner の既定の出力先） |
+| `_p8_20scenes/` | 今の仕様の 20 シーン（seed 4〜23）。`_cache/`（学習用キャッシュ）、`_eval_dummy/`（P11 の仮の評価）、`inspection.md` |
+| `_ur5e_test/` | `p6_accept`・`p6_batch2`・`p6_failpath`（P6）、`p8_try1`（P8 のテスト 6 シーン）、`p9_prep`（整理の確認 6 シーン）、`p9_prep_resume_test_moved`（再開テストで外へ移した pair_0000） |
+| `_slide_capture/` | Taro のスライド用 |
+| `_archive/` | 下の表 |
 
 `Episodes/_archive/`：
 
@@ -1677,90 +1787,81 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 | `scene_0000_ur3_20261004_090146` | UR3 版の正式データ（42/42） |
 | `scene_0000_ur5e_preP2_20261004_014502` | P2 前の UR5e 正式データ |
 | `p2_pair_0000_20261004_022510` | P2 の本番ペア |
-| `p4a_oldpush_20261004_113316` | P4-A の元のパイロット（全部横倒し） |
+| `p4a_oldpush_20261004_113316` | P4-A の元のパイロット（全部横倒し。中間報告の図 2 で使う） |
 | `p4a_pitch30_fixed8_20261004_124357` | 閉じた指・傾き 30°・固定 8 候補 |
 | `p4a_auto_skeleton_20261004_132712` | 自動生成 seed 1・骨格線 |
 | `p4b_closedgrip_3seeds_20261004_140158` | 閉じた指・本描画・3 シーン |
-| `p4b_pgs_3seeds_20261004_153118` | 半分開いた指・PGS（A/B のずれ 2 本） |
+| `p4b_pgs_3seeds_20261004_153118` | 半分開いた指・PGS（A/B のずれ 2 本。図 4 で使う） |
 | `p4b_tgs_far_cyl_20261004_160223` | TGS・円柱が遠い |
 | `p4b_tgs_v2_20261004_164119` | TGS・seed 3 で円柱が通り道に立った |
 | `p4b_v4_preP5_20261004_172613` | P5 の前 |
-
-`Episodes/_ur5e_test/`（テスト出力）：
-
-- P1・P2・P3：`_old_scene_0000_upright_pose`、`_p2_regress`、`p2_infra`、`p2_place1〜3`、`p3_run1・2`
-- P4-B①：`p4b_det1〜7`、`p4b_v1〜v17`
-- P4-B②〜⑤：`gen*`、`tip_*`、`face_*`、`grip042_*`、`input1`
-- P4-B⑥：`bp_sap`・`bp_abp`、`default_scene*`、`stiff_fingers`、`tgs*`
-- P5：`p5_test`、`p5_table_test`
-- 書き出した資料：`collider_points_local.json`（当たり判定の頂点）、`kin_chain.json`（Python で FK を再現する用）
+| `pilot_p5_20261011_205852` | **3 シーンのパイロット（P5、seed 1〜3）**。もとは `Episodes/` の直下（scene_0000〜0005・pairs・label_summary・inspection・_pipeline_log） |
+| `p7_20scenes_20261011_205852` | P7 の 20 シーン（P8 の修正前。図 5・6 で使う） |
+| `ur5e_test_preP6_20261011_205852` | `_ur5e_test` の P6 より前のテスト（P1〜P5 の試行、`collider_points_local.json`・`kin_chain.json` もここ） |
 
 その他：
 
 - `_import_backup/<日時>/`：壊れた `inner_knuckle` の `.prefab`・`.asset`
 - `CaptureLogs/bench_*.jsonl`：P1.5 の生データ
+- 中間報告の図は `Docs/interim_20261030/make_figures.py` で上のデータから作り直せる（`_archive` の中を自動で探す）
 
 ---
 
-## 14. 次にやること（優先順）
+## 14. 次にやること（優先順、10/12）
 
-### 14.1 すぐ
+### 14.1 量産（12/4 に向けて、無人で約 42 時間）
 
-- [ ] 区切りを付ける。どちらかを Taro が決める：
-  - `main` を `todo6-ur5e` まで進める（fast-forward）
-  - tag を付けるだけ（例：`p4-complete`・`p5-complete`）
-- [ ] Rekha か Jordy に「AI の卒論生が GPU を使うならどこに頼めばいいか」を聞く
-  - `cseduproject` が使えるか。申請の数字は §9.6
-  - 返事に時間がかかるかもしれないので、早めに
+1. 作業フォルダが clean か確認（`git status` が空）。Windows のスリープを切る
+2. `Episodes/_batch_config.json` を書く（例）：
+   ```json
+   {"outputRoot": "Episodes/_main_v1", "numScenes": 320, "seedStart": 1000, "sceneIndexStart": 0, "pairIndexStart": 0,
+    "maxSeedAttempts": 0, "playTimeoutMin": 30, "pythonTimeoutMin": 30,
+    "pythonExe": "C:\\Users\\kinos\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
+    "requireCleanGit": true, "runPython": true, "resume": true}
+   ```
+   - 320 ペア = 10,240 episode（約 42 時間）。seed は既存（1〜23）と重ならない番号から
+   - まず 1 日分（例：100 ペア）で止めて点検してから続ける、でもよい（`resume: true` なので、同じ設定で `numScenes` を増やして Start し直すだけ）
+3. `Tools > P6 Batch > Start`。止めるときは `Stop after current`。状態は `Status` か `Episodes/_main_v1/_batch/batch_log.txt`
+4. 途中・最後に `python Assets/Python/inspect_batch.py --episodes Episodes/_main_v1` で点検（見るもの：A/B の不安定、追従誤差の外れ値、円柱の方向の候補をランダムで埋めたペア、goal・衝突の割合、検証の FAIL）
+5. `python Learning/wm_cache.py --episodes Episodes/_main_v1` → `python Learning/test_wm_dataset.py --episodes Episodes/_main_v1`（分け方 `_splits.json` もここで作られる）
 
-### 14.2 量産（12/4 に向けて）
+### 14.2 学習モデル（まだ何も決めていない）
 
-1. ~~**バッチ実行の仕組みを作る**~~ → ✅ P6 完了（§6.9）
-   - seed・`sceneIndex`・`pairIndex` を変えながら、Play → 止める → Python を繰り返す
-   - シーンファイルを汚さない（Play 中だけ値を変える）
-   - 1 シーン約 10 分。1 万 episode で約 50 時間
-2. 生成に失敗した seed の扱いを決める（飛ばす／記録する）
-3. 量産したデータで偏りを点検する（§7.4）
-   - matched pair の「片方だけ衝突」が 1 シーン 1 組で足りるか（H5 の検出力）
-   - 候補の種類とラベルがほぼ 1 対 1 になっていないか
-   - 追従誤差（TGS で 2.8 mm）が増えすぎないか
-   - 円柱の高さが 32 cm ばかりにならないか
-4. 学習・テストの分け方（シーン単位、matched pair は分けない）
+- 4 表現で、action 入力の部分以外を同じにする
+- 入力：robot-free 初期画像（RGB＋depth）＋ ゴール（xz・画面上の位置）＋ action 表現（`WMDataset`、§7.7）
+- 出力：最終位置・goal・衝突・最終 mask・contact heatmap（＋接触点）
+- P1.5 の仮モデル（フレームごとの CNN → GRU → FiLM）は、メモリを一番食う構造。時間方向を先に縮める構造（チャンネル方向に重ねる、時間方向の stride など）なら軽くなる見込み
+- 数値の action（約 480〜600 step）を間引くかは、ここで決める
+- 3 seed × 4 表現 × Task A/B。予測は `wm_eval.save_predictions()` の形で書けば、そのまま評価できる
 
 ### 14.3 10/30 の中間報告
 
-- proposal からの変更点 6 つ（§2.10）と、その理由・証拠
-- パイロットの数字（§7）
-- 今後の予定（量産・学習・評価）
+- 材料：`Docs/interim_20261030/materials.md`（変更点 6 つの表・図 6 枚のキャプション・パイロットの数字・再現性・パイプラインの状態・伝えるべき未解決点）
+- 英語の文は Claude の下書き。Taro の言葉に直して使う
+- 量産を少しでも回していれば、その数字に差し替える（`make_figures.py` を回し直す）
 
 ### 14.4 計算資源
 
 - 手元：RTX 4060 Laptop 8 GB。軽量〜中間の入力なら回る（学習中は Unity を閉じる）
-- 大学：Science Cluster `cseduproject`（AI 学科が対象か未確認）、SURF Research Cloud
+- 大学：Science Cluster `cseduproject`（AI 学科が対象か未確認）、SURF Research Cloud。Rekha か Jordy に聞く（Taro は「まだいい」と言っていた）
 - 最後の手段：RunPod（自費）
-
-### 14.5 学習モデル（まだ何も決めていない）
-
-- 4 表現で、action 入力の部分以外を同じにする
-- 入力：robot-free 初期画像（RGB＋depth）＋ action 表現
-- 出力：最終位置・goal・衝突・最終 mask・contact heatmap
-- P1.5 の仮モデル（フレームごとの CNN → GRU → FiLM）は、メモリを一番食う構造。時間方向を先に縮める構造（チャンネル方向に重ねる、時間方向の stride など）なら軽くなる見込み
-- 3 seed × 4 表現 × Task A/B
 
 ---
 
-## 15. 未決の設計判断
+## 15. 未決の設計判断（10/12）
 
 | 項目 | 今の状態 |
 |---|---|
 | 学習モデルのアーキテクチャ・学習設定 | 未着手 |
-| 本番の episode 数・epoch 数 | 未定（P1.5 の見積もりは 1 万 episode × 50 epoch） |
-| 学習の入力サイズ | 128 px・25 枚から始める予定（保存は 256 px・25 枚） |
-| 数値表現の時間方向の扱い | 全 step（50 Hz、約 480 step）のまま。間引くかは未定 |
-| 候補の内訳の最終形 | 今は 2 組＋6＋3＋3。量産の点検しだいで見直す |
-| `main` の扱い・tag | 未決 |
-| TGS で増えた追従誤差（最大 2.8 mm）の影響 | 計画（モデルの入力）と実際の動き（ラベル）のずれ。影響はまだ評価していない。量産で増えないか見る |
-| P3 までの衝突ラベル（近づいただけが混ざっていた） | 今のデータは全部新しい定義で作り直し済み。古いデータは使わない |
+| 本番の episode 数・epoch 数 | 1 万 episode（320 ペア）を予定。epoch は未定 |
+| 学習の入力サイズ | 128 px・25 枚（キャッシュ済みの形。保存は 256 px） |
+| 数値表現の時間方向の扱い | 全 step（50 Hz）を 0 埋め＋長さ。間引くかは未定 |
+| train / val / test の割合 | 仮に 0.7 / 0.15 / 0.15（ペア単位、seed 0）。H4 の検出力を考えて、量産後に決め直す |
+| 評価の定義 | 仮：regret は成功の 0/1、位置誤差は XZ、接触点は最初のロボット → ターゲットの接触、mask は 0.5 で 2 値化。Rekha に確認してもよい |
+| 追従誤差の外れ値 | 腕が円柱に当たった候補で大きくなる（最大 17.7 mm）。ラベルは正しい。量産データで分布を見る |
+| A/B の不安定 | P8 で 2/222（1.7・2.1 mm、3 mm 以内）。量産データで見る |
+| 衝突が候補の種類から当たる（円柱の方向 87%） | 物理的に当然なので直さない（モデルが見るのは軌道で、種類ではない） |
+| P3 までの衝突ラベル（近づいただけが混ざっていた） | 今のデータは全部新しい定義。古いデータは使わない |
 
 ---
 
@@ -1771,13 +1872,16 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 - 研究のゴールはロボット制御・planning。動画生成はゴールではない（optional extension のみ）
 - 説明の仕方：
   - 素人前提で、結論から、手順を細かく分解して、図やイメージを使う
-  - カジュアルな口調で、誇張なし、現実的な案だけ
+  - カジュアルな口調（日本語）で、誇張なし、現実的な案だけ
+  - 正直に：うまくいかなかった所、条件がそろっていない比較、まだ試していない経路ははっきり書く
 - git：
   - Claude は commit まで。push は Taro
   - commit したら、ブランチ・commit・push のコマンドをコードブロックで渡す（「中身だけコピーしてね」と添える）
+  - git・Windows の Python は Unity の `execute_code` から起動する（§4.1・§11）。VM から git は触らない
 - データ：
-  - 消さずに `_archive/` へ退避する
-  - テストは `_ur5e_test/` に出す
+  - 消さずに `_archive/` へ退避する（VM からは消せない。`mv` で移す）
+  - テストは `_ur5e_test/` に出す。量産は `_main_v1/`
   - 正式データは clean な commit から作る
-- 重い計算は、数分で終わる単位に分ける
+- 重い計算は、数分で終わる単位に分ける。長い処理は別プロセスで起動してログを読む
+- 待つ処理（バッチなど）は `send_later` で様子を見に来る予定を入れ、終わったら消す
 - 作業後にこのファイルを更新するときは、変更した箇所と最終更新日を書き換える。細かい経緯は `Docs/` に経緯文書を足す
