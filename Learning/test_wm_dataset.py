@@ -110,6 +110,23 @@ def main():
         # 3. A/B が同じ action を指す
         same = all(ep_act[i] == ep_act[i + 1] and ep_task[i] == 0 and ep_task[i + 1] == 1 for i in range(0, nE, 2))
         check("A/B: 同じ候補の A と B は同じ action を使う", same)
+        # P14: matched pair の 2 本は同じ手先の動き。EEF 数値に枝の手がかり(quaternion の符号など)が残っていないか
+        e = h["episodes"]; mp = e["mp"][:]; si = e["scene_idx"][:]; ai = e["action_idx"][:]; ln = h["actions/num_len"][:]
+        grp = {}
+        for i in np.nonzero(mp >= 0)[0]:
+            grp.setdefault((int(si[i]), int(mp[i])), set()).add(int(ai[i]))
+        mpd = []
+        for s_ in grp.values():
+            if len(s_) == 2:
+                a_, b_ = sorted(s_); L_ = int(ln[a_])
+                mpd.append(float(np.abs(h["actions/eef_num"][a_, :L_] - h["actions/eef_num"][b_, :L_]).max()))
+        shared = bool(h.attrs.get("eef_shared_in_matched_pairs", False))
+        lim = 0.0 if shared else 1e-3
+        check(f"matched pair: EEF 数値の差 ≤ {lim:g}(枝が分からない。共有 {shared})", bool(mpd) and max(mpd) <= lim, f"最大 {max(mpd) if mpd else None:.2e}(n={len(mpd)})")
+        if shared:
+            img_same = all(np.array_equal(h["actions/eef_mask"][min(s_)], h["actions/eef_mask"][max(s_)]) and
+                           np.array_equal(h["actions/eef_depth_mm"][min(s_)], h["actions/eef_depth_mm"][max(s_)]) for s_ in grp.values() if len(s_) == 2)
+            check("matched pair: EEF 画像が同じ(共有)", img_same)
 
     # 4. 分け方
     sp = make_splits(cache)

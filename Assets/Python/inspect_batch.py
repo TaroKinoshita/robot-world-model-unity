@@ -8,6 +8,11 @@ P7: 量産したデータの偏りを点検する(学習の前に、データの
   4. 追従誤差(planned と実際の TCP のずれ)
   5. 生成に失敗した seed の割合・外した候補の理由
   6. その他(倒れた・ロボット↔机・A/B の不安定・検証)
+  7. 外れ値の決まり(P14)→ <root>/flags.json。学習では除かず、目印として使う(除く・除かないの両方で報告できるように)
+     R1 ab_unstable    : 円柱に触れていないのに A/B の最終位置が 1 mm 超ずれた候補(A・B の両方に付ける)。物理の揺らぎ、ラベルは保つ
+     R2 track_nocoll   : 衝突していない episode で追従誤差(TCP の最大)が 5 mm 超 → 異常。原因を見る
+     (衝突した episode の 5 mm 超は、腕が押し戻された結果なので外れ値に数えない。件数だけ出す)
+  冒頭の「判定」: 検証 FAIL・R2 が 1 つでもあるか、R1 が episode の 1% を超えたら「止めて確認」
 
 出力: <root>/inspection.md と inspection.json
 使い方: python inspect_batch.py --episodes Episodes/_p7_20scenes
@@ -127,6 +132,7 @@ def main():
     w = L.append
 
     w(f"# 量産データの点検（{root.name}）\n")
+    verdict_at = len(L)          # 「判定」はあとでここに入れる
     w(f"- scene {len(scenes)}（ペア {nB_scenes}）、episode {len(eps)}（A {len(A)}・B {len(B)}）\n")
 
     # ---- 1. 種類 × ラベル ----
@@ -301,6 +307,35 @@ def main():
     w(f"- ターゲットに触れなかった：{sum(e['contact'] is False for e in eps)}")
     J.update({"validation_failed": vfail, "pair_failed": pfail, "sim_unstable": unstable,
               "fell": sum(bool(e['fell']) for e in eps), "robot_table": sum(bool(e['table']) for e in eps)})
+
+    # ---- 7. 外れ値の決まり(P14) ----
+    w("\n## 7. 外れ値の決まり（目印、学習では除かない）\n")
+    flags = []
+    ustab = set(unstable)
+    for e in eps:
+        if (e["pair"], e["cid"]) in ustab:
+            flags.append({"scene": e["scene"], "cid": e["cid"], "task": e["task"], "rule": "R1_ab_unstable"})
+    coll_ep = lambda e: e["task"] == "B" and bool(e["coll"])
+    r2 = [e for e in eps if e["tcp_err_max"] is not None and e["tcp_err_max"] > 0.005 and not coll_ep(e)]
+    r2c = [e for e in eps if e["tcp_err_max"] is not None and e["tcp_err_max"] > 0.005 and coll_ep(e)]
+    for e in r2:
+        flags.append({"scene": e["scene"], "cid": e["cid"], "task": e["task"], "rule": "R2_track_nocoll", "tcp_err_mm": round(1000 * e["tcp_err_max"], 2)})
+    n_r1 = sum(f["rule"] == "R1_ab_unstable" for f in flags)
+    w(f"- R1 A/B の不安定（触れていないのに 1 mm 超）：{n_r1} episode（{pct(n_r1, len(eps))}）")
+    w(f"- R2 衝突していないのに追従誤差 5 mm 超：{len(r2)} " + ("、".join(f"{e['scene']}/{e['cid']} {1000 * e['tcp_err_max']:.1f} mm" for e in r2[:10]) if r2 else ""))
+    w(f"- （参考）衝突した episode で 5 mm 超：{len(r2c)}（腕が押し戻された結果。外れ値に数えない）")
+    (root / "flags.json").write_text(json.dumps({"rules": {"R1_ab_unstable": "untouched secondary but A/B final pos differ > 1 mm",
+                                                            "R2_track_nocoll": "no secondary collision but max TCP tracking error > 5 mm"},
+                                                  "flags": flags}, indent=1, ensure_ascii=False), encoding="utf-8")
+    stop = []
+    if vfail or pfail:
+        stop.append(f"検証 FAIL（scene {len(vfail)}・ペア {len(pfail)}）")
+    if r2:
+        stop.append(f"R2 {len(r2)} 件")
+    if eps and n_r1 / len(eps) > 0.01:
+        stop.append(f"R1 が 1% 超（{pct(n_r1, len(eps))}）")
+    J["flags"] = {"R1": n_r1, "R2": len(r2), "track_over5_coll": len(r2c), "stop_reasons": stop}
+    L.insert(verdict_at, ("## 判定：⚠ 止めて確認 — " + "・".join(stop) + "\n") if stop else "## 判定：✅ 続けてよい（検証 FAIL 0・R2 0・R1 ≤ 1%）\n")
 
     (root / "inspection.md").write_text("\n".join(L) + "\n", encoding="utf-8")
     (root / "inspection.json").write_text(json.dumps(J, indent=2, ensure_ascii=False, default=str), encoding="utf-8")

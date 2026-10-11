@@ -9,6 +9,7 @@ P10: 学習用の PyTorch Dataset(wm_cache.py で作った HDF5 を読む)
 rep(action 表現。4 モデルで違うのはここだけ):
     "eef_num"  : x["action"] = (Lmax, 7)   TCP 位置 + quaternion。x["action_len"] = 本当の長さ
     "full_num" : x["action"] = (Lmax, 69)  関節角 6 + 9 点 × (位置 3 + quaternion 4)
+      num_steps="raster" にすると、数値も画像と同じ 25 時刻(raster_steps)だけ → (T, 7)・(T, 69)、action_len = T
     "eef_img"  : x["action"] = (T, 2, R, R)  [mask 0〜1, depth m(0 = 何もない)]
     "full_img" : x["action"] = (T, 2, R, R)
     ※ 画像の action は、Dataset からは整数のまま(x["action_mask"] uint8・x["action_depth"] int16 mm)で出して、
@@ -73,8 +74,10 @@ def prepare_batch(b, device="cuda"):
 
 
 class WMDataset(Dataset):
-    def __init__(self, cache_path, rep="full_img", task="both", split=None, splits=None, in_memory=False):
+    def __init__(self, cache_path, rep="full_img", task="both", split=None, splits=None, in_memory=False, num_steps="all"):
         assert rep in REPS, rep
+        assert num_steps in ("all", "raster"), num_steps
+        self.num_steps = num_steps
         assert task in ("A", "B", "both"), task
         self.path = str(cache_path)
         self.rep = rep
@@ -95,6 +98,8 @@ class WMDataset(Dataset):
             self.scene_task = h["scenes/task"][:]
             self.kinds = json.loads(e.attrs["kinds"])
             self.lmax = h["actions/eef_num"].shape[1]
+            self.raster_steps = h["actions/raster_steps"][:]
+            self.cache_version = str(h.attrs.get("version", ""))
         self.pair_ids = pair_ids
         keep = np.ones(len(self.meta["task"]), bool)
         if task != "both":
@@ -150,8 +155,13 @@ class WMDataset(Dataset):
         x = {"obs": torch.from_numpy(np.concatenate([rgb, dep], 0))}
         if self.rep.endswith("_num"):
             key = "eef_num" if self.rep == "eef_num" else "full_num"
-            x["action"] = torch.from_numpy(np.asarray(self._get("actions", key, ai), np.float32))
-            x["action_len"] = int(self._get("actions", "num_len", ai))
+            a = np.asarray(self._get("actions", key, ai), np.float32)
+            if self.num_steps == "raster":
+                x["action"] = torch.from_numpy(a[self.raster_steps[ai]])
+                x["action_len"] = self.frames
+            else:
+                x["action"] = torch.from_numpy(a)
+                x["action_len"] = int(self._get("actions", "num_len", ai))
         else:
             pre = "eef" if self.rep == "eef_img" else "full"
             x["action_mask"] = torch.from_numpy(np.asarray(self._get("actions", f"{pre}_mask", ai)))                       # (T, R, R) uint8

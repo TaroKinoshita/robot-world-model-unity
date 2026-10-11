@@ -1,6 +1,6 @@
 # 卒論ハンドオフ文書（Claude 引き継ぎ用）
 
-- 最終更新：2026-10-12（前の版：2026-10-05）
+- 最終更新：2026-10-12（P14 まで。前の版：2026-10-05）
 - 対象：Taro Kinoshita（S1140213）の BSc AI 卒論（Radboud University, SOW-BKI300）
 - 使い方：
   - 新しいチャットの最初に、このファイルを丸ごと貼る
@@ -934,11 +934,12 @@ Python（`Assets/Python/`、Windows の Python 3.11 で回す）：
 
 | ファイル | 行数 | 役割 |
 |---|---|---|
-| `wm_cache.py` | 351 | P10：episode → HDF5 キャッシュ（§7.7） |
-| `wm_dataset.py` | 181 | P10：`WMDataset`・`make_splits`・`prepare_batch` |
-| `test_wm_dataset.py` | 174 | P10：キャッシュと Dataset の検証・速度 |
-| `wm_eval.py` | 376 | P11：指標・bootstrap・H1〜H5（§7.8） |
+| `wm_cache.py` | 406 | P10：episode → HDF5 キャッシュ（§7.7）。v3（P14）：quaternion の符号をそろえる・matched pair の EEF action を共有 |
+| `wm_dataset.py` | 191 | P10：`WMDataset`・`make_splits`・`prepare_batch`。`num_steps="raster"`（P14） |
+| `test_wm_dataset.py` | 191 | P10：キャッシュと Dataset の検証・速度（P14：matched pair の EEF が同じか、25 項目） |
+| `wm_eval.py` | 460 | P11：指標・bootstrap・H1〜H5（§7.8）。P14：`label_baseline`・基準との比較・種類ごと |
 | `test_wm_eval.py` | 173 | P11：仮の予測値で動作確認 |
+| `wm_smoke_train.py` | 271 | P14：4 表現の小さいモデルで学習→予測→評価まで通す（§9.26） |
 
 資料（`Docs/`）：`THESIS_HANDOFF.md`（本書）、経緯文書 4 本、P1.5〜P5 の各報告、`interim_20261030/`（中間報告の材料と `make_figures.py` 398 行）
 
@@ -1652,6 +1653,28 @@ Taro と決めたこと：42 時間の連続運転は現実的でない → 夜�
 
 ---
 
+### 9.26 P14：量産前の確認（GPT の指摘への対応、10/12）
+
+きっかけ：外部レビュー（GPT）の指摘 ①A/B のずれ 2 件・追従誤差 17.7 mm ②種類だけでラベルが当たる ③小さい本物の学習を通していない ④数値（604 時刻）と画像（25 枚）の時間情報の差 ⑤matched pair を入力全体で比べる ⑥テスト用 seed ⑦元データから作り直せるか。Taro と決めたこと：量産の前に、③⑤と外れ値の決まり・基準を済ませる
+
+| # | やったこと | 結果 |
+|---|---|---|
+| ⑤-1 | matched pair 40 組で、モデルに渡す action を比較 | EEF 画像はほぼ同じ（25×128×128 のうち最大 28 px）。**EEF 数値は quaternion の符号だけ違っていた**（同じ向きを q と −q で書いている、40/40 組）→ 枝が分かる |
+| ⑤-2 | `wm_cache.py` v2：quaternion の符号をそろえる（`canon_quat`：最初の step は w > 0、あとは 1 つ前と同じ半球） | EEF 数値の差 2.0 → 0.0002 |
+| ⑤-3 | 小さいモデルで学習したら、それでも EEF 数値が枝を当てた（train で 21/21 組、wrist-up に高い衝突確率） | 0.2 mm 以下の IK→FK の数値誤差の向きが枝でそろっていて（40/40 組）、ほとんど変わらない成分（rot_y・rot_w、標準偏差 < 0.001）を標準化すると拡大された |
+| ⑤-4 | `wm_cache.py` v3：matched pair の 2 本は EEF action（数値・画像）を wrist_down 側のもので共有（`--no-share-eef` で切れる。共有前の差は attrs `eef_share_maxdiff`） | EEF の 2 モデルの h5_acc がちょうど 0.5（同点）。腕全体は train で 0.95〜1.0 |
+| ③ | `Learning/wm_smoke_train.py`：4 表現の小さいモデル（約 175〜197 万パラメータ）で、学習 → 保存 → 読み込み → 予測 → `wm_eval` → H1〜H5 | **PASS**（勾配が全部の塊に流れる・loss が下がる・読み込んで出力が完全に同じ・評価と判定まで）。1 表現 30 epoch で 15〜36 秒（GPU） |
+| ② | `wm_eval.label_baseline()`：action を見ない基準 `base_kind`（種類だけ）・`base_kind_branch`（種類＋枝）。`report_markdown(…, truth, models)` に「基準との比較」と「種類ごとの AUPRC」 | P8 の 20 シーン：枝だけで片方だけ衝突する組の 21/28（75%）が当たる（wrist-up が当たる）。**H5 は 0.5 ではなくこれと比べる** |
+| ④ | `WMDataset(…, num_steps="raster")`：数値も画像と同じ 25 時刻（`raster_steps`）だけにできる | 作り直し不要。どちらを本番にするかは未決（§14.2） |
+| ① | `inspect_batch.py` に「判定」と §7 外れ値の決まり → `<root>/flags.json`（学習では除かず目印） | R1：円柱に触れていないのに A/B が 1 mm 超（物理の揺らぎ、ラベルは保つ）／R2：衝突していないのに追従誤差 5 mm 超 → 異常。判定は「検証 FAIL・R2 が 1 つでも、R1 が 1% 超なら止めて確認」。P8 の 20 シーン：R1 4 episode（0.6%）・R2 0（5 mm 超の 3 本は全部衝突あり）。p9_prep の 17.7 mm も衝突あり → R2 に入らない |
+| ⑦ | 確認 | 生データに全 step の物体（Target・SecondObject）の位置・向き・速度、ロボットの全関節がある → 途中の状態を教師にするのは後からできる。**後から変えられないのは、画像の枚数（action 25 枚、最終・初期画像だけ）・解像度 256 px・カメラ** |
+| ⑥ | 確認 | 量産は seed 1000 から（調整に使った 1〜23 と別）。最終評価は `_main_v1` の分割だけを使う |
+
+- 出力：`Episodes/_p8_20scenes/_smoke`（v2 のキャッシュ）・`_smoke_v3`（v3）。`smoke_report_<split>_<steps>.md`
+- 小さいモデルの成績は意味がない（test は 3 ペア）。train では画像の 2 表現が goal・衝突をほぼ完全に覚え、数値の 2 表現は弱い（1D conv が浅い）。本番のモデル設計で見直す
+
+---
+
 ## 10. ハマりどころ（全期間、再発防止）
 
 | 症状 | 原因 | 対処 |
@@ -1780,9 +1803,10 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 | `f4a8765` | P12：中間報告の材料 |
 | `94123fc` | 整理：再開・円柱の置き場所・コメント・データの整理 |
 | `8b28469` | HANDOFF 10/12 版・経緯文書 `P6_P12_経緯_20261012.md` |
-| （本書の commit） | P13：時刻で止める・自動点検・早回し（§9.25） |
+| `d0f7619` | P13：時刻で止める・自動点検・早回し（§9.25） |
+| （本書の commit） | P14：量産前の確認（EEF の枝の手がかりを消す・小さいモデルで最後まで・基準・外れ値の決まり、§9.26） |
 
-- 10/12 の時点で `8b28469` まで push 済み（本書の commit は Taro が push する）
+- 10/12 の時点で `d0f7619` まで push 済み（本書の commit は Taro が push する）
 - `main` は `63447a4`。`todo6-ur5e` はそこから先に進んでいる（区切りのたびに fast-forward する方針）
 - tag：`todo4-verified`（421a4a4）、`todo5-complete`（776fe3c）、`todo6-complete`（9b6030b）、`p8-complete`（63447a4）
 - 運用：
@@ -1848,7 +1872,7 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
    - 16 倍速で 1 時間に約 23 ペア → 8 時間で約 180 ペア。200 ペアで約 9 時間、320 ペア（10,240 episode）で約 14 時間
    - 200 ペアが済んだら `numScenes` を増やして同じように続ける
 3. **毎晩**：Taro が「今から N 時間後に止めて」と言う → Claude が `StartBatch`（または `Tools > P6 Batch > Start`）→ `BatchRunner.SetStopAfterHours(N)`。返り値と `Status` の `stopAt=` で時刻を確かめて伝える
-4. **朝**：`Episodes/_main_v1/inspection.md`（自動で更新）と `_batch/batch_log.txt` を見る（A/B の不安定、追従誤差の外れ値、円柱の方向の候補をランダムで埋めたペア、goal・衝突の割合、検証の FAIL）
+4. **朝**：`Episodes/_main_v1/inspection.md`（自動で更新）の先頭の「判定」と `_batch/batch_log.txt` を見る（A/B の不安定、追従誤差の外れ値、円柱の方向の候補をランダムで埋めたペア、goal・衝突の割合、検証の FAIL）
 5. 学習を試すとき：`python Learning/wm_cache.py --episodes Episodes/_main_v1` → `python Learning/test_wm_dataset.py --episodes Episodes/_main_v1`（分け方 `_splits.json` もここで作られる）
 
 ### 14.2 学習モデル（まだ何も決めていない）
@@ -1857,7 +1881,9 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 - 入力：robot-free 初期画像（RGB＋depth）＋ ゴール（xz・画面上の位置）＋ action 表現（`WMDataset`、§7.7）
 - 出力：最終位置・goal・衝突・最終 mask・contact heatmap（＋接触点）
 - P1.5 の仮モデル（フレームごとの CNN → GRU → FiLM）は、メモリを一番食う構造。時間方向を先に縮める構造（チャンネル方向に重ねる、時間方向の stride など）なら軽くなる見込み
-- 数値の action（約 480〜600 step）を間引くかは、ここで決める
+- **数値の action を全 step（最長 604）で渡すか、画像と同じ 25 時刻にするか（`num_steps`）を決める**（§9.26 ④）
+- 数値の標準化：ほとんど変わらない成分は標準偏差に下限を付ける（§9.26 ⑤-3）
+- 報告：4 モデル ＋ `base_kind`・`base_kind_branch`、候補の種類ごとの成績も出す（H5 は枝だけの基準と比べる）
 - 3 seed × 4 表現 × Task A/B。予測は `wm_eval.save_predictions()` の形で書けば、そのまま評価できる
 
 ### 14.3 10/30 の中間報告

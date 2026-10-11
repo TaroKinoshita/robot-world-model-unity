@@ -7,6 +7,11 @@ P10: episode フォルダ → 学習用キャッシュ(HDF5 1 ファイル)
 - action(planned から作った 4 表現)は Task A/B で同じなので、ペア × 候補ごとに 1 回だけ保存する
   (保存する前に A と B がバイト単位で同じことを確かめる)
 - 数値の action は全 step(50 Hz)のまま、最長に合わせて 0 で埋めて長さを別に持つ
+- quaternion は q と -q が同じ向きなので、符号をそろえる(canon_quat、v2)。
+  そろえないと matched pair の 2 本で同じ向きなのに符号だけ違い、EEF 数値から枝が分かってしまった(P8 の 20 シーンで 40/40 組)
+- matched pair の 2 本は「同じ手先の経路」が定義なので、EEF の action(数値・画像)は wrist_down 側のものを両方に使う(v3、--no-share-eef で切れる)。
+  2 本の EEF は IK→FK の数値誤差で 0.2 mm 以下しか違わないが、その差の符号が枝でそろっていて(全 40 組で同じ向き)、
+  ほとんど変わらない成分(rot_y・rot_w)を標準化すると拡大され、小さいモデルでも枝を当てられた(P14)。共有前の差は attrs の eef_share_maxdiff に残す
 
 使い方(Windows の Python 3.11、cv2・h5py が要る):
   python Learning/wm_cache.py --episodes Episodes/_p8_20scenes [--out <file>] [--res 128]
@@ -37,7 +42,7 @@ import cv2
 import h5py
 import numpy as np
 
-VERSION = "wm_cache_v1"
+VERSION = "wm_cache_v3"   # v2: quaternion の符号をそろえた(canon_quat)。v3: matched pair の EEF action を共有(share_eef)
 KINDS = ["matched_pair", "goal_dir", "goal_edge", "random", "toward_secondary"]
 EEF_COLS = ["tcp_x", "tcp_y", "tcp_z", "rot_x", "rot_y", "rot_z", "rot_w"]
 
@@ -103,6 +108,36 @@ def read_numeric(p, cols):
     return np.asarray(rows, np.float32)
 
 
+def canon_quat(q):
+    """(L, 4) xyzw の列の符号をそろえる。最初の step は w > 0(w ≈ 0 なら最初の 0 でない成分 > 0)、
+    あとは 1 つ前と同じ半球(内積 ≥ 0)。同じ向きの列なら、元の符号にかかわらず同じ結果になる"""
+    q = np.array(q, np.float64, copy=True)
+    if len(q) == 0:
+        return q.astype(np.float32)
+    q0 = q[0]
+    key = q0[3] if abs(q0[3]) > 1e-6 else next((v for v in (q0[0], q0[1], q0[2]) if abs(v) > 1e-6), 1.0)
+    if key < 0:
+        q[0] = -q0
+    for t in range(1, len(q)):
+        if np.dot(q[t], q[t - 1]) < 0:
+            q[t] = -q[t]
+    return q.astype(np.float32)
+
+
+def canon_quat_cols(arr, cols):
+    """列名で quaternion(rot_x..rot_w、<link>_rx..<link>_rw)を探して符号をそろえる"""
+    arr = arr.copy()
+    for i, c in enumerate(cols):
+        if c.endswith("rot_x") or c.endswith("_rx"):
+            stem = c[:-1]
+            names = [stem + a for a in ("x", "y", "z", "w")]
+            if all(n in cols for n in names):
+                idx = [cols.index(n) for n in names]
+                if idx == list(range(i, i + 4)):
+                    arr[:, i:i + 4] = canon_quat(arr[:, i:i + 4])
+    return arr
+
+
 def full_cols(p):
     with open(p, newline="", encoding="utf-8") as f:
         head = next(csv.reader(f))
@@ -135,9 +170,9 @@ def load_action(cd, res, frames):
             raise ValueError(f"{cd}: {rep} の枚数が {frames} じゃない({len(mf)}/{len(df)})")
         out[f"{rep}_mask"] = np.stack([np.round(down_area(read_gray(p).astype(np.float32), res)).astype(np.uint8) for p in mf])
         out[f"{rep}_depth_mm"] = np.stack([np.round(down_depth(read_gray(p), res)).astype(np.uint16) for p in df])
-    out["eef_num"] = read_numeric(cd / "actions" / "eef_numeric.csv", EEF_COLS)
+    out["eef_num"] = canon_quat_cols(read_numeric(cd / "actions" / "eef_numeric.csv", EEF_COLS), EEF_COLS)
     fc = full_cols(cd / "actions" / "fullbody_numeric.csv")
-    out["full_num"] = read_numeric(cd / "actions" / "fullbody_numeric.csv", fc)
+    out["full_num"] = canon_quat_cols(read_numeric(cd / "actions" / "fullbody_numeric.csv", fc), fc)
     out["full_cols"] = fc
     out["raster_steps"] = np.asarray(steps if steps else np.linspace(0, len(out["eef_num"]) - 1, frames).round(), np.int32)
     return out
@@ -192,7 +227,7 @@ def git_commit(sd):
 
 # ---------- 本体 ----------
 
-def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=print):
+def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=print, share_eef=True):
     scenes = {}
     for sd in sorted(root.glob("scene_*")):
         if not (sd / "candidates.json").is_file() or not (sd / "metadata.json").is_file():
@@ -217,6 +252,8 @@ def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=pri
     A = []          # actions 行(後で書く)
     E = []          # episodes 行
     act_index = {}
+    mp_members = {}     # (pair_idx, mp) → [(action_idx, branch)]
+    share_diff = {"eef_num": 0.0, "eef_mask_px": 0, "eef_depth_mm": 0}
     full_cols_ref = None
     commits = set()
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -264,6 +301,20 @@ def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=pri
                 if c.get("matched_pair_id"):
                     mp = int(c["matched_pair_id"].replace("mp", ""))
                 br = {"wrist_down": 0, "wrist_up": 1}.get(c.get("branch"), -1)
+                if mp >= 0:
+                    mp_members.setdefault((pi, mp), []).append((ai, br))
+                    mem = mp_members[(pi, mp)]
+                    if len(mem) == 2 and share_eef:
+                        src = next(x for x, b in mem if b == 0); dst = next(x for x, b in mem if b == 1)
+                        if len(A[src]["eef_num"]) != len(A[dst]["eef_num"]):
+                            raise ValueError(f"{p} mp{mp}: matched pair の長さが違う")
+                        share_diff["eef_num"] = max(share_diff["eef_num"], float(np.abs(A[src]["eef_num"] - A[dst]["eef_num"]).max()))
+                        share_diff["eef_mask_px"] = max(share_diff["eef_mask_px"], int((img_ds["eef_mask"][src] != img_ds["eef_mask"][dst]).sum()))
+                        share_diff["eef_depth_mm"] = max(share_diff["eef_depth_mm"], int(np.abs(img_ds["eef_depth_mm"][src].astype(int) - img_ds["eef_depth_mm"][dst].astype(int)).max()))
+                        A[dst]["eef_num"] = A[src]["eef_num"].copy()
+                        A[dst]["raster_steps"] = A[src]["raster_steps"].copy()
+                        for k in ["eef_mask", "eef_depth_mm"]:
+                            img_ds[k][dst] = img_ds[k][src]
                 for t, sd in [("A", sA), ("B", sB)]:
                     fin = load_final(sd / "candidates" / cid, res, tol)
                     E.append({"scene_idx": 2 * pi + (0 if t == "A" else 1), "action_idx": ai, "pair_idx": pi,
@@ -323,7 +374,10 @@ def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=pri
                         "created": dt.datetime.now().isoformat(timespec="seconds"),
                         "K": K, "T_world_to_cam_cv": np.asarray(cam["T_world_to_cam_cv"], np.float64),
                         "git_commits": json.dumps(sorted(commits)), "contact_touch_tolerance_m": tol,
-                        "depth_unit": "mm (uint16), 0 = nothing", "image_layout": "row 0 = top (OpenCV)"})
+                        "depth_unit": "mm (uint16), 0 = nothing", "image_layout": "row 0 = top (OpenCV)",
+                        "eef_shared_in_matched_pairs": bool(share_eef), "eef_share_maxdiff": json.dumps(share_diff)})
+    if share_eef:
+        log(f"[cache] matched pair の EEF action を共有(wrist_down 側)。共有前の最大の差: {share_diff}")
     os.replace(tmp, out_path)
     log(f"[cache] 書いた: {out_path}  ({out_path.stat().st_size / 1e6:.1f} MB)  scenes {len(S)}, actions {len(A)}, episodes {len(E)}")
     return out_path
@@ -336,6 +390,7 @@ def main():
     ap.add_argument("--res", type=int, default=128)
     ap.add_argument("--frames", type=int, default=25)
     ap.add_argument("--touch-tol", type=float, default=0.001)
+    ap.add_argument("--no-share-eef", action="store_true", help="matched pair の EEF action を共有しない(v2 と同じ)")
     args = ap.parse_args()
     project = Path(__file__).resolve().parents[1]
     root = Path(args.episodes)
@@ -343,7 +398,7 @@ def main():
         root = project / root
     out = Path(args.out) if args.out else root / "_cache" / f"wm_{args.res}x{args.frames}.h5"
     t0 = dt.datetime.now()
-    build(root, out, args.res, args.frames, args.touch_tol)
+    build(root, out, args.res, args.frames, args.touch_tol, share_eef=not args.no_share_eef)
     print(f"[cache] {(dt.datetime.now() - t0).total_seconds():.0f} s")
 
 

@@ -47,6 +47,7 @@ def load_truth(cache_path):
         t = {k: e[k][:] for k in ["pair_idx", "task", "cand_idx", "kind", "mp", "branch", "goal", "coll",
                                   "goal_dist", "final_pos", "contact_point", "contact_valid"]}
         t["final_mask"] = e["final_mask"][:] >= 128
+        t["init_pos"] = h["scenes/target_init_pos"][:][e["scene_idx"][:]]
         t["pair_ids"] = [p.decode() for p in h["pairs/pair_id"][:]]
         t["res"] = int(h.attrs["res"])
     t["n_pairs"] = len(t["pair_ids"])
@@ -61,6 +62,35 @@ def save_predictions(path, ep, final_pos, goal, coll, final_mask=None, contact_p
     if contact_point is not None:
         d["contact_point"] = np.asarray(contact_point, np.float32)
     np.savez_compressed(path, **d)
+
+
+def label_baseline(truth, train_pairs, eval_eps, by=("kind",)):
+    """
+    action を見ない単純な基準(予測と同じ形の dict を返す)。train のペアだけで、(task, *by) ごとの平均を取る
+      by=("kind",)          : 候補の種類だけ(「種類だけで当てる」)
+      by=("kind", "branch") : 種類 + matched pair の枝(wrist-down / up)。H5 の比較の相手
+    goal・coll = そのグループの train での割合、final_pos = 初期位置 + そのグループの平均の移動
+    """
+    train_pairs = set(int(p) for p in train_pairs)
+    tr = np.isin(truth["pair_idx"], list(train_pairs))
+    disp = truth["final_pos"] - truth["init_pos"]
+    def key(i):
+        return (int(truth["task"][i]),) + tuple(int(truth[b][i]) for b in by)
+    groups = {}
+    for i in np.nonzero(tr)[0]:
+        groups.setdefault(key(i), []).append(i)
+    fall = {}
+    for t in (0, 1):
+        m = np.nonzero(tr & (truth["task"] == t))[0]
+        fall[t] = m
+    eval_eps = np.asarray(eval_eps)
+    goal = np.zeros(len(eval_eps)); coll = np.zeros(len(eval_eps)); pos = np.zeros((len(eval_eps), 3), np.float32)
+    for n, i in enumerate(eval_eps):
+        g = np.asarray(groups.get(key(i), fall[int(truth["task"][i])]))
+        goal[n] = truth["goal"][g].mean()
+        coll[n] = (truth["coll"][g] == 1).mean()
+        pos[n] = truth["init_pos"][i] + disp[g].mean(0)
+    return {"ep": eval_eps.astype(np.int64), "goal": goal.astype(np.float32), "coll": coll.astype(np.float32), "final_pos": pos}
 
 
 def load_predictions(path):
@@ -324,7 +354,31 @@ def _fmt(v, metric=""):
     return f"{v:.1f}" if metric.endswith("_mm") else f"{v:.3f}"
 
 
-def report_markdown(res, hyp=None, title="評価"):
+KINDS_JA = ["matched pair", "ゴール方向", "ゴールの縁", "ランダム", "円柱の方向"]   # wm_cache の KINDS の順
+
+
+def per_kind(truth, models, task):
+    """候補の種類ごとの goal・衝突の AUPRC(点推定、seed の平均)。種類の中でラベルが全部同じなら None"""
+    tk = 0 if task == "A" else 1
+    out = {}
+    for name, preds in models.items():
+        out[name] = {}
+        for k in range(len(KINDS_JA)):
+            row = {}
+            for lab, key in [("goal", "goal"), ("coll", "coll")] if tk == 1 else [("goal", "goal")]:
+                vals = []
+                for p in preds:
+                    ep = p["ep"]; sel = (truth["task"][ep] == tk) & (truth["kind"][ep] == k)
+                    y = truth["goal"][ep[sel]].astype(bool) if lab == "goal" else (truth["coll"][ep[sel]] == 1)
+                    if sel.sum() and 0 < y.sum() < len(y):
+                        vals.append(average_precision(y, p[key][sel].astype(np.float64)))
+                row[lab] = float(np.mean(vals)) if vals else None
+            out[name][KINDS_JA[k]] = row
+    return out
+
+
+def report_markdown(res, hyp=None, title="評価", truth=None, models=None):
+    pred_models = models
     L = [f"# {title}", "", f"- 評価したペア {len(res['pairs'])}、bootstrap {res['n_boot']} 回（シーン単位、全モデル・両 Task で同じ抽出）", ""]
     for task in res["point"]:
         models = list(res["point"][task])
@@ -342,6 +396,36 @@ def report_markdown(res, hyp=None, title="評価"):
                 row.append(_fmt(res["point"][task][name][m], m) + ci)
             L.append(f"| {m} | " + " | ".join(row) + " |")
         L.append("")
+    # ---- action を見ない基準との比較(P14) ----
+    bases = [b for b in ("base_kind", "base_kind_branch") if b in res["point"].get("B", res["point"][next(iter(res["point"]))])]
+    reps_here = [m for m in MODELS if m in res["point"][next(iter(res["point"]))]]
+    if bases and reps_here:
+        L += ["## 基準との比較（モデル − 基準、95% CI）", "",
+              "- base_kind = 候補の種類だけ（train の割合）、base_kind_branch = 種類 + matched pair の枝。H5 は 0.5 ではなく base_kind_branch と比べる", ""]
+        for task, mets in [("A", [("goal_auprc", "base_kind"), ("ranking_acc", "base_kind")]),
+                           ("B", [("goal_auprc", "base_kind"), ("coll_auprc", "base_kind"), ("ranking_acc", "base_kind"), ("h5_acc", "base_kind_branch")])]:
+            if task not in res["point"]:
+                continue
+            L += [f"| Task {task} | " + " | ".join(reps_here) + " |", "|---|" + "---|" * len(reps_here)]
+            for m, b in mets:
+                if b not in res["point"][task]:
+                    continue
+                row = []
+                for r in reps_here:
+                    c = diff_ci(res, task, r, b, m)
+                    row.append(f"{c['diff']:+.3f} [{c['lo']:+.3f}, {c['hi']:+.3f}]")
+                L.append(f"| {m} − {b} | " + " | ".join(row) + " |")
+            L.append("")
+    if truth is not None and pred_models is not None:
+        L += ["## 候補の種類ごと（AUPRC の点推定。種類の中でラベルが全部同じなら —）", ""]
+        for task in res["point"]:
+            pk = per_kind(truth, pred_models, task)
+            names = list(pk)
+            labs = ["goal", "coll"] if task == "B" else ["goal"]
+            L += [f"| Task {task} | " + " | ".join(f"{n} {l}" for n in names for l in labs) + " |", "|---|" + "---|" * (len(names) * len(labs))]
+            for kj in KINDS_JA:
+                L.append(f"| {kj} | " + " | ".join(_fmt(pk[n][kj].get(l)) for n in names for l in labs) + " |")
+            L.append("")
     if hyp:
         L += ["## 仮説", ""]
         for f in ["num", "img"]:
