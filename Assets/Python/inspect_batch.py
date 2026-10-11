@@ -32,6 +32,8 @@ def kind_of(c):
     note = (c.get("note") or "").lower()
     if c.get("matched_pair_id"):
         return "matched_pair"
+    if "no toward-secondary" in note:   # 円柱の方向に届かず、ランダム方向で埋めた候補
+        return "random"
     if "secondary" in note:
         return "toward_secondary"
     if "goal edge" in note:
@@ -263,6 +265,9 @@ def main():
     for g in gens:
         rj.update(g.get("attempts", {}).get("reject_reasons", {}))
     w(f"- シーンの生成が何回目で成功したか：" + "、".join(f"{k} 回目 = {v}" for k, v in sorted(sa.items())))
+    fb = sorted({e["pair"] for e in eps if e["cid"] in ("c013", "c014", "c015") and e["kind"] == "random"})
+    w(f"- 円柱の方向へ押す候補が作れず、ランダム方向で埋めたペア：{len(fb)} {fb if fb else ''}")
+    J["toward_secondary_fallback_pairs"] = fb
     w(f"- 外した候補の理由（合計）：" + "、".join(f"{k} {v}" for k, v in rj.most_common()) + "\n")
     J["scene_attempts"] = dict(sa)
     J["reject_reasons"] = dict(rj)
