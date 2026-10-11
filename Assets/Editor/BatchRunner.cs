@@ -30,7 +30,7 @@ public static class BatchRunner
     [Serializable]
     public class Config
     {
-        public string outputRoot = "Episodes";   // プロジェクトからの相対パス、または絶対パス
+        public string outputRoot = "Episodes/_main_v1";   // プロジェクトからの相対パス、または絶対パス(量産は _main_v1、仕様を変えたら _main_v2)
         public int numScenes = 3;                // 成功させるペア(= Task A/B の 1 シーン)の数
         public int seedStart = 1;
         public int[] seeds = new int[0];         // 空でなければ、この順に使う(seedStart は無視)
@@ -42,6 +42,7 @@ public static class BatchRunner
         public string pythonExe = @"C:\Users\kinos\AppData\Local\Programs\Python\Python311\python.exe";
         public bool requireCleanGit = true;      // 正式データは clean な commit から。テストだけ false にする
         public bool runPython = true;
+        public bool resume = false;              // 出力先に途中までのデータがあれば、続きから再開する(Unity が落ちたあとなど)
     }
 
     [Serializable]
@@ -75,6 +76,8 @@ public static class BatchRunner
         public bool stopRequested;
         public string startedLocal = "", finishedLocal = "", endReason = "";
         public List<JobRecord> records = new List<JobRecord>();
+        public List<int> pendingPython = new List<int>();   // 再開したとき、Play は終わっているのに Python がまだのペア(番号 = 何組目か)
+        public bool pyOnly;                                 // いま回している Python が「再開時の Python だけ」か
     }
 
     static State st;
@@ -156,9 +159,17 @@ public static class BatchRunner
         bool dirty = porcelain.Trim().Length > 0;
         if (dirty && cfg.requireCleanGit) return "作業フォルダが clean じゃない(commit してから):\n" + porcelain;
 
-        // 最初のペアの番号が空いているか
-        string clash = FindClash(root, cfg.sceneIndexStart, cfg.pairIndexStart);
-        if (clash != null) return "出力先にもうある: " + clash + "(sceneIndexStart / pairIndexStart を空いている番号にして)";
+        // 最初のペアの番号が空いているか(resume のときは、続きを探す)
+        ResumeInfo ri = null;
+        if (cfg.resume)
+        {
+            ri = ScanForResume(root, cfg);
+        }
+        else
+        {
+            string clash = FindClash(root, cfg.sceneIndexStart, cfg.pairIndexStart);
+            if (clash != null) return "出力先にもうある: " + clash + "(続きから回すなら設定の resume を true に。新しく作るなら sceneIndexStart / pairIndexStart を空いている番号にして)";
+        }
 
         Directory.CreateDirectory(BatchJob.Dir);
         try { if (File.Exists(BatchJob.JobPath)) File.Delete(BatchJob.JobPath); if (File.Exists(BatchJob.ResultPath)) File.Delete(BatchJob.ResultPath); } catch { }
@@ -170,8 +181,15 @@ public static class BatchRunner
             startedLocal = Local, phaseStart = Now
         };
         Directory.CreateDirectory(st.batchDir);
+        if (ri != null)
+        {
+            st.succeeded = ri.complete; st.seedCursor = ri.seedCursor; st.attempts = ri.seedCursor;
+            st.pendingPython = ri.needPython;
+            foreach (var m in ri.messages) Log("[resume] " + m);
+            Log($"[resume] 完成 {ri.complete} 組(うち Python がまだ {ri.needPython.Count} 組)、次の seed の位置 {ri.seedCursor}、途中のフォルダを移した数 {ri.movedInterrupted}");
+        }
         Save();
-        Log($"===== batch 開始: {cfg.numScenes} シーン、seed {(cfg.seeds.Length > 0 ? string.Join(",", cfg.seeds) : cfg.seedStart + "〜")}、" +
+        Log($"===== batch 開始{(ri != null ? "(resume)" : "")}: {cfg.numScenes} シーン、seed {(cfg.seeds.Length > 0 ? string.Join(",", cfg.seeds) : cfg.seedStart + "〜")}、" +
             $"scene {cfg.sceneIndexStart}〜 / pair {cfg.pairIndexStart}〜、出力 {root}、git {head}{(dirty ? "(dirty)" : "")}");
         return "開始した: " + root;
     }
@@ -216,6 +234,20 @@ public static class BatchRunner
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode || EditorApplication.isCompiling || EditorApplication.isUpdating) return;
         var cfg = st.config;
+        if (st.pendingPython.Count > 0 && cfg.runPython)
+        {
+            // 再開: Play は終わっているのに Python がまだのペアを先に片付ける
+            int k = st.pendingPython[0]; st.pendingPython.RemoveAt(0);
+            st.curScene = cfg.sceneIndexStart + 2 * k; st.curPair = cfg.pairIndexStart + k;
+            st.curSeed = ReadSeed(Path.Combine(st.rootAbs, $"scene_{st.curScene:D4}"));
+            st.curJobId = $"resume_python_pair{st.curPair:D4}";
+            st.records.Add(new JobRecord { jobId = st.curJobId, seed = st.curSeed, sceneIndex = st.curScene, pairIndex = st.curPair, status = "ok", stage = "resume_python", startLocal = Local });
+            st.pyOnly = true;
+            Log($"--- [resume] pair_{st.curPair:D4} は Play 済み。Python だけ回す");
+            LaunchPython();
+            return;
+        }
+        st.pyOnly = false;
         if (st.succeeded >= cfg.numScenes) { Finish("完了"); return; }
         if (st.stopRequested) { Finish("Stop after current で止めた"); return; }
         if (st.attempts >= cfg.maxSeedAttempts) { Finish($"seed を {st.attempts} 回試したので打ち切り"); return; }
@@ -340,7 +372,12 @@ public static class BatchRunner
             return;
         }
 
-        // Python 4 本を別プロセスで
+        LaunchPython();
+    }
+
+    // Python 4 本を別プロセスで
+    static void LaunchPython()
+    {
         string logDir = Path.Combine(st.batchDir, "logs");
         Directory.CreateDirectory(logDir);
         string pair = $"pair_{st.curPair:D4}";
@@ -374,7 +411,7 @@ public static class BatchRunner
             bool pass = txt.Contains("\"pass\": true");
             rec.python = pass ? "PASS" : "FAIL";
             rec.pythonMin = (float)((Now - st.pyStart) / 60.0);
-            st.succeeded++;
+            if (!st.pyOnly) st.succeeded++;
             Log($"Python {rec.python}({rec.pythonMin:F1} 分): {pair}  → 成功 {st.succeeded}/{st.config.numScenes}" +
                 (pass ? "" : $"。詳しくは {Path.Combine(st.batchDir, "logs", pair + ".txt")}"));
             SetPhase("next");
@@ -385,7 +422,7 @@ public static class BatchRunner
             // 結果を書かずに終わった(起動失敗・クラッシュ)
             if (Now - st.pyStart < 15) return;   // 書き終わり待ちの猶予
             rec.python = "FAIL"; rec.pythonMin = (float)((Now - st.pyStart) / 60.0);
-            st.succeeded++;
+            if (!st.pyOnly) st.succeeded++;
             Log($"Python が結果を書かずに終わった: {pair}(データは残す。手で run_pipeline.py を回して確認)");
             SetPhase("next");
             return;
@@ -394,7 +431,7 @@ public static class BatchRunner
         {
             try { Process.GetProcessById(st.pythonPid).Kill(); } catch { }
             rec.python = "timeout"; rec.pythonMin = (float)((Now - st.pyStart) / 60.0);
-            st.succeeded++;
+            if (!st.pyOnly) st.succeeded++;
             Log($"Python が {st.config.pythonTimeoutMin} 分で終わらないので止めた: {pair}(データは残す)");
             SetPhase("next");
         }
@@ -457,6 +494,83 @@ public static class BatchRunner
         foreach (var p in new[] { Path.Combine(root, $"scene_{sceneIndex:D4}"), Path.Combine(root, $"scene_{sceneIndex + 1:D4}"), Path.Combine(root, "pairs", $"pair_{pairIndex:D4}") })
             if (Directory.Exists(p)) return p;
         return null;
+    }
+
+    class ResumeInfo
+    {
+        public int complete, seedCursor, movedInterrupted;
+        public int interruptedSeed = int.MinValue;
+        public List<int> needPython = new List<int>();
+        public List<string> messages = new List<string>();
+    }
+
+    static bool SceneComplete(string dir)
+    {
+        // 16 候補の最後まで書けているか(最後の候補の最終状態と、初期画像)
+        return File.Exists(Path.Combine(dir, "candidates", "c015", "final", "final_state.json")) &&
+               File.Exists(Path.Combine(dir, "initial", "robot_free", "rgb.png"));
+    }
+
+    static int ReadSeed(string sceneDir)
+    {
+        try
+        {
+            var txt = File.ReadAllText(Path.Combine(sceneDir, "scene_initial.json"), Encoding.UTF8);
+            var m = System.Text.RegularExpressions.Regex.Match(txt, "\"seed\"\\s*:\\s*(-?\\d+)");
+            return m.Success ? int.Parse(m.Groups[1].Value) : int.MinValue;
+        }
+        catch { return int.MinValue; }
+    }
+
+    /// 出力先にあるデータから、続きの位置を決める(フォルダが正。Temp の記録は Unity を閉じると消えるので使わない)
+    static ResumeInfo ScanForResume(string root, Config cfg)
+    {
+        var ri = new ResumeInfo();
+        var used = new List<int>();
+        for (int k = 0; ; k++)
+        {
+            string a = Path.Combine(root, $"scene_{cfg.sceneIndexStart + 2 * k:D4}"), b = Path.Combine(root, $"scene_{cfg.sceneIndexStart + 2 * k + 1:D4}");
+            bool ea = Directory.Exists(a), eb = Directory.Exists(b);
+            if (!ea && !eb) break;
+            if (SceneComplete(a) && SceneComplete(b))
+            {
+                ri.complete++;
+                used.Add(ReadSeed(a));
+                if (!File.Exists(Path.Combine(root, "pairs", $"pair_{cfg.pairIndexStart + k:D4}", "pair_check.json"))) ri.needPython.Add(k);
+                continue;
+            }
+            // 途中で止まったペア → _failed へ移して(消さない)、同じ seed で作り直す
+            int seed = ReadSeed(ea ? a : b);
+            string dst = Path.Combine(root, "_failed", $"interrupted_seed{seed}_{DateTime.Now:yyyyMMdd_HHmmss}");
+            Directory.CreateDirectory(dst);
+            if (ea) Directory.Move(a, Path.Combine(dst, Path.GetFileName(a)));
+            if (eb) Directory.Move(b, Path.Combine(dst, Path.GetFileName(b)));
+            ri.movedInterrupted++;
+            ri.messages.Add($"scene_{cfg.sceneIndexStart + 2 * k:D4} は途中まで(seed {seed})→ {dst} へ移して、同じ seed で作り直す");
+            ri.interruptedSeed = seed;   // この seed から作り直す
+            break;
+        }
+        // 生成に失敗して飛ばした seed も「使った」に数える(_failed/seed<N>_...)
+        var fd = Path.Combine(root, "_failed");
+        if (Directory.Exists(fd))
+            foreach (var d in Directory.GetDirectories(fd))
+            {
+                var m = System.Text.RegularExpressions.Regex.Match(Path.GetFileName(d), "^seed(-?\\d+)_");
+                if (m.Success) used.Add(int.Parse(m.Groups[1].Value));
+            }
+        used.RemoveAll(x => x == int.MinValue);
+        if (ri.interruptedSeed != int.MinValue)
+        {
+            if (cfg.seeds.Length > 0) { int i = Array.IndexOf(cfg.seeds, ri.interruptedSeed); ri.seedCursor = i >= 0 ? i : 0; }
+            else ri.seedCursor = Math.Max(0, ri.interruptedSeed - cfg.seedStart);
+        }
+        else if (used.Count > 0)
+        {
+            int last = used.Max();
+            if (cfg.seeds.Length > 0) { int i = Array.IndexOf(cfg.seeds, last); ri.seedCursor = i >= 0 ? i + 1 : 0; }
+            else ri.seedCursor = Math.Max(0, last - cfg.seedStart + 1);
+        }
+        return ri;
     }
 
     static bool ProcessAlive(int pid)

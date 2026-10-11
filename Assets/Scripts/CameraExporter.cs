@@ -7,7 +7,8 @@ using System.Text;
 using UnityEngine;
 
 /// <summary>
-/// TODO5-1: カメラの K / projection matrix / world-to-camera matrix を JSON に書き出す。
+/// カメラの K / projection matrix / world-to-camera matrix を JSON に書き出す(TODO5-1 で作成)。
+/// EpisodeRecorder は scene ごとの camera.json を ExportToFile で書く。
 /// Play 開始から framesBeforeExport フレーム後に自動で書き出す(Inspector 右クリック > Export Now でも可)。
 /// 出力先: &lt;プロジェクト&gt;/CaptureLogs/camera_YYYYMMDD_HHMMSS.json
 ///

@@ -25,7 +25,7 @@ public class AutoSceneSettings
     [Header("Candidates")]
     public int numMatchedPairs = 2;
     public int numSingles = 12;
-    [Tooltip("単独候補のうち、ゴールの方向の近くに振る数(goal の True / False を半々に近づける)")]
+    [Tooltip("単独候補のうち、ゴールの方向へ押す数(届きやすい。シーンでは 3、P8 で 6 → 3)")]
     public int numGoalDirected = 6;
     [Tooltip("ゴールの方向 = ターゲットの面の法線(どれか 1 面)± この角度。斜めに押すと箱が回って横へそれるため")]
     public float goalFaceJitterDeg = 10f;
@@ -86,6 +86,8 @@ public class AutoSceneSettings
     public float occlusionGoalRadius = 0.03f;
     [Tooltip("P8: 画面上の重なりの判定に足す余白(画面幅 = 1)")]
     public float occlusionMarginView = 0.01f;
+    [Tooltip("整理: 円柱の置き場所を、ターゲットを円柱の方へ押す候補が作れる所(届く・押し始めが土台から遠い・机の上)に絞る。見つからなければ絞らずに置く")]
+    public bool requireTowardSecondaryFeasible = true;
     public float gridStep = 0.01f;
 
     public int maxSceneAttempts = 20;
@@ -111,6 +113,7 @@ public class GeneratedScene
     public float armOverlap, otherClearance, handClear;
     public int sceneAttempts, plannedCandidates, rejectedCandidates;
     public List<float> heightOrder = new List<float>();   // P8: 試した高さの順
+    public bool towardStrict;                              // 円柱の置き場所を「円柱の方向へ押す候補が作れる所」に絞って決められたか
     public Dictionary<string, int> rejectReasons = new Dictionary<string, int>();
     public List<string> placementLog = new List<string>();
 }
@@ -181,6 +184,22 @@ public static class SceneGenerator
         float hxz = Mathf.Max(c.targetHalf.x, c.targetHalf.z) * 1.4142f + s.occlusionGoalRadius;   // 向きに関係なく箱が入る大きさ + ゴールの半径
         var tg = ViewRect(c, new Vector3(goal.x, c.targetCenterY, goal.z), new Vector3(hxz, c.targetHalf.y, hxz), Quaternion.identity, out float dTg);
         return dCyl < dTg && cyl.Overlaps(tg);
+    }
+
+    // 整理: ターゲットを円柱(中心 cx, cz)の方へ押す候補が作れそうか(IK は解かずに、距離・土台・机だけ見る)
+    static bool TowardFeasible(Context c, AutoSceneSettings s, Vector3 tPos, Quaternion tRot, float cx, float cz)
+    {
+        if (!s.requireTowardSecondaryFeasible || s.numTowardSecondary <= 0) return true;
+        // 円柱の真ん中へ向かって、いちばん短い押し方(届く距離 + overshoot の下限)が作れれば OK とする。
+        // 実際の候補は ±spread・overshoot の範囲でランダムに作り、外れたら作り直すので、真ん中が作れればたいてい作れる
+        Vector3 toCyl = new Vector3(cx - tPos.x, 0f, cz - tPos.z);
+        Vector3 u = toCyl.normalized;
+        float sup = TrajectoryPlanner.Support(u, c.targetHalf, tRot);
+        float len = toCyl.magnitude - s.secondaryRadius - sup + s.towardSecondaryOvershoot.x;
+        if (len < 0.03f || len > 0.21f) return false;                                     // 候補を作るときの上限 0.22 m に 1 cm の余裕
+        Vector3 pre = tPos - u * (sup + 0.06f);
+        if (new Vector2(pre.x, pre.z).magnitude < s.minPreContactDistFromBase + 0.01f) return false;   // 押し始めが土台に近い
+        return OnTable(s, tPos + u * len, 0f);
     }
 
     static PlannedTrajectory PlanSpec(Context c, Vector3 tPos, Quaternion tRot, CandidateSpec spec)
@@ -480,14 +499,22 @@ public static class SceneGenerator
         var hr = new System.Random(g.seed * 7919 + g.sceneAttempts * 31 + (down.matchedPairId ?? "").Sum(ch => (int)ch));
         for (int i = heights.Count - 1; i > 0; i--) { int j = hr.Next(i + 1); float t = heights[i]; heights[i] = heights[j]; heights[j] = t; }
         g.heightOrder = heights;
-        foreach (float H in heights)
-            if (PlaceSecondaryAt(c, s, g, tPos, tRot, goal, down, up, maps, lists, H, otherLists)) { g.secondaryHeight = H; return true; }
+        // 整理: まず「円柱の方向へ押す候補が作れる所」に絞って探し、見つからなければ絞らずに探す
+        foreach (bool strict in new[] { true, false })
+        {
+            if (!strict && !s.requireTowardSecondaryFeasible) break;
+            foreach (float H in heights)
+                if (PlaceSecondaryAt(c, s, g, tPos, tRot, goal, down, up, maps, lists, H, otherLists, strict && s.requireTowardSecondaryFeasible))
+                {
+                    g.secondaryHeight = H; g.towardStrict = strict && s.requireTowardSecondaryFeasible; return true;
+                }
+        }
         return false;
     }
 
     static bool PlaceSecondaryAt(Context c, AutoSceneSettings s, GeneratedScene g, Vector3 tPos, Quaternion tRot, Vector3 goal,
                                  CandidateSpec down, CandidateSpec up, float[][,] maps, List<Vector3>[] lists, float H,
-                                 List<List<Vector3>> otherLists)
+                                 List<List<Vector3>> otherLists, bool towardStrict = false)
     {
         float top = c.tableTop + H;
         var armD = maps[0]; var armU = maps[1]; var handD = maps[2]; var handU = maps[3];
@@ -499,7 +526,7 @@ public static class SceneGenerator
 
         // ---- 1) 格子で候補を集める(近似) ----
         var cands = new List<Cand>();
-        int gPath = 0, gGoal = 0, gHand = 0, gRange = 0, gView = 0, gOcc = 0;
+        int gPath = 0, gGoal = 0, gHand = 0, gRange = 0, gView = 0, gOcc = 0, gToward = 0;
         float gBestOv = float.NegativeInfinity;
         float m = s.tableMargin + s.secondaryRadius;
         for (float x = s.tableXZ.xMin + m; x <= s.tableXZ.xMax - m; x += s.gridStep)
@@ -509,6 +536,7 @@ public static class SceneGenerator
                 if (SegDist2D(p2, a, b) < s.secondaryRadius + tRad + s.targetPathClearance) { gPath++; continue; }
                 if ((p2 - new Vector2(goal.x, goal.z)).magnitude < s.goalClearance + s.secondaryRadius) { gGoal++; continue; }
                 if (Occludes(c, s, x, z, H, tPos, tRot, goal)) { gOcc++; continue; }
+                if (towardStrict && !TowardFeasible(c, s, tPos, tRot, x, z)) { gToward++; continue; }
                 float h = Mathf.Min(Clearance(s, handD, x, z, top, 0.1f), Clearance(s, handU, x, z, top, 0.1f));
                 if (h < s.handClearance - slack) { gHand++; continue; }
                 float cD = Clearance(s, armD, x, z, top, 0.1f), cU = Clearance(s, armU, x, z, top, 0.1f);
@@ -523,7 +551,7 @@ public static class SceneGenerator
                     break;
                 }
             }
-        if (cands.Count == 0) { g.placementLog.Add($"{down.matchedPairId} H{H * 100f:F0}cm: 格子の候補 0(通り道 {gPath}, ゴール {gGoal}, 隠れ {gOcc}, 手 {gHand}, 重なり {gRange}, 画面 {gView}, 片方だけの最大の重なり {gBestOv * 1000f:F0} mm)"); return false; }
+        if (cands.Count == 0) { g.placementLog.Add($"{down.matchedPairId} H{H * 100f:F0}cm: 格子の候補 0{(towardStrict ? "[円柱の方向で絞る]" : "")}(通り道 {gPath}, ゴール {gGoal}, 隠れ {gOcc}, 円柱の方向 {gToward}, 手 {gHand}, 重なり {gRange}, 画面 {gView}, 片方だけの最大の重なり {gBestOv * 1000f:F0} mm)"); return false; }
 
         // ---- 2) 良さそうな順に、頂点とカプセルの距離で正確に測る ----
         var wArmD = lists[0]; var wArmU = lists[1]; var wHandD = lists[2]; var wHandU = lists[3];
@@ -565,6 +593,7 @@ public static class SceneGenerator
                 var center = new Vector3(cx, c.tableTop + 0.5f * H, cz);
                 if (!InView(c, s, center, new Vector3(s.secondaryRadius, 0.5f * H, s.secondaryRadius), Quaternion.identity)) continue;
                 if (Occludes(c, s, cx, cz, H, tPos, tRot, goal)) continue;   // P8
+                if (towardStrict && !TowardFeasible(c, s, tPos, tRot, cx, cz)) continue;   // 整理
                 int otherHits = 0;
                 foreach (var ol in otherLists) if (CapsuleClearance(ol, cx, cz, c.tableTop, H, s.secondaryRadius) < 0.002f) otherHits++;
                 if (otherHits > s.maxOtherRobotHits) { nOthers++; continue; }
@@ -604,6 +633,7 @@ public static class SceneGenerator
                   $"\"placed_for_pair\": \"{g.placementPair}\", \"overlapping_branch\": \"{g.overlapBranch}\", \"arm_overlap_m\": {N(g.armOverlap)}, " +
                   $"\"other_branch_clearance_m\": {N(g.otherClearance)}, \"hand_clearance_m\": {N(g.handClear)}, \"predicted_other_robot_hits\": {g.otherRobotHits}, " +
                   "\"height_order_m\": [" + string.Join(", ", g.heightOrder.Select(N)) + "], \"avoid_occlusion\": " + (s.avoidOcclusion ? "true" : "false") + ", " +
+                  "\"toward_secondary_strict\": " + (g.towardStrict ? "true" : "false") + ", " +
                   "\"method\": \"planned link poses x collider vertices (every 2nd step); xz grid to pre-select, then exact vertex-to-capsule distance\"},\n");
         sb.Append($"  \"attempts\": {{\"scene\": {g.sceneAttempts}, \"planned_candidates\": {g.plannedCandidates}, \"rejected_candidates\": {g.rejectedCandidates}, " +
                   $"\"reject_reasons\": {{{string.Join(", ", g.rejectReasons.Select(kv => $"\"{kv.Key}\": {kv.Value}"))}}}}},\n");

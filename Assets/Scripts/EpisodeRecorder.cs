@@ -10,11 +10,12 @@ using UnityEngine.Perception.GroundTruth;
 using UnityEngine.Perception.GroundTruth.LabelManagement;
 
 /// <summary>
-/// TODO5: 1 episode 分のデータを作る。
-/// 現在の実装範囲:
-///   2. Initial scene の保存(物体を落ち着かせる → 固定 → ロボットあり / robot-free を撮影 → JSON と画像を保存)
-///   3. 候補軌道の作成(FK の検証 → 候補ごとに IK で軌道を計画 → planned_trajectory を保存)
-/// 出力: &lt;project&gt;/Episodes/scene_XXXX/
+/// Play 1 回で 1 シーン分(Task A と B のペア、各 16 候補)の episode を作る(TODO5 で作成、P2〜P6 で拡張)。
+///   1. seed からシーンと候補を作る(autoScene、SceneGenerator)
+///   2. 初期シーンの保存(物体を落ち着かせる → 固定 → ロボットあり / robot-free を撮影 → JSON と画像)
+///   3. 候補軌道の計画(FK の検証 → IK、A/B で共有)と action 表現の書き出し
+///   4. 実行(候補ごとに新しい物理シーン)、接触・軌道の記録、最終状態とラベル
+/// 出力: &lt;project&gt;/Episodes/scene_XXXX/(outputRoot で変更可)。バッチ実行(BatchRunner)からは BatchJob で値を受け取る。
 /// 前提: PerceptionCamera の Capture Trigger Mode = Manual。RobotFreeCapture は無効にしておく。
 /// </summary>
 public class EpisodeRecorder : MonoBehaviour
@@ -22,7 +23,7 @@ public class EpisodeRecorder : MonoBehaviour
     [Header("References (空なら自動で探す)")]
     public PerceptionCamera perceptionCamera;
     public CameraExporter cameraExporter;
-    public Transform robotRoot;      // ur3_with_gripper
+    public Transform robotRoot;      // ur5e_with_gripper(空なら ur5e → ur3 の順に探す)
     public Transform objectsRoot;    // Objects
 
     [Header("Scene")]
@@ -40,7 +41,7 @@ public class EpisodeRecorder : MonoBehaviour
     public TaskVariant taskVariant = TaskVariant.B;
     [Tooltip("pair_id = pair_XXXX(generateTaskPair が on のとき)")]
     public int pairIndex = 0;
-    [Tooltip("Task B にだけ置く物体の名前(Task A では GameObject ごと無効化)")]
+    [Tooltip("Task B にだけ置く物体の名前(Task A では GameObject ごと無効化)。シーン上の位置・高さ(28 cm、P4-A のまま)は、autoScene が on のとき Play 中に上書きされる")]
     public string secondaryObjectName = "SecondObject";
 
     [Header("Settle (物体を落ち着かせる)")]
@@ -70,9 +71,9 @@ public class EpisodeRecorder : MonoBehaviour
     public bool validateKinematics = true;
     public float fkToleranceM = 0.001f;
 
-    [Header("Candidates")]
+    [Header("Candidates(numCandidates・candidateSpecs は autoScene が off のときだけ使う。シーンに残っているのは P4-A の 8 本)")]
     public string targetObjectName = "Target";
-    [Tooltip("candidateSpecs の先頭から何本使うか")]
+    [Tooltip("autoScene が off のときだけ使う: candidateSpecs の先頭から何本使うか")]
     public int numCandidates = 1;
     public List<CandidateSpec> candidateSpecs = new List<CandidateSpec>
     {
@@ -116,7 +117,7 @@ public class EpisodeRecorder : MonoBehaviour
     GeneratedScene generated;
 
     [Header("Final / labels (6. 最終結果)")]
-    [Tooltip("ゴール領域の中心(world、XZ だけ使う)。仮の値: ターゲットを -X に 10cm 動かした位置")]
+    [Tooltip("autoScene が off のときだけ使う: ゴール領域の中心(world、XZ だけ)。autoScene が on のときは seed から決める(P4-A の固定ゴールのまま残している)")]
     public Vector3 goalCenter = new Vector3(-0.10f, 0f, 0.30f);
     public float goalRadius = 0.03f;
     public float fallDropThreshold = 0.02f;

@@ -5,10 +5,10 @@ P12: 中間報告(2026-10-30)用の図と数字
 出力: このフォルダの fig*.png と numbers.json(materials.md の表の元)
 使うデータ(消していない元データから毎回計算する):
   Episodes/_p8_20scenes              今の仕様の 20 シーン(seed 4〜23)
-  Episodes/_p7_20scenes              P8 の修正前(同じ seed)
+  Episodes/_archive/p7_20scenes_*    P8 の修正前(同じ seed)
   Episodes/_archive/p4a_oldpush_*    元の押し方(開いた指 1 本)
   Episodes/_archive/p4b_pgs_3seeds_* PGS ソルバーの 3 シーン
-  Episodes/                          3 シーンのパイロット(seed 1〜3、P5)
+  Episodes/_archive/pilot_p5_*       3 シーンのパイロット(seed 1〜3、P5)
 """
 import os
 os.environ["OPENCV_IO_ENABLE_OPENEXR"] = "1"
@@ -29,9 +29,10 @@ HERE = Path(__file__).resolve().parent
 PROJ = HERE.parents[1]
 EP = PROJ / "Episodes"
 P8 = EP / "_p8_20scenes"
-P7 = EP / "_p7_20scenes"
+P7 = next(iter(sorted(EP.glob("_archive/p7_20scenes_*"))), EP / "_p7_20scenes")   # 整理で _archive へ移した
 OLD = sorted(EP.glob("_archive/p4a_oldpush_*"))[0]
 PGS = sorted(EP.glob("_archive/p4b_pgs_3seeds_*"))[0]
+PILOT = next(iter(sorted(EP.glob("_archive/pilot_p5_*"))), EP)                   # 3 シーンのパイロット(整理で _archive へ移した)
 
 # 色(dataviz の参照パレット、明るい背景)
 C1, C2, C3, C4 = "#2a78d6", "#eb6834", "#1baf7a", "#eda100"
@@ -349,7 +350,7 @@ def fig6():
 # ====================== パイロットの数字 ======================
 def pilot_numbers():
     out = {}
-    for root, key in [(EP, "pilot3_P5"), (P8, "p8_20")]:
+    for root, key in [(PILOT, "pilot3_P5"), (P8, "p8_20")]:
         ins = J(root / "inspection.json") if (root / "inspection.json").is_file() else None
         if ins is None:
             continue
@@ -364,7 +365,7 @@ def pilot_numbers():
             "batch_failed": ins.get("batch", {}).get("failed"),
         }
     # 検証の項目数(A・B・ペア)
-    for root, key in [(EP, "pilot3_P5"), (P8, "p8_20")]:
+    for root, key in [(PILOT, "pilot3_P5"), (P8, "p8_20")]:
         tot = {"A": [0, 0], "B": [0, 0], "pair": [0, 0]}
         for sd, t in scenes(root):
             v = J(sd / "validation.json")
@@ -388,10 +389,10 @@ def pilot_numbers():
 if __name__ == "__main__":
     # 点検の数字は毎回作り直す(inspect_batch.py の数え方を直したときに古い数字が残らないように)
     import subprocess, sys
-    for root in [EP, P7, P8]:
+    for root in [PILOT, P7, P8]:
         subprocess.run([sys.executable, str(PROJ / "Assets" / "Python" / "inspect_batch.py"), "--episodes", str(root)], check=True,
                        stdout=subprocess.DEVNULL)
     for f in [fig1, fig2, fig3, fig4, fig5, fig6, pilot_numbers]:
         f(); print("done", f.__name__)
-    (HERE / "numbers.json").write_text(json.dumps(NUM, indent=2, ensure_ascii=False, default=str), encoding="utf-8")
+    (HERE / "numbers.json").write_text(json.dumps(NUM, indent=2, ensure_ascii=False, default=str), encoding="utf-8", newline="\n")
     print(json.dumps(NUM, indent=1, ensure_ascii=False, default=str)[:4000])

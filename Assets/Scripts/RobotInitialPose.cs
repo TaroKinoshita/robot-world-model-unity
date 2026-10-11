@@ -2,8 +2,11 @@ using UnityEngine;
 
 /// <summary>
 /// Play 開始時にロボットの腕を指定の初期姿勢へ瞬時にセットする(ドライブの目標も同じ角度にする)。
-/// UR5e (ur_e_description) は全関節 0 だと腕が水平に伸びるため、[0,-90,0,-90,0,0] deg で
-/// UR3 の全関節 0 と同じ「真上に立った姿勢」にする。EpisodeRecorder はこの姿勢を初期姿勢として記録・使用する。
+/// UR5e は全関節 0 だと腕が水平に約 1 m 伸びるため、初期姿勢をここで決める。
+/// 今の値はシーンに保存してある [-63.5, -151.8, 122.3, -60.5, -90, -63.5] deg(手先 (0, 1.05, 0.15)、wrist-down の枝。
+/// 腕全体と手先が画面に入る低い待機姿勢、TODO6 で決定)。下の既定値 [0,-90,0,-90,0,0](真上に立つ形)は最初の版のまま。
+/// 指は gripperCloseRad(シーンでは 0.42 rad = パッドの間隔約 6 cm、P4-B)。
+/// EpisodeRecorder はこの姿勢を初期姿勢として記録・使用する。
 /// </summary>
 [DefaultExecutionOrder(-100)]
 public class RobotInitialPose : MonoBehaviour

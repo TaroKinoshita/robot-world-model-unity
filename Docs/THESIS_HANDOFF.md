@@ -1,6 +1,6 @@
 # 卒論ハンドオフ文書（Claude 引き継ぎ用）
 
-- 最終更新：2026-10-05（前の版：2026-10-04）
+- 最終更新：2026-10-12（前の版：2026-10-05）。**まず §00 を読む**（10/05 以降の変更のまとめ。§0・§14 は 10/05 時点のまま）
 - 対象：Taro Kinoshita（S1140213）の BSc AI 卒論（Radboud University, SOW-BKI300）
 - 使い方：
   - 新しいチャットの最初に、このファイルを丸ごと貼る
@@ -22,7 +22,71 @@
 
 ---
 
-## 0. 30 秒で分かる現状
+## 00. 最新の状態（2026-10-12、まずここを読む）
+
+### いまどこ
+
+```
+[P6] バッチ実行 ✅ → [P7] 20 シーン点検 ✅ → [P8] 偏りの修正・再点検 ✅ → [P9] main を進めて tag ✅
+[P10] 学習用データ読み込み ✅ → [P11] 評価コード ✅ → [P12] 中間報告の材料 ✅ → [整理] 量産の準備 ✅
+                                                                                   ↓
+                                                    次：量産（約 1 万 episode、無人で約 42 時間）→ 学習モデルの設計
+```
+
+- 詳しい結果：P6 = §6.9、P7 = §7.5、P8 = §7.6、P10 = §7.7、P11 = §7.8、P12 = §7.9、整理 = §7.10
+- 中間報告（10/30）の材料：`Docs/interim_20261030/materials.md`（英語、図 6 枚）
+
+### 10/05 から変わった仕様（§5・§6 より新しい）
+
+| 項目 | 今 |
+|---|---|
+| 候補の内訳（16 本） | c000〜003 matched pair 2 組 / c004〜006 ゴール方向 3 / c007〜009 ゴールの縁 3（向き ±10〜20° か距離 ±1.5〜4.5 cm ずらす）/ c010〜012 ランダム 3 / c013〜015 円柱の方向 3 |
+| 円柱の高さ | 32〜40 cm を seed ごとのランダム順に試す（前は 24 cm から順で、ほぼ毎回 32 cm） |
+| 円柱の置き場所 | カメラから見てターゲット（初期）とゴールの手前に立たない（`avoidOcclusion`）。さらに「ターゲットを円柱の方へ押す候補が作れる所」を優先（`requireTowardSecondaryFeasible`、見つからなければ絞らずに置く。`scene_generation.json` の `toward_secondary_strict`） |
+| 検証 | 押したあとのターゲットが半分以上「隠れうる範囲」に入るときは、最終 mask の IoU を比べない |
+| 量産の仕組み | `Tools > P6 Batch > Start`（§6.9）。設定の `resume: true` で、Unity が落ちたあとも出力先のフォルダから続きを探して再開（途中のペアは `_failed/interrupted_seed<N>_…` へ移して同じ seed で作り直す、Play 済みで Python がまだのペアは Python だけ回す） |
+
+### フォルダ（`Episodes/`）
+
+| 場所 | 中身 |
+|---|---|
+| `_main_v1/` | **量産データの置き場所**（BatchRunner の既定の出力先。仕様を変えたら `_main_v2`） |
+| `_p8_20scenes/` | 今の仕様（A3 の前）の 20 シーン。`_cache/wm_128x25.h5`（学習コードの動作確認用）、`inspection.md`、`_eval_dummy/` |
+| `_ur5e_test/` | P6 以降のテスト（`p6_*`・`p8_try1`・`p9_prep`） |
+| `_slide_capture/` | Taro のスライド用 |
+| `_archive/` | 古いデータ。整理で `p7_20scenes_*`（P8 の前）、`pilot_p5_*`（3 シーンのパイロット、もとは直下）、`ur5e_test_preP6_*`（P6 より前のテスト、`collider_points_local.json`・`kin_chain.json` もここ）を移した |
+
+### git
+
+- `todo6-ur5e` と `main` は同じ線の上（`main` は P9 で `63447a4` まで fast-forward、tag `p8-complete`）。その後の commit は `todo6-ur5e` にだけある
+- このリポジトリに `core.autocrlf false` を設定した（それまでは Git 本体の `true` が効いていて、古い 179 ファイルが作業フォルダだけ CRLF だった → 中身は同じまま LF にそろえた）
+- push は Taro。Claude は commit まで
+
+### 量産の始め方（次にやるとき）
+
+1. 作業フォルダが clean か確認（commit 済み）
+2. `Episodes/_batch_config.json` を書く（例）：
+   ```json
+   {"outputRoot": "Episodes/_main_v1", "numScenes": 320, "seedStart": 1000, "sceneIndexStart": 0, "pairIndexStart": 0,
+    "requireCleanGit": true, "runPython": true, "resume": true}
+   ```
+   - 320 ペア = 10,240 episode。seed は既存（1〜23）と重ならない番号から
+   - `resume: true` にしておけば、途中で止まっても同じ設定で Start し直すだけ
+3. `Tools > P6 Batch > Start`。止めるときは `Stop after current`
+4. 途中・最後に `python Assets/Python/inspect_batch.py --episodes Episodes/_main_v1` で偏りを見る
+5. 終わったら `python Learning/wm_cache.py --episodes Episodes/_main_v1` → `test_wm_dataset.py`
+- 注意：Windows のスリープを切っておく（Unity が止まる）。1 シーン約 8 分、容量は 1 万 episode で約 20 GB（C ドライブの空き 289 GB）
+
+### 残っている課題
+
+- A/B のずれ：触れていない候補 222 本中 2 本が 1.7・2.1 mm（3 mm 以内）。量産データでも `inspection.md` の「A/B の不安定」を見る
+- 衝突は候補の種類からある程度当たる（円柱の方向 87% が衝突）。物理的に当然なので今は直さない
+- 決めていない定義（§7.8）：regret の効用、位置誤差を XZ にしたこと、接触点 = 最初の接触、mask のしきい値
+- 学習モデル：未設計。GPU の相談（Rekha か Jordy）もまだ
+
+---
+
+## 0. 30 秒で分かる現状（10/05 時点。最新は §00）
 
 - **テーマ**：「How Much of the Robot Should a World Model See?」
   - world model に渡すロボットの action 表現を **範囲（手先だけ / 腕全体）× 形式（数値 / カメラ視点の画像）の 2×2** で比べる
@@ -837,6 +901,24 @@ BatchRunner（Editor、EditorApplication.update で動く）
 - `Docs/interim_20261030/`：`materials.md`（英語。変更点 6 つの表・図のキャプション・パイロットの数字・再現性の表・パイプラインの状態・伝えるべき未解決点）、`fig1〜fig6`、`numbers.json`、`make_figures.py`（元データから毎回作り直す）
 - 図：1 matched pair（TCP 差 最大 0.073 mm、前腕 21.3 cm）／2 押し方と倒れ判定（元の押し方は 16/16 が横倒し、うち 8 本が goal 扱い）／3 触れた接触だけ（接触が報告された 111 本のうち 13 本は触れていない）／4 A/B のずれ（PGS 12.6 mm → TGS は 222 本中 220 本が 0）／5 候補の種類と結果（P7 → P8）／6 円柱の隠れと高さ
 - Taro が作ったスライド用の画像・動画（`Assets/Capture/`）とは別に、数字で示す図にした
+
+### 7.10 整理：量産の準備（2026-10-12）
+
+| # | やったこと |
+|---|---|
+| A1 | BatchRunner に `resume`（出力先のフォルダから続きを探す。途中のペアは `_failed/interrupted_seed<N>_…` へ移して同じ seed から、Play 済みで Python がまだのペアは Python だけ）。既定の出力先を `Episodes/_main_v1` に |
+| A2 | `core.autocrlf false`（リポジトリ）。作業フォルダだけ CRLF だった 179 ファイルを LF にそろえた（中身は同じ、git 上の差分なし） |
+| A3 | 円柱の置き場所を「ターゲットを円柱の方へ押す候補が作れる所」に優先して絞る（`requireTowardSecondaryFeasible`。真ん中の向きで、いちばん短い押し方が 0.21 m 以内・押し始めが土台から 26 cm 以上・押した後が机の上）。見つからなければ前と同じ置き方 |
+| B1 | 古いコメントの修正（TODO5・UR3・仮の値・骨格の表現・初期姿勢の説明） |
+| B2 | autoScene のときに使わない設定（`numCandidates`・`candidateSpecs`・`goalCenter`・シーン上の SecondObject の高さ）に、その旨の Tooltip |
+| A4・B3 | 量産先 = `Episodes/_main_v1/`。`_p7_20scenes`・直下の 3 シーンのパイロット・`_ur5e_test` の P6 より前を `_archive/` へ（消していない）。`make_figures.py` の参照先も直した |
+
+確認（`_ur5e_test/p9_prep`、seed 4・6・10・18・19・22。seed 6〜22 の 5 つは P8 で円柱の方向の候補が作れなかった seed）：
+
+- 再開：seed 6 の Play の途中で止めて、`pairs/pair_0000` を外へ移した状態から `resume` → 途中の seed 6 を `_failed` へ移して作り直し、pair_0000 は Python だけ回した。最後まで 6/6 成功・Python 6/6 PASS
+- A3：5 つとも `toward_secondary_strict = true`、円柱の方向の候補をランダムで埋めたペア 0（P8 では 5/20）。円柱の方向の候補の衝突 15/18
+- そのほか：A/B の不安定 0、隠れ 0、片方だけ衝突の matched pair 9/12
+- 気づき：seed 18 の c003（matched pair の wrist-up）で追従誤差 17.7 mm。腕が円柱に当たって押し込み、そのあと手も円柱に触れた（衝突ラベルは正しい）。円柱がターゲットに近い所に置かれるようになったので、腕が当たったあとの動きが大きくなる候補が出る。量産データで追従誤差の分布を見る
 
 ## 8. スクリプト一覧
 

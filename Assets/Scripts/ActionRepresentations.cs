@@ -20,11 +20,11 @@ public class ActionRasterSettings
 }
 
 /// <summary>
-/// TODO5-4: Planned trajectory から 4 種類の action representation を作る。
-///   EEF numeric      : TCP の位置 + tool の回転 + グリッパー状態(毎ステップ)
-///   Full-body numeric: 関節角 + 腕の各リンク原点と TCP の 3D 位置(毎ステップ)
-///   EEF raster       : TCP を画像上の点として描いた 8bit 画像
-///   Full-body raster : 腕の骨格(リンク原点を結ぶ線)を描いた 8bit 画像
+/// Planned trajectory から 4 種類の action representation を作る(TODO5 で作成、P4-B で v2 に更新)。
+///   EEF numeric      : TCP の位置 + tool の回転(quaternion)+ グリッパー状態(毎ステップ)
+///   Full-body numeric: 関節角 + 腕の各リンク原点と TCP の位置・回転(毎ステップ)
+///   EEF image        : グリッパーのメッシュの本描画(mask + depth、RobotRasterizer)。useMeshRaster が off のときだけ、TCP の点
+///   Full-body image  : ロボット全体のメッシュの本描画(mask + depth)。useMeshRaster が off のときだけ、骨格の線(TODO5 の古い表現)
 /// 画像は camera.json と同じカメラ・同じ規約(OpenCV、左上ピクセルの中心が (0,0))で投影する。
 /// </summary>
 public static class ActionRepresentations

@@ -19070,6 +19070,7 @@ MonoBehaviour:
     avoidOcclusion: 1
     occlusionGoalRadius: 0.03
     occlusionMarginView: 0.01
+    requireTowardSecondaryFeasible: 1
     gridStep: 0.01
     maxSceneAttempts: 20
     maxCandidateAttempts: 300
