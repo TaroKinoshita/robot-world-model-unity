@@ -20,6 +20,7 @@ public static class BatchJob
         public int sceneIndex;
         public int pairIndex;
         public string outputRoot = "";   // 絶対パス。空なら EpisodeRecorder の既定(Episodes)
+        public float timeScale = 1f;     // Play 中の Time.timeScale(早回し)
     }
 
     [Serializable]

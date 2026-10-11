@@ -702,7 +702,15 @@ BatchRunner（Editor、EditorApplication.update で動く）
   2. `Episodes/_batch_config.json` を書く（無ければ `Tools > P6 Batch > Start` で雛形ができる）
   3. `Tools > P6 Batch > Start`
   - 止める：`Stop after current`（今のシーンの後）／`Abort now`（すぐ）。状態：`Status`
-- 設定（`Config`）：`outputRoot`（既定 `Episodes/_main_v1`）、`numScenes`（成功させるペア数）、`seedStart` か `seeds`、`maxSeedAttempts`（0 = numScenes×2＋5）、`sceneIndexStart`・`pairIndexStart`、`playTimeoutMin` 30、`pythonTimeoutMin` 30、`pythonExe`（Python311）、`requireCleanGit`、`runPython`、`resume`
+- 設定（`Config`）：`outputRoot`（既定 `Episodes/_main_v1`）、`numScenes`（成功させるペア数）、`seedStart` か `seeds`、`maxSeedAttempts`（0 = numScenes×2＋5）、`sceneIndexStart`・`pairIndexStart`、`playTimeoutMin` 30、`pythonTimeoutMin` 30、`pythonExe`（Python311）、`requireCleanGit`、`runPython`、`resume`、`stopAfterHours`（0 = 止めない）、`timeScale`（1 = 等速）、`inspectAtEnd`（既定 true）
+- **時刻で止める（P13、10/12）**：`stopAfterHours` か、実行中に `BatchRunner.SetStopAfterHours(h)`（「今から h 時間後」。0 以下で解除）
+  - 新しいシーンを始める前に「今 ＋ 1 シーンの見込み ＞ 止める時刻」なら始めずに終わる（時刻を過ぎて回り続けない）
+  - 1 シーンの見込み ＝ この回で終わったシーンの（Play ＋ Python）の中央値。まだ無ければ早回し（timeScale ≥ 4）で 4 分・等速で 10 分
+  - 止める時刻は `Status` にも出る（`stopAt=…`）
+- **終わったら自動で点検**：`Finish` で `inspect_batch.py --episodes <root>` を別プロセスで起動（待たない）→ `<root>/inspection.md`
+- **早回し（`timeScale`）**：`BatchJob.Job.timeScale` → `EpisodeRecorder.playTimeScale` → Start で `Time.timeScale` に入れる（`OnDestroy` で 1 に戻す）
+  - 物理は FixedUpdate ごとに `Simulate(fixedDeltaTime)` を 1 回ずつなので、速さを変えても 1 step の中身は同じ。撮影はフレーム待ち、ファイル待ちは実時間なので影響しない
+  - 確認：§9.25（4 倍・16 倍とも、executed・contacts・labels・画像まで p9_prep と 1 ビットも同じ）
 - **再開（`resume: true`、整理で追加）**：状態は Temp にあって Unity を閉じると消えるので、出力先のフォルダから続きを探す
   - scene の A・B がそろって完成（`c015/final/final_state.json` と初期画像がある）→ 成功に数える。`pairs/pair_XXXX/pair_check.json` がなければ、最初に Python だけ回す
   - 途中までのペア → `_failed/interrupted_seed<N>_<日時>/` へ移して、同じ seed から作り直す
@@ -710,7 +718,7 @@ BatchRunner（Editor、EditorApplication.update で動く）
   - 確認：Play の途中で止めて、1 ペア分の `pair_check` を外へ移した状態から再開 → 6/6 成功（`_ur5e_test/p9_prep`）
 - 安全装置：出力先に同じ番号の `scene_XXXX`・`pairs/pair_XXXX` があると始めない（上書きしない）。`debugOnlyCandidates` が空でないと始めない
 - EpisodeRecorder の変更：scene フォルダはシーンの生成に成功してから作る。生成失敗は `LogWarning`
-- 実測：1 シーン（32 episode）Play 約 8 分＋Python 約 10 秒。1 万 episode なら約 42 時間
+- 実測：1 シーン（32 episode）Play 約 8 分＋Python 約 10 秒。1 万 episode なら約 42 時間 → **16 倍速で Play 約 2.3 分、1 ペア約 2.6 分（1 時間に約 23 ペア）。320 ペアで約 14 時間**
 - 検証（git `198d0d6`、clean）：`_ur5e_test/p6_accept` に seed 1〜3 を無人で連続 → 3/3 PASS（A 580/580・B 564/564・ペア 107/107）。executed と labels はパイロット（`f46109c`）と 96/96 で 1 ビットも同じ
 - 失敗の経路は、タイムアウト 1 分で確認（`_ur5e_test/p6_failpath`：途中のフォルダを `_failed/` へ移して次の seed へ、上限で終了）。生成失敗（stage = generate）は同じ経路を通るが、ここまでの 46 seed で生成に失敗したものが 1 つもないので、実際には通っていない
 
@@ -726,6 +734,7 @@ BatchRunner（Editor、EditorApplication.update で動く）
 | 20 シーン（P8 の修正前、seed 4〜23） | `Episodes/_archive/p7_20scenes_20261011_205852/` | `feff9e2` | §7.5 |
 | **20 シーン（今の仕様、seed 4〜23）** | `Episodes/_p8_20scenes/`（学習コードの動作確認に使うキャッシュもここ） | `efc35ac`（整理の A3 の前） | §7.6 |
 | 6 シーン（整理の確認、seed 4・6・10・18・19・22） | `Episodes/_ur5e_test/p9_prep/` | 整理の最終コード（commit 前の作業フォルダ） | §7.10 |
+| 早回し・時刻停止の確認（seed 4・6・10・18・19） | `Episodes/_ur5e_test/p13_ts4`・`p13_ts16`・`p13_stop`・`p13_stop2` | `8b28469`＋P13 の変更 | §9.25 |
 | 量産 | `Episodes/_main_v1/`（まだ無い） | — | §14 |
 
 ### 7.0 3 シーンのパイロット（P5、git `f46109c`、作り直し 5 回目）
@@ -1625,6 +1634,22 @@ Taro と決めたこと：A1・A2・A3・B1・B2 をやる、量産先は `_main
 
 結果：§7.10
 
+### 9.25 P13：夜だけ回す仕組み（時刻で止める・自動点検・早回し、10/12）
+
+Taro と決めたこと：42 時間の連続運転は現実的でない → 夜だけ回して、朝止める。止める時刻は毎朝違うので、**毎回会話で「今から N 時間後に止めて」と伝える**（Claude が `SetStopAfterHours(N)` を呼ぶ）。まず 200 ペアを目標、2 晩ほどで学習を試し始める
+
+確認：
+
+| テスト | 出力 | 結果 |
+|---|---|---|
+| 4 倍速、seed 4・6 | `_ur5e_test/p13_ts4` | Play 3.4・3.5 分（等速 7.7・8.0 分）。p9_prep と比べて違うのは作成日時・git・SOLO のフォルダ名・frame 番号・timestamp だけ。executed・contacts・episode・final_state・labels は全部同じ、画像も 60 枚抜き取りで全部同じ |
+| 16 倍速、seed 4・6 | `_ur5e_test/p13_ts16` | Play 2.3 分×2。同じく全部同じ |
+| 止める時刻 3.6 分後（開始直後に `SetStopAfterHours(0.06)`） | `_ur5e_test/p13_stop` | 1 シーンの見込み 4 分 ＞ 3.6 分 → 1 つも始めずに終了（想定どおり） |
+| 止める時刻 6 分後、seed 10・18・19 | `_ur5e_test/p13_stop2` | 2 ペア作って、3 つ目（見込み 2.6 分）が間に合わないので終了 → 点検が自動で動いて inspection.md |
+| 次の晩の続き（同じ設定＋`resume: true`） | 同上 | seed 19 だけ作って 3/3。seed 10・18 も p9_prep と（ID 以外）全部同じ |
+
+- まだ見ていないこと：メイン側（候補用でない）物理シーンはフレームと一緒に進むので、フレーム待ちの間の step 数は速さで変わる。結果が同じなので、記録に効く物は候補用の物理シーンにしか無いと考えている
+
 ---
 
 ## 10. ハマりどころ（全期間、再発防止）
@@ -1754,9 +1779,10 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 | `2cc7091` | P11：評価コード |
 | `f4a8765` | P12：中間報告の材料 |
 | `94123fc` | 整理：再開・円柱の置き場所・コメント・データの整理 |
-| （本書の commit） | HANDOFF 10/12 版・経緯文書 `P6_P12_経緯_20261012.md` |
+| `8b28469` | HANDOFF 10/12 版・経緯文書 `P6_P12_経緯_20261012.md` |
+| （本書の commit） | P13：時刻で止める・自動点検・早回し（§9.25） |
 
-- 10/12 の時点で `94123fc` まで push 済み（本書の commit は Taro が push する）
+- 10/12 の時点で `8b28469` まで push 済み（本書の commit は Taro が push する）
 - `main` は `63447a4`。`todo6-ur5e` はそこから先に進んでいる（区切りのたびに fast-forward する方針）
 - tag：`todo4-verified`（421a4a4）、`todo5-complete`（776fe3c）、`todo6-complete`（9b6030b）、`p8-complete`（63447a4）
 - 運用：
@@ -1809,21 +1835,21 @@ Unity 6 の API：`Rigidbody.linearVelocity`（`velocity` は非推奨）、`Fin
 
 ## 14. 次にやること（優先順、10/12）
 
-### 14.1 量産（12/4 に向けて、無人で約 42 時間）
+### 14.1 量産（夜だけ回す、P13）
 
-1. 作業フォルダが clean か確認（`git status` が空）。Windows のスリープを切る
-2. `Episodes/_batch_config.json` を書く（例）：
+1. 作業フォルダが clean か確認（`git status` が空）。Windows のスリープを切る。Unity を開いて idle を待つ
+2. `Episodes/_batch_config.json`（毎晩同じでよい。`resume: true` なので続きから）：
    ```json
-   {"outputRoot": "Episodes/_main_v1", "numScenes": 320, "seedStart": 1000, "sceneIndexStart": 0, "pairIndexStart": 0,
+   {"outputRoot": "Episodes/_main_v1", "numScenes": 200, "seedStart": 1000, "sceneIndexStart": 0, "pairIndexStart": 0,
     "maxSeedAttempts": 0, "playTimeoutMin": 30, "pythonTimeoutMin": 30,
     "pythonExe": "C:\\Users\\kinos\\AppData\\Local\\Programs\\Python\\Python311\\python.exe",
-    "requireCleanGit": true, "runPython": true, "resume": true}
+    "requireCleanGit": true, "runPython": true, "resume": true, "timeScale": 16, "stopAfterHours": 0, "inspectAtEnd": true}
    ```
-   - 320 ペア = 10,240 episode（約 42 時間）。seed は既存（1〜23）と重ならない番号から
-   - まず 1 日分（例：100 ペア）で止めて点検してから続ける、でもよい（`resume: true` なので、同じ設定で `numScenes` を増やして Start し直すだけ）
-3. `Tools > P6 Batch > Start`。止めるときは `Stop after current`。状態は `Status` か `Episodes/_main_v1/_batch/batch_log.txt`
-4. 途中・最後に `python Assets/Python/inspect_batch.py --episodes Episodes/_main_v1` で点検（見るもの：A/B の不安定、追従誤差の外れ値、円柱の方向の候補をランダムで埋めたペア、goal・衝突の割合、検証の FAIL）
-5. `python Learning/wm_cache.py --episodes Episodes/_main_v1` → `python Learning/test_wm_dataset.py --episodes Episodes/_main_v1`（分け方 `_splits.json` もここで作られる）
+   - 16 倍速で 1 時間に約 23 ペア → 8 時間で約 180 ペア。200 ペアで約 9 時間、320 ペア（10,240 episode）で約 14 時間
+   - 200 ペアが済んだら `numScenes` を増やして同じように続ける
+3. **毎晩**：Taro が「今から N 時間後に止めて」と言う → Claude が `StartBatch`（または `Tools > P6 Batch > Start`）→ `BatchRunner.SetStopAfterHours(N)`。返り値と `Status` の `stopAt=` で時刻を確かめて伝える
+4. **朝**：`Episodes/_main_v1/inspection.md`（自動で更新）と `_batch/batch_log.txt` を見る（A/B の不安定、追従誤差の外れ値、円柱の方向の候補をランダムで埋めたペア、goal・衝突の割合、検証の FAIL）
+5. 学習を試すとき：`python Learning/wm_cache.py --episodes Episodes/_main_v1` → `python Learning/test_wm_dataset.py --episodes Episodes/_main_v1`（分け方 `_splits.json` もここで作られる）
 
 ### 14.2 学習モデル（まだ何も決めていない）
 

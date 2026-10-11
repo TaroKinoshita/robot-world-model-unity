@@ -53,6 +53,13 @@ public class EpisodeRecorder : MonoBehaviour
     public int framesBeforeStart = 30;            // RobotFreeCapture と同じ
     public int hideSettleFrames = 1;              // RobotFreeCapture と同じ
 
+    [Header("Speed(早回し)")]
+    [Tooltip("Play 中の Time.timeScale。物理は 1 step ずつ(FixedUpdate ごとに Simulate(dt))なので、上げても結果は変わらない見込み(検証は HANDOFF)。1 = 実時間")]
+    public float playTimeScale = 1f;
+
+    // 早回しは Play 中だけ。止めたら必ず 1 に戻す
+    void OnDestroy() { if (playTimeScale != 1f) Time.timeScale = 1f; }
+
     [Header("SOLO")]
     [Tooltip("空なら Application.persistentDataPath")]
     public string soloRoot = "";
@@ -171,7 +178,14 @@ public class EpisodeRecorder : MonoBehaviour
             sceneIndex = batchJob.sceneIndex;
             pairIndex = batchJob.pairIndex;
             if (!string.IsNullOrEmpty(batchJob.outputRoot)) outputRoot = batchJob.outputRoot;
+            if (batchJob.timeScale > 0f) playTimeScale = batchJob.timeScale;
             Debug.Log($"[EpisodeRecorder] batch job {batchJob.jobId}: seed={seed}, sceneIndex={sceneIndex}, pairIndex={pairIndex}, outputRoot='{outputRoot}'");
+        }
+
+        if (playTimeScale > 0f && playTimeScale != 1f)
+        {
+            Time.timeScale = playTimeScale;
+            Debug.Log($"[EpisodeRecorder] Time.timeScale = {playTimeScale}(早回し)");
         }
 
         if (perceptionCamera == null) perceptionCamera = FindFirstObjectByType<PerceptionCamera>();

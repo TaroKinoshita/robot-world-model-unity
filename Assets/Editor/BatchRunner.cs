@@ -43,6 +43,9 @@ public static class BatchRunner
         public bool requireCleanGit = true;      // 正式データは clean な commit から。テストだけ false にする
         public bool runPython = true;
         public bool resume = false;              // 出力先に途中までのデータがあれば、続きから再開する(Unity が落ちたあとなど)
+        public float stopAfterHours = 0f;        // 0 より大きいと、開始からこの時間までに終わるシーンだけ始める(夜だけ回す用)
+        public float timeScale = 1f;             // Play 中の Time.timeScale(早回し)。1 = 実時間
+        public bool inspectAtEnd = true;         // 終わったら inspect_batch.py を回して inspection.md を更新
     }
 
     [Serializable]
@@ -74,6 +77,7 @@ public static class BatchRunner
         public bool lastPlayOk;
         public int pythonPid;
         public bool stopRequested;
+        public double stopAtUnix;                // 0 なら時刻で止めない
         public string startedLocal = "", finishedLocal = "", endReason = "";
         public List<JobRecord> records = new List<JobRecord>();
         public List<int> pendingPython = new List<int>();   // 再開したとき、Play は終わっているのに Python がまだのペア(番号 = 何組目か)
@@ -188,7 +192,10 @@ public static class BatchRunner
             foreach (var m in ri.messages) Log("[resume] " + m);
             Log($"[resume] 完成 {ri.complete} 組(うち Python がまだ {ri.needPython.Count} 組)、次の seed の位置 {ri.seedCursor}、途中のフォルダを移した数 {ri.movedInterrupted}");
         }
+        if (cfg.stopAfterHours > 0) st.stopAtUnix = Now + cfg.stopAfterHours * 3600.0;
         Save();
+        if (st.stopAtUnix > 0) Log($"{FromUnix(st.stopAtUnix):MM/dd HH:mm} までに終わるシーンだけ回して止める({cfg.stopAfterHours:F2} 時間)");
+        if (cfg.timeScale != 1f) Log($"早回し: Time.timeScale = {cfg.timeScale}");
         Log($"===== batch 開始{(ri != null ? "(resume)" : "")}: {cfg.numScenes} シーン、seed {(cfg.seeds.Length > 0 ? string.Join(",", cfg.seeds) : cfg.seedStart + "〜")}、" +
             $"scene {cfg.sceneIndexStart}〜 / pair {cfg.pairIndexStart}〜、出力 {root}、git {head}{(dirty ? "(dirty)" : "")}");
         return "開始した: " + root;
@@ -200,6 +207,7 @@ public static class BatchRunner
         var ok = st.records.Count(r => r.status == "ok");
         var pyPass = st.records.Count(r => r.python == "PASS");
         return $"active={st.active} phase={st.phase} succeeded={st.succeeded}/{st.config.numScenes} attempts={st.attempts} " +
+               (st.stopAtUnix > 0 ? $"stopAt={FromUnix(st.stopAtUnix):MM/dd HH:mm} " : "") +
                $"cur seed={st.curSeed} scene={st.curScene} pair={st.curPair} records ok={ok} pythonPASS={pyPass} end='{st.endReason}' root={st.rootAbs}";
     }
 
@@ -250,6 +258,13 @@ public static class BatchRunner
         st.pyOnly = false;
         if (st.succeeded >= cfg.numScenes) { Finish("完了"); return; }
         if (st.stopRequested) { Finish("Stop after current で止めた"); return; }
+        if (st.stopAtUnix > 0)
+        {
+            // 次の 1 シーンが止める時刻までに終わらないなら、始めない(1 シーンの時間は、これまでの中央値。まだなければ 10 分)
+            var done = st.records.Where(r => r.status == "ok" && r.playMin > 0).Select(r => (double)(r.playMin + r.pythonMin)).OrderBy(x => x).ToList();
+            double est = done.Count > 0 ? done[done.Count / 2] * 60 : (cfg.timeScale >= 4f ? 240 : 600);   // まだ実績がなければ: 早回し 4 分、等速 10 分
+            if (Now + est > st.stopAtUnix) { Finish($"止める時刻 {FromUnix(st.stopAtUnix):HH:mm} までに次のシーンが終わらないので止めた(1 シーン約 {est / 60:F1} 分)"); return; }
+        }
         if (st.attempts >= cfg.maxSeedAttempts) { Finish($"seed を {st.attempts} 回試したので打ち切り"); return; }
         if (cfg.seeds.Length > 0 && st.seedCursor >= cfg.seeds.Length) { Finish("seeds を使い切った"); return; }
 
@@ -263,7 +278,7 @@ public static class BatchRunner
 
         st.curJobId = $"seed{st.curSeed}_{DateTime.Now:yyyyMMdd_HHmmss}";
         try { if (File.Exists(BatchJob.ResultPath)) File.Delete(BatchJob.ResultPath); } catch { }
-        var job = new BatchJob.Job { jobId = st.curJobId, seed = st.curSeed, sceneIndex = st.curScene, pairIndex = st.curPair, outputRoot = st.rootAbs };
+        var job = new BatchJob.Job { jobId = st.curJobId, seed = st.curSeed, sceneIndex = st.curScene, pairIndex = st.curPair, outputRoot = st.rootAbs, timeScale = cfg.timeScale };
         Directory.CreateDirectory(BatchJob.Dir);
         File.WriteAllText(BatchJob.JobPath, JsonUtility.ToJson(job, true), new UTF8Encoding(false));
         st.jobStart = Now;
@@ -456,7 +471,34 @@ public static class BatchRunner
                 File.WriteAllText(Path.Combine(st.batchDir, $"batch_summary_{DateTime.Now:yyyyMMdd_HHmmss}.json"), JsonUtility.ToJson(st, true), new UTF8Encoding(false));
         }
         catch { }
+        // 点検を別プロセスで(終わるのを待たない)。結果は <出力先>/inspection.md
+        if (st.config.inspectAtEnd && st.config.runPython && File.Exists(st.config.pythonExe) && st.records.Any(r => r.status == "ok"))
+        {
+            try
+            {
+                string script = Path.Combine(Application.dataPath, "Python", "inspect_batch.py");
+                var psi = new ProcessStartInfo(st.config.pythonExe, $"\"{script}\" --episodes \"{st.rootAbs}\"")
+                { WorkingDirectory = ProjectDir, UseShellExecute = false, CreateNoWindow = true };
+                psi.EnvironmentVariables["PYTHONIOENCODING"] = "utf-8";
+                Process.Start(psi);
+                Log("点検(inspect_batch.py)を起動した → " + Path.Combine(st.rootAbs, "inspection.md"));
+            }
+            catch (Exception e) { Log("点検を起動できない: " + e.Message); }
+        }
     }
+
+    /// 実行中に「今から hours 時間後に止める」を設定する(0 以下で解除)。会話から execute_code で呼ぶ
+    public static string SetStopAfterHours(float hours)
+    {
+        if (st == null || !st.active) return "動いていない";
+        st.stopAtUnix = hours > 0 ? Now + hours * 3600.0 : 0;
+        Save();
+        string msg = hours > 0 ? $"{FromUnix(st.stopAtUnix):MM/dd HH:mm} までに終わるシーンだけ回して止める({hours:F2} 時間後)" : "時刻で止めるのを解除した";
+        Log(msg);
+        return msg;
+    }
+
+    static DateTime FromUnix(double t) => new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc).AddSeconds(t).ToLocalTime();
 
     // ================= 小物 =================
 
