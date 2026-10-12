@@ -127,6 +127,18 @@ def main():
             img_same = all(np.array_equal(h["actions/eef_mask"][min(s_)], h["actions/eef_mask"][max(s_)]) and
                            np.array_equal(h["actions/eef_depth_mm"][min(s_)], h["actions/eef_depth_mm"][max(s_)]) for s_ in grp.values() if len(s_) == 2)
             check("matched pair: EEF 画像が同じ(共有)", img_same)
+        # 元の値が残っているか: 位置は同じ、quaternion は符号だけ違う(同じ向き)
+        raw = h["actions/eef_num_raw"]; can = h["actions/eef_num"]; sf = h["actions/eef_shared_from"][:]
+        bad = 0
+        for i_ in range(len(ln)):
+            if sf[i_] >= 0:
+                continue
+            L_ = int(ln[i_]); r_ = raw[i_, :L_]; c_ = can[i_, :L_]
+            dot = np.abs((r_[:, 3:] * c_[:, 3:]).sum(1))
+            bad += int(np.abs(r_[:, :3] - c_[:, :3]).max() > 0 or dot.min() < 1 - 1e-5)
+        n_sh = int((sf >= 0).sum())
+        check("元の値: eef_num_raw と符号をそろえた値が同じ向き、共有した数 = matched pair の組数", bad == 0 and (not shared or n_sh == len({frozenset(v) for v in grp.values()})),
+              f"違う {bad}、共有 {n_sh}/{len({frozenset(v) for v in grp.values()})}")
 
     # 4. 分け方
     sp = make_splits(cache)

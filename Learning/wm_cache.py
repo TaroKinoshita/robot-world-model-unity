@@ -12,6 +12,10 @@ P10: episode フォルダ → 学習用キャッシュ(HDF5 1 ファイル)
 - matched pair の 2 本は「同じ手先の経路」が定義なので、EEF の action(数値・画像)は wrist_down 側のものを両方に使う(v3、--no-share-eef で切れる)。
   2 本の EEF は IK→FK の数値誤差で 0.2 mm 以下しか違わないが、その差の符号が枝でそろっていて(全 40 組で同じ向き)、
   ほとんど変わらない成分(rot_y・rot_w)を標準化すると拡大され、小さいモデルでも枝を当てられた(P14)。共有前の差は attrs の eef_share_maxdiff に残す
+- 元の値も残す(論文で処理と元の差を説明するため):
+    actions/eef_num_raw   (N,Lmax,7)  CSV のままの EEF 数値(符号をそろえる前・共有する前)
+    actions/eef_shared_from (N,)      共有したなら、元にした action の番号(wrist_down 側)。していなければ -1
+  画像の元(共有前の wrist_up 側の EEF 画像)と全身の数値の元は、episode フォルダの actions/ にそのまま残っている(キャッシュは書き換えない)
 
 使い方(Windows の Python 3.11、cv2・h5py が要る):
   python Learning/wm_cache.py --episodes Episodes/_p8_20scenes [--out <file>] [--res 128]
@@ -170,7 +174,8 @@ def load_action(cd, res, frames):
             raise ValueError(f"{cd}: {rep} の枚数が {frames} じゃない({len(mf)}/{len(df)})")
         out[f"{rep}_mask"] = np.stack([np.round(down_area(read_gray(p).astype(np.float32), res)).astype(np.uint8) for p in mf])
         out[f"{rep}_depth_mm"] = np.stack([np.round(down_depth(read_gray(p), res)).astype(np.uint16) for p in df])
-    out["eef_num"] = canon_quat_cols(read_numeric(cd / "actions" / "eef_numeric.csv", EEF_COLS), EEF_COLS)
+    out["eef_num_raw"] = read_numeric(cd / "actions" / "eef_numeric.csv", EEF_COLS)
+    out["eef_num"] = canon_quat_cols(out["eef_num_raw"], EEF_COLS)
     fc = full_cols(cd / "actions" / "fullbody_numeric.csv")
     out["full_num"] = canon_quat_cols(read_numeric(cd / "actions" / "fullbody_numeric.csv", fc), fc)
     out["full_cols"] = fc
@@ -295,7 +300,7 @@ def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=pri
                 for k, d in img_ds.items():
                     d.resize(ai + 1, axis=0)
                     d[ai] = a[k]
-                A.append({k: a[k] for k in ["eef_num", "full_num", "raster_steps"]})
+                A.append({**{k: a[k] for k in ["eef_num", "full_num", "raster_steps"]}, "eef_num_raw": a["eef_num_raw"], "shared_from": -1})
                 act_index[(pi, cid)] = ai
                 mp = -1
                 if c.get("matched_pair_id"):
@@ -311,6 +316,7 @@ def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=pri
                         share_diff["eef_num"] = max(share_diff["eef_num"], float(np.abs(A[src]["eef_num"] - A[dst]["eef_num"]).max()))
                         share_diff["eef_mask_px"] = max(share_diff["eef_mask_px"], int((img_ds["eef_mask"][src] != img_ds["eef_mask"][dst]).sum()))
                         share_diff["eef_depth_mm"] = max(share_diff["eef_depth_mm"], int(np.abs(img_ds["eef_depth_mm"][src].astype(int) - img_ds["eef_depth_mm"][dst].astype(int)).max()))
+                        A[dst]["shared_from"] = src
                         A[dst]["eef_num"] = A[src]["eef_num"].copy()
                         A[dst]["raster_steps"] = A[src]["raster_steps"].copy()
                         for k in ["eef_mask", "eef_depth_mm"]:
@@ -335,6 +341,11 @@ def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=pri
         ga.create_dataset("eef_num", data=en, chunks=(1,) + en.shape[1:], **comp)
         ga.create_dataset("full_num", data=fn, chunks=(1,) + fn.shape[1:], **comp)
         ga.create_dataset("num_len", data=ln)
+        er = np.zeros((N, Lmax, 7), np.float32)
+        for i, a in enumerate(A):
+            er[i, :len(a["eef_num_raw"])] = a["eef_num_raw"]
+        ga.create_dataset("eef_num_raw", data=er, chunks=(1,) + er.shape[1:], **comp)
+        ga.create_dataset("eef_shared_from", data=np.array([a["shared_from"] for a in A], np.int32))
         ga.create_dataset("raster_steps", data=np.stack([a["raster_steps"] for a in A]))
         ga.attrs["eef_cols"] = json.dumps(EEF_COLS)
         ga.attrs["full_cols"] = json.dumps(full_cols_ref)
