@@ -1,0 +1,24 @@
+storage {'raw_files': 80040, 'raw_bytes': 1159775810, 'cache_files': 1, 'cache_bytes': 79332645}
+full_img sanity {'obs': 0.0, 'action': 0.0, 'final_pos': 0.0, 'final_mask': 0.0, 'labels_differ': 0, 'shared_eef_skipped': 0}
+full_img load raw_w0 ['1.8', '16.1']
+full_img train raw_w0 ['30.0', '28.8'] wait ['26.0', '26.3']
+full_img load raw_w4 ['30.5', '64.2']
+full_img train raw_w4 ['13.7', '7.8'] wait ['12.4', '6.3']
+full_img load cache_w0 ['274.1', '270.2']
+full_img train cache_w0 ['3.0', '2.5'] wait ['1.7', '1.5']
+full_img load cache_w4 ['58.1', '619.4']
+full_img train cache_w4 ['8.0', '0.9'] wait ['6.9', '0.1']
+full_img load cache_in_memory_w0 ['740.1', '735.4']
+full_img train cache_in_memory_w0 ['0.9', '1.0'] wait ['0.4', '0.4']
+full_num sanity {'obs': 0.0, 'action': 0.0, 'final_pos': 0.0, 'final_mask': 0.0, 'labels_differ': 0, 'shared_eef_skipped': 0}
+full_num load raw_w0 ['18.6', '31.7']
+full_num train raw_w0 ['15.3', '15.4'] wait ['13.2', '13.3']
+full_num load raw_w4 ['43.2', '127.7']
+full_num train raw_w4 ['10.7', '3.6'] wait ['9.9', '2.8']
+full_num load cache_w0 ['577.4', '598.1']
+full_num train cache_w0 ['1.5', '1.4'] wait ['0.7', '0.8']
+full_num load cache_w4 ['58.9', '1358.4']
+full_num train cache_w4 ['8.1', '0.4'] wait ['7.3', '0.0']
+full_num load cache_in_memory_w0 ['2823.7', '2943.2']
+full_num train cache_in_memory_w0 ['0.4', '0.4'] wait ['0.1', '0.1']
+DONE Docs/report_20261018/bench_cache_vs_raw.json
