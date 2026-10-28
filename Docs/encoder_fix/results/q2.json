@@ -1,0 +1,40 @@
+{
+ "action_only": {
+  "train": {
+   "pos_err_mm": 3.707776140116577,
+   "goal_auprc": 1.0
+  },
+  "val": {
+   "pos_err_mm": 23.316534545218463,
+   "goal_auprc": 0.22012949238349694
+  }
+ },
+ "scene_only": {
+  "train": {
+   "pos_err_mm": 69.55175684123728,
+   "goal_auprc": 0.3656409996253746
+  },
+  "val": {
+   "pos_err_mm": 85.02748195845496,
+   "goal_auprc": 0.22836538461538458
+  }
+ },
+ "action+scene": {
+  "train": {
+   "pos_err_mm": 3.803598848376512,
+   "goal_auprc": 1.0
+  },
+  "val": {
+   "pos_err_mm": 22.257571802113784,
+   "goal_auprc": 0.21366934447367383
+  }
+ },
+ "no_motion_baseline": {
+  "train": {
+   "pos_err_mm": 86.79093170166016
+  },
+  "val": {
+   "pos_err_mm": 83.13446807861328
+  }
+ }
+}

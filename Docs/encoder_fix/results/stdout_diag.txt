@@ -1,0 +1,106 @@
+===== P15 sweep diag 2026-10-24 01:10:41  device cuda  torch 2.5.1+cu121  runs 8
+--- [1/8] eef_num__base__all__lr0.001__s0
+  [eef_num__base__all__lr0.001__s0] epoch   1  train 2.3522  val 1.6983
+  [eef_num__base__all__lr0.001__s0] epoch  10  train 1.5304  val 1.5010
+  [eef_num__base__all__lr0.001__s0] epoch  20  train 1.3588  val 1.9516
+  [eef_num__base__all__lr0.001__s0] epoch  30  train 1.2263  val 1.9745
+  [eef_num__base__all__lr0.001__s0] epoch  40  train 0.9921  val 2.9028
+  [eef_num__base__all__lr0.001__s0] epoch  50  train 0.8907  val 2.2037
+  [eef_num__base__all__lr0.001__s0] epoch  60  train 0.6969  val 2.9427
+  [eef_num__base__all__lr0.001__s0] epoch  70  train 0.5803  val 3.3247
+  [eef_num__base__all__lr0.001__s0] epoch  80  train 0.4415  val 3.4492
+  [eef_num__base__all__lr0.001__s0] epoch  90  train 0.3846  val 3.5500
+  [eef_num__base__all__lr0.001__s0] epoch 100  train 0.3685  val 3.5882
+  [eef_num__base__all__lr0.001__s0] done 88s params 1,747,593  TRAIN A pos 7.1 goal 0.990 | B pos 7.3 goal 0.990 coll 0.943 | val 3.5882
+--- [2/8] eef_num__base__raster__lr0.001__s0
+  [eef_num__base__raster__lr0.001__s0] epoch   1  train 2.3893  val 1.7919
+  [eef_num__base__raster__lr0.001__s0] epoch  10  train 1.4193  val 1.4568
+  [eef_num__base__raster__lr0.001__s0] epoch  20  train 1.2151  val 1.9019
+  [eef_num__base__raster__lr0.001__s0] epoch  30  train 1.0215  val 1.8157
+  [eef_num__base__raster__lr0.001__s0] epoch  40  train 0.8571  val 2.5814
+  [eef_num__base__raster__lr0.001__s0] epoch  50  train 0.7525  val 2.6876
+  [eef_num__base__raster__lr0.001__s0] epoch  60  train 0.5963  val 3.3507
+  [eef_num__base__raster__lr0.001__s0] epoch  70  train 0.4983  val 3.8167
+  [eef_num__base__raster__lr0.001__s0] epoch  80  train 0.3889  val 4.5279
+  [eef_num__base__raster__lr0.001__s0] epoch  90  train 0.3405  val 4.9965
+  [eef_num__base__raster__lr0.001__s0] epoch 100  train 0.3265  val 5.0916
+  [eef_num__base__raster__lr0.001__s0] done 64s params 1,747,593  TRAIN A pos 4.0 goal 0.999 | B pos 4.0 goal 0.999 coll 0.943 | val 5.0916
+--- [3/8] eef_num__base__all__lr0.001__s0__cube
+  [eef_num__base__all__lr0.001__s0__cube] epoch   1  train 2.3843  val 1.7434
+  [eef_num__base__all__lr0.001__s0__cube] epoch  10  train 1.5312  val 1.4846
+  [eef_num__base__all__lr0.001__s0__cube] epoch  20  train 1.3460  val 1.7402
+  [eef_num__base__all__lr0.001__s0__cube] epoch  30  train 1.1148  val 1.7919
+  [eef_num__base__all__lr0.001__s0__cube] epoch  40  train 0.9182  val 2.3819
+  [eef_num__base__all__lr0.001__s0__cube] epoch  50  train 0.7272  val 2.6249
+  [eef_num__base__all__lr0.001__s0__cube] epoch  60  train 0.5422  val 3.6788
+  [eef_num__base__all__lr0.001__s0__cube] epoch  70  train 0.4628  val 3.2680
+  [eef_num__base__all__lr0.001__s0__cube] epoch  80  train 0.3603  val 3.6858
+  [eef_num__base__all__lr0.001__s0__cube] epoch  90  train 0.3253  val 3.8136
+  [eef_num__base__all__lr0.001__s0__cube] epoch 100  train 0.3091  val 3.8706
+  [eef_num__base__all__lr0.001__s0__cube] done 67s params 1,747,913  TRAIN A pos 5.8 goal 0.996 | B pos 5.9 goal 0.996 coll 0.954 | val 3.8706
+--- [4/8] full_num__base__all__lr0.001__s0
+  [full_num__base__all__lr0.001__s0] epoch   1  train 2.4124  val 1.7932
+  [full_num__base__all__lr0.001__s0] epoch  10  train 1.4595  val 1.6182
+  [full_num__base__all__lr0.001__s0] epoch  20  train 1.2312  val 1.9714
+  [full_num__base__all__lr0.001__s0] epoch  30  train 0.9212  val 1.9235
+  [full_num__base__all__lr0.001__s0] epoch  40  train 0.6507  val 2.4051
+  [full_num__base__all__lr0.001__s0] epoch  50  train 0.4743  val 2.7419
+  [full_num__base__all__lr0.001__s0] epoch  60  train 0.2701  val 3.4177
+  [full_num__base__all__lr0.001__s0] epoch  70  train 0.1834  val 4.0914
+  [full_num__base__all__lr0.001__s0] epoch  80  train 0.0975  val 4.5435
+  [full_num__base__all__lr0.001__s0] epoch  90  train 0.0732  val 4.9383
+  [full_num__base__all__lr0.001__s0] epoch 100  train 0.0657  val 5.0413
+  [full_num__base__all__lr0.001__s0] done 65s params 1,767,433  TRAIN A pos 4.2 goal 1.000 | B pos 4.3 goal 1.000 coll 1.000 | val 5.0413
+--- [5/8] full_num__base__raster__lr0.001__s0
+  [full_num__base__raster__lr0.001__s0] epoch   1  train 2.4140  val 1.7670
+  [full_num__base__raster__lr0.001__s0] epoch  10  train 1.3375  val 1.4818
+  [full_num__base__raster__lr0.001__s0] epoch  20  train 1.0522  val 1.6769
+  [full_num__base__raster__lr0.001__s0] epoch  30  train 0.7080  val 1.6296
+  [full_num__base__raster__lr0.001__s0] epoch  40  train 0.5061  val 2.1939
+  [full_num__base__raster__lr0.001__s0] epoch  50  train 0.3443  val 2.2421
+  [full_num__base__raster__lr0.001__s0] epoch  60  train 0.2195  val 2.8021
+  [full_num__base__raster__lr0.001__s0] epoch  70  train 0.1572  val 2.9886
+  [full_num__base__raster__lr0.001__s0] epoch  80  train 0.0725  val 3.2953
+  [full_num__base__raster__lr0.001__s0] epoch  90  train 0.0569  val 3.6993
+  [full_num__base__raster__lr0.001__s0] epoch 100  train 0.0510  val 3.7490
+  [full_num__base__raster__lr0.001__s0] done 64s params 1,767,433  TRAIN A pos 3.1 goal 1.000 | B pos 3.1 goal 1.000 coll 1.000 | val 3.7490
+--- [6/8] full_num__base__all__lr0.001__s0__cube
+  [full_num__base__all__lr0.001__s0__cube] epoch   1  train 2.3975  val 1.8264
+  [full_num__base__all__lr0.001__s0__cube] epoch  10  train 1.4629  val 1.8046
+  [full_num__base__all__lr0.001__s0__cube] epoch  20  train 1.1682  val 1.9591
+  [full_num__base__all__lr0.001__s0__cube] epoch  30  train 0.8023  val 1.7494
+  [full_num__base__all__lr0.001__s0__cube] epoch  40  train 0.5198  val 2.6386
+  [full_num__base__all__lr0.001__s0__cube] epoch  50  train 0.3189  val 3.4868
+  [full_num__base__all__lr0.001__s0__cube] epoch  60  train 0.2165  val 4.3944
+  [full_num__base__all__lr0.001__s0__cube] epoch  70  train 0.1347  val 4.7322
+  [full_num__base__all__lr0.001__s0__cube] epoch  80  train 0.0695  val 5.0773
+  [full_num__base__all__lr0.001__s0__cube] epoch  90  train 0.0580  val 5.3940
+  [full_num__base__all__lr0.001__s0__cube] epoch 100  train 0.0522  val 5.4013
+  [full_num__base__all__lr0.001__s0__cube] done 69s params 1,767,753  TRAIN A pos 3.9 goal 1.000 | B pos 3.9 goal 1.000 coll 1.000 | val 5.4013
+--- [7/8] eef_img__base__raster__lr0.001__s0
+  [eef_img__base__raster__lr0.001__s0] epoch   1  train 2.5408  val 1.9108
+  [eef_img__base__raster__lr0.001__s0] epoch  10  train 1.0113  val 1.9269
+  [eef_img__base__raster__lr0.001__s0] epoch  20  train 0.3792  val 1.8470
+  [eef_img__base__raster__lr0.001__s0] epoch  30  train 0.2331  val 1.9467
+  [eef_img__base__raster__lr0.001__s0] epoch  40  train 0.1960  val 2.0970
+  [eef_img__base__raster__lr0.001__s0] epoch  50  train 0.1779  val 2.2722
+  [eef_img__base__raster__lr0.001__s0] epoch  60  train 0.1492  val 2.3309
+  [eef_img__base__raster__lr0.001__s0] epoch  70  train 0.1422  val 2.4899
+  [eef_img__base__raster__lr0.001__s0] epoch  80  train 0.1374  val 2.5880
+  [eef_img__base__raster__lr0.001__s0] epoch  90  train 0.1364  val 2.6372
+  [eef_img__base__raster__lr0.001__s0] epoch 100  train 0.1355  val 2.6420
+  [eef_img__base__raster__lr0.001__s0] done 120s params 1,969,673  TRAIN A pos 0.5 goal 1.000 | B pos 0.6 goal 1.000 coll 0.964 | val 2.6420
+--- [8/8] full_img__base__raster__lr0.001__s0
+  [full_img__base__raster__lr0.001__s0] epoch   1  train 2.6050  val 2.0154
+  [full_img__base__raster__lr0.001__s0] epoch  10  train 1.3076  val 1.6036
+  [full_img__base__raster__lr0.001__s0] epoch  20  train 0.5334  val 1.8092
+  [full_img__base__raster__lr0.001__s0] epoch  30  train 0.1475  val 1.8586
+  [full_img__base__raster__lr0.001__s0] epoch  40  train 0.0657  val 1.9521
+  [full_img__base__raster__lr0.001__s0] epoch  50  train 0.0232  val 2.1507
+  [full_img__base__raster__lr0.001__s0] epoch  60  train 0.0159  val 2.2797
+  [full_img__base__raster__lr0.001__s0] epoch  70  train 0.0069  val 2.4903
+  [full_img__base__raster__lr0.001__s0] epoch  80  train 0.0053  val 2.5867
+  [full_img__base__raster__lr0.001__s0] epoch  90  train 0.0049  val 2.6286
+  [full_img__base__raster__lr0.001__s0] epoch 100  train 0.0048  val 2.6351
+  [full_img__base__raster__lr0.001__s0] done 103s params 1,969,673  TRAIN A pos 0.6 goal 1.000 | B pos 0.7 goal 1.000 coll 1.000 | val 2.6351
+===== P15 sweep diag finished 2026-10-24 01:21:31

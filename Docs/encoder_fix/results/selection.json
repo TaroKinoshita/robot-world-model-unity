@@ -1,0 +1,24 @@
+{
+ "num": {
+  "enc": "gru",
+  "lr": 0.0003,
+  "fit": true,
+  "val_loss": 3.091781666666667,
+  "n": 3,
+  "params": 1878665,
+  "best_val": 3.091781666666667,
+  "n_passing": 6,
+  "n_cands": 8
+ },
+ "img": {
+  "enc": "base",
+  "lr": 0.0003,
+  "fit": true,
+  "val_loss": 2.317215,
+  "n": 3,
+  "params": 1969673,
+  "best_val": 2.317215,
+  "n_passing": 7,
+  "n_cands": 8
+ }
+}
