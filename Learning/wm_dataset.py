@@ -22,8 +22,9 @@ rep(action 表現。4 モデルで違うのはここだけ):
     x["final_pos"] (3,)、x["goal"] ()、x["coll"] ()(A は NaN)、x["coll_valid"]、
     x["final_mask"] (1,R,R)、x["heat_target"]・x["heat_secondary"] (1,R,R)(0〜1)、
     x["contact_point"] (3,)・x["contact_valid"]
-目印(評価用): x["ep"]・x["pair"]・x["scene"]・x["task"]・x["cand"]・x["kind"]・x["mp"]・x["branch"]
+目印(評価用): x["fallback"](1 = 円柱方向の候補がランダムで埋まったペア)・x["ep"]・x["pair"]・x["scene"]・x["task"]・x["cand"]・x["kind"]・x["mp"]・x["branch"]
 
+除外: 量産フォルダ直下の excluded_pairs.json にあるペアは、make_splits でも WMDataset でも自動で外す(exclude=False で無効)。
 分け方: ペア(= 同じ seed の Task A/B)ごとに train / val / test に分ける。
 同じシーンの 16 候補(matched pair を含む)と A/B は、必ず同じ側に入る。
 """
@@ -39,7 +40,19 @@ from torch.utils.data import Dataset
 REPS = ["eef_num", "full_num", "eef_img", "full_img"]
 
 
-def make_splits(cache_path, ratios=(0.7, 0.15, 0.15), seed=0, out=None, overwrite=False):
+def load_excluded(cache_path, path=None):
+    """excluded_pairs.json(量産フォルダ直下)を読んで、(除外するペア ID の集合, 円柱方向の候補がランダムで埋まったペア ID の集合)を返す。
+    cache は <量産フォルダ>/_cache/xxx.h5 にある前提(path を渡せば別の場所も可)。ファイルが無ければ両方とも空。"""
+    path = Path(path) if path else Path(cache_path).parent.parent / "excluded_pairs.json"
+    if not path.is_file():
+        return set(), set()
+    d = json.loads(path.read_text(encoding="utf-8"))
+    excl = {e["pair"] for e in d.get("excluded", [])}
+    fb = set((d.get("cylinder_dir_fallback_pairs") or {}).get("pairs", []))
+    return excl, fb
+
+
+def make_splits(cache_path, ratios=(0.7, 0.15, 0.15), seed=0, out=None, overwrite=False, exclude=True):
     """ペア単位の分け方を作って JSON に保存する(既にあれば読むだけ)。戻り値 {"train": [pair_id...], ...}"""
     cache_path = Path(cache_path)
     out = Path(out) if out else cache_path.with_name(cache_path.stem + "_splits.json")
@@ -48,6 +61,10 @@ def make_splits(cache_path, ratios=(0.7, 0.15, 0.15), seed=0, out=None, overwrit
     with h5py.File(cache_path, "r") as h:
         pairs = [p.decode() for p in h["pairs/pair_id"][:]]
         seeds = h["pairs/seed"][:].tolist()
+    ex_set = load_excluded(cache_path)[0] if exclude else set()      # excluded_pairs.json のペアは分けるときから外す
+    if ex_set:
+        keep_i = [i for i, p in enumerate(pairs) if p not in ex_set]
+        pairs = [pairs[i] for i in keep_i]; seeds = [seeds[i] for i in keep_i]
     rng = np.random.default_rng(seed)
     order = rng.permutation(len(pairs))
     n = len(pairs)
@@ -55,7 +72,7 @@ def make_splits(cache_path, ratios=(0.7, 0.15, 0.15), seed=0, out=None, overwrit
     idx = {"train": order[:n_tr], "val": order[n_tr:n_tr + n_va], "test": order[n_tr + n_va:]}
     sp = {k: sorted(pairs[i] for i in v) for k, v in idx.items()}
     sp["_info"] = {"unit": "pair (= one seed / scene, Task A and B together; matched pairs never split)",
-                   "ratios": list(ratios), "seed": seed, "num_pairs": n,
+                   "ratios": list(ratios), "seed": seed, "num_pairs": n, "excluded_pairs": sorted(ex_set),
                    "seeds": {k: sorted(int(seeds[i]) for i in v) for k, v in idx.items()}}
     out.write_text(json.dumps(sp, indent=2, ensure_ascii=False), encoding="utf-8")
     return sp
@@ -74,7 +91,7 @@ def prepare_batch(b, device="cuda"):
 
 
 class WMDataset(Dataset):
-    def __init__(self, cache_path, rep="full_img", task="both", split=None, splits=None, in_memory=False, num_steps="all"):
+    def __init__(self, cache_path, rep="full_img", task="both", split=None, splits=None, in_memory=False, num_steps="all", exclude=True):
         assert rep in REPS, rep
         assert num_steps in ("all", "raster"), num_steps
         self.num_steps = num_steps
@@ -101,7 +118,12 @@ class WMDataset(Dataset):
             self.raster_steps = h["actions/raster_steps"][:]
             self.cache_version = str(h.attrs.get("version", ""))
         self.pair_ids = pair_ids
+        ex_set, fb_set = load_excluded(self.path) if exclude else (set(), set())
+        self.excluded_idx = {pair_ids.index(p) for p in ex_set if p in pair_ids}      # 除外ペア(excluded_pairs.json)
+        self.fallback_idx = {pair_ids.index(p) for p in fb_set if p in pair_ids}      # 円柱方向の候補がランダムで埋まったペア(除外はしない。x["fallback"] で分かる)
         keep = np.ones(len(self.meta["task"]), bool)
+        if self.excluded_idx:
+            keep &= ~np.isin(self.meta["pair_idx"], list(self.excluded_idx))
         if task != "both":
             keep &= self.meta["task"] == (0 if task == "A" else 1)
         if split is not None:
@@ -182,6 +204,7 @@ class WMDataset(Dataset):
             "contact_point": torch.from_numpy(np.nan_to_num(m["contact_point"][i]).astype(np.float32)),
             "contact_valid": torch.tensor(bool(m["contact_valid"][i])),
             "ep": i, "pair": int(m["pair_idx"][i]), "scene": si, "task": int(m["task"][i]),
+            "fallback": int(int(m["pair_idx"][i]) in self.fallback_idx),
             "cand": int(m["cand_idx"][i]), "kind": int(m["kind"][i]), "mp": int(m["mp"][i]), "branch": int(m["branch"][i]),
         })
         return x
