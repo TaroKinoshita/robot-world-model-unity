@@ -17,6 +17,9 @@ P15: action エンコーダの公平な比較（ルールは Docs/encoder_fix/pr
 early stopping（毎 epoch val を測って、val loss 最小の epoch の重みを使う）:
   py -3.11 Learning/wm_encoder_study.py sweep --plan es_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
 
+本番の構成（protocol 追記 6: SS + early stopping、goal は予測位置から）で 4 モデル × seed 3 つ:
+  py -3.11 Learning/wm_encoder_study.py sweep --plan main_ss --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_main_ss --epochs 40
+
 診断: 予測した最終位置からゴールまでの距離で goal を判定（goal ヘッドが原因かを確かめる。SS と同じ 4 run）:
   py -3.11 Learning/wm_encoder_study.py sweep --plan ss_gp --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
 
@@ -286,6 +289,26 @@ def point_metrics(P, truth):
     return out
 
 
+GOAL_RADIUS = 0.03   # goal のラベル: 最終位置がゴール中心から 30 mm 以内（EpisodeRecorder.cs の goalRadius）
+
+
+def goal_dist(P, truth):
+    """予測した最終位置（XZ）とゴール中心の距離（m）"""
+    return np.linalg.norm(P["final_pos"][:, [0, 2]] - truth["goal_xz"][P["ep"]], axis=1)
+
+
+def fit_goal_tau(P, truth):
+    """protocol 追記 6: P(goal) = σ((30 mm − 距離) / τ) の τ を、train の予測の BCE 最小で選ぶ（1〜30 mm の格子）"""
+    d = goal_dist(P, truth); y = truth["goal"][P["ep"]].astype(np.float64)
+    best = None
+    for tau in np.arange(0.001, 0.0301, 0.0005):
+        p = np.clip(1 / (1 + np.exp(-(GOAL_RADIUS - d) / tau)), 1e-6, 1 - 1e-6)
+        bce = -np.mean(y * np.log(p) + (1 - y) * np.log(1 - p))
+        if best is None or bce < best[0]:
+            best = (bce, float(tau))
+    return best[1]
+
+
 def run_name(c):
     s = f"{c['rep']}__{c['enc']}__{c['steps']}__lr{c['lr']:g}__s{c['seed']}"
     if c.get("frac", 1.0) < 1.0:
@@ -375,7 +398,15 @@ def run_one(c, out, dev, truth, splits, pos_mean, log):
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(json.dumps(res, indent=1), encoding="utf-8")
     pd = out / "preds"; pd.mkdir(exist_ok=True)                      # val の予測（mask 以外）を残す。あとで分析できるように
-    wm_eval.save_predictions(pd / f"{name}__val.npz", Pva["ep"], Pva["final_pos"], Pva["goal"], Pva["coll"])
+    if "goal_xz" in truth:                                          # protocol 追記 6: goal は予測位置から（τ は train で決める）
+        tau = fit_goal_tau(Ptr, truth)
+        gp = 1 / (1 + np.exp(-(GOAL_RADIUS - goal_dist(Pva, truth)) / tau))
+        np.savez_compressed(pd / f"{name}__val.npz", ep=Pva["ep"].astype(np.int64), final_pos=Pva["final_pos"].astype(np.float32),
+                            goal=gp.astype(np.float32), goal_head=Pva["goal"].astype(np.float32), coll=Pva["coll"].astype(np.float32))
+        res["goal_tau_mm"] = round(tau * 1000, 2)
+        f.write_text(json.dumps(res, indent=1), encoding="utf-8")
+    else:
+        wm_eval.save_predictions(pd / f"{name}__val.npz", Pva["ep"], Pva["final_pos"], Pva["goal"], Pva["coll"])
     tm = res["train"]
     log(f"  [{name}] done {sec:.0f}s params {nparam:,}  TRAIN A pos {tm['A']['pos_err_mm']:.1f} goal {tm['A']['goal_auprc']:.3f} | "
         f"B pos {tm['B']['pos_err_mm']:.1f} goal {tm['B']['goal_auprc']:.3f} coll {tm['B']['coll_auprc']:.3f} | val {Lva['total']:.4f}")
@@ -419,6 +450,11 @@ def plan(which, epochs):
             if smoke:
                 c["frac"] = 0.25
             P.append(c)
+    elif which == "main_ss":   # protocol 追記 6: 本番の構成で 4 モデル × seed 0・1・2、全学習ペア
+        for seed in [0, 1, 2]:
+            for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
+                lr = 1e-3 if rep.endswith("_num") else 3e-4
+                P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=seed, epochs=epochs, es=True, patience=8, spatial=True, tag="main"))
     elif which == "ss_gp":   # 診断: SS と同じ 4 run をもう一度回し、予測位置から計算した goal（goal_from_pos）も出す
         for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
             lr = 1e-3 if rep.endswith("_num") else 3e-4
