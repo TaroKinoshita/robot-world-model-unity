@@ -1,0 +1,55 @@
+===== P15 sweep fused_pilot 2026-10-30 19:29:31  device cuda  torch 2.5.1+cu121  runs 4
+cache C:\UnityProjects\PerceptionTestHDRP\Episodes\_main_v1\_cache\wm_128x25.h5  pairs train 220 / val 47 / test 47  excluded 6
+--- [1/4] eef_img__fused__raster__lr0.0003__s0__f025
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch   1  train 2.1494  val 1.6591
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch  10  train 0.5575  val 1.9835
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch  20  train 0.2318  val 2.3927
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch  30  train 0.1912  val 2.5297
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch  40  train 0.1561  val 2.7564
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch  50  train 0.1450  val 2.8648
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch  60  train 0.1296  val 3.0135
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch  70  train 0.1221  val 3.2198
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch  80  train 0.1256  val 3.3372
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch  90  train 0.1238  val 3.4062
+  [eef_img__fused__raster__lr0.0003__s0__f025] epoch 100  train 0.1237  val 3.4253
+  [eef_img__fused__raster__lr0.0003__s0__f025] done 468s params 1,971,113  TRAIN A pos 0.5 goal 1.000 | B pos 0.5 goal 1.000 coll 0.971 | val 3.4253
+--- [2/4] full_img__fused__raster__lr0.0003__s0__f025
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch   1  train 2.0827  val 1.6266
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch  10  train 0.6198  val 1.9050
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch  20  train 0.1112  val 2.5133
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch  30  train 0.0477  val 2.6858
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch  40  train 0.0231  val 2.8282
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch  50  train 0.0132  val 2.9589
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch  60  train 0.0074  val 3.1452
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch  70  train 0.0058  val 3.3812
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch  80  train 0.0042  val 3.5597
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch  90  train 0.0037  val 3.6540
+  [full_img__fused__raster__lr0.0003__s0__f025] epoch 100  train 0.0036  val 3.6777
+  [full_img__fused__raster__lr0.0003__s0__f025] done 463s params 1,971,113  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 1.000 | val 3.6777
+--- [3/4] eef_img__fused__raster__lr0.0003__s0__f050
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch   1  train 1.8618  val 1.5218
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch  10  train 0.4945  val 1.7400
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch  20  train 0.2309  val 2.0783
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch  30  train 0.1645  val 2.2590
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch  40  train 0.1560  val 2.3325
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch  50  train 0.1434  val 2.4574
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch  60  train 0.1352  val 2.5947
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch  70  train 0.1344  val 2.8079
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch  80  train 0.1304  val 2.9791
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch  90  train 0.1306  val 3.1032
+  [eef_img__fused__raster__lr0.0003__s0__f050] epoch 100  train 0.1300  val 3.1342
+  [eef_img__fused__raster__lr0.0003__s0__f050] done 938s params 1,971,113  TRAIN A pos 0.5 goal 1.000 | B pos 0.5 goal 1.000 coll 0.968 | val 3.1342
+--- [4/4] full_img__fused__raster__lr0.0003__s0__f050
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch   1  train 1.8034  val 1.4857
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch  10  train 0.4957  val 1.7739
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch  20  train 0.1101  val 2.4606
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch  30  train 0.1056  val 2.6308
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch  40  train 0.0209  val 2.6505
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch  50  train 0.0167  val 2.7652
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch  60  train 0.0103  val 2.9846
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch  70  train 0.0058  val 3.2099
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch  80  train 0.0043  val 3.4545
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch  90  train 0.0036  val 3.6346
+  [full_img__fused__raster__lr0.0003__s0__f050] epoch 100  train 0.0035  val 3.6737
+  [full_img__fused__raster__lr0.0003__s0__f050] done 886s params 1,971,113  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 1.000 | val 3.6737
+===== P15 sweep fused_pilot finished 2026-10-30 20:16:20

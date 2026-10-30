@@ -13,6 +13,12 @@ P15: action エンコーダの公平な比較（ルールは Docs/encoder_fix/pr
 量産データ（protocol 追記 3・§5）: E0 base だけ、学習ペアを 25 / 50 / 100% にした学習曲線 × seed 3 つ
   py -3.11 Learning/wm_encoder_study.py sweep --plan main_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_main_v1
   （seed 0 の 12 run が先に終わるように並べてある。途中で止めても、もう一度同じコマンドで続きから回る）
+
+early stopping（毎 epoch val を測って、val loss 最小の epoch の重みを使う）:
+  py -3.11 Learning/wm_encoder_study.py sweep --plan es_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
+
+案 A（画像の action を初期画像・ゴールと同じ CNN に重ねる = enc fused）の小さい試し（効果なし。results_fused_pilot）:
+  py -3.11 Learning/wm_encoder_study.py sweep --plan fused_pilot --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_fused_pilot
 """
 import argparse
 import json
@@ -122,6 +128,15 @@ class SeqEnc(nn.Module):
         return self.out(h[:, 0])
 
 
+def goal_heatmap(uv, R, sigma=3.0):
+    """ゴールの中心（画面上 0〜1）を、R×R の画像に描く（ガウス、σ = 3 px）。fused 用"""
+    ax = torch.arange(R, device=uv.device, dtype=torch.float32)
+    u = uv[:, 0] * R - 0.5; v = uv[:, 1] * R - 0.5                 # wm_dataset.project の逆（画素の中心）
+    gx = torch.exp(-((ax[None] - u[:, None]) ** 2) / (2 * sigma ** 2))
+    gy = torch.exp(-((ax[None] - v[:, None]) ** 2) / (2 * sigma ** 2))
+    return (gy[:, :, None] * gx[:, None, :])[:, None]               # (B, 1, R, R)
+
+
 class StudyWM(nn.Module):
     """P14 の SmokeWM と同じ構造。action エンコーダだけ差し替える。cube=True は診断 Q4 専用（箱の初期位置・向きを渡す）"""
     def __init__(self, rep, enc, frames, num_dim=None, num_mean=None, num_std=None, pos_mean=(0, 0, 0), cube=False, d=D):
@@ -133,6 +148,9 @@ class StudyWM(nn.Module):
         num = rep.endswith("_num")
         if enc == "base":
             self.act = NumEnc(num_dim, num_mean, num_std, d) if num else ImgEnc(2 * frames, d)
+        elif enc == "fused":     # 画像だけ: 初期画像 4ch + ゴール 1ch + action 50ch を最初から重ねて 1 つの CNN（Action Image・Transporter の考え方）
+            assert not num, "fused は画像の action 専用"
+            self.act = ImgEnc(4 + 1 + 2 * frames, d)
         else:
             tok = NumTokens(num_dim, num_mean, num_std, d) if num else ImgTokens(d)
             self.act = SeqEnc(tok, enc, d)
@@ -155,6 +173,9 @@ class StudyWM(nn.Module):
         num = self.rep.endswith("_num")
         if self.enc == "base":
             za = self.act(b["action"], b["action_len"]) if num else self.act(b["action"].flatten(1, 2))
+        elif self.enc == "fused":
+            R = b["obs"].shape[-1]
+            za = self.act(torch.cat([b["obs"], goal_heatmap(b["goal_uv"], R), b["action"].flatten(1, 2)], 1))
         else:
             za = self.act(b["action"], b["action_len"] if num else None)
         h = self.trunk(torch.cat([zo, zg, za], 1))
@@ -219,6 +240,8 @@ def run_name(c):
     s = f"{c['rep']}__{c['enc']}__{c['steps']}__lr{c['lr']:g}__s{c['seed']}"
     if c.get("frac", 1.0) < 1.0:
         s += f"__f{int(round(c['frac'] * 100)):03d}"
+    if c.get("es"):
+        s += f"__es{c['epochs']}"
     return s + ("__cube" if c.get("cube") else "")
 
 
@@ -260,6 +283,7 @@ def run_one(c, out, dev, truth, splits, pos_mean, log):
     steps_per_ep = math.ceil(len(tr) / 16); total = steps_per_ep * c["epochs"]
     sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: 0.5 * (1 + math.cos(math.pi * min(s, total) / total)))
     curve = []
+    best = (float("inf"), 0, None)     # early stopping 用（val loss、epoch、重み）
     t0 = time.time()
     for ep in range(c["epochs"]):
         model.train(); acc = {}; n = 0
@@ -273,16 +297,22 @@ def run_one(c, out, dev, truth, splits, pos_mean, log):
             for kk, v in L.items():
                 acc[kk] = acc.get(kk, 0.0) + v.item() * k
         e = {kk: round(v / n, 5) for kk, v in acc.items()}
-        if (ep + 1) % 10 == 0 or ep == 0:
+        if c.get("es") or (ep + 1) % 10 == 0 or ep == 0:      # es のときは毎 epoch val を測る
             _, vl = evaluate_split(model, va, dev, cube_tab)
             e["val_total"] = round(vl["total"], 5)
-            log(f"  [{name}] epoch {ep + 1:3d}  train {e['total']:.4f}  val {e['val_total']:.4f}")
+            if c.get("es") and vl["total"] < best[0]:
+                best = (vl["total"], ep + 1, {k: v.detach().cpu().clone() for k, v in model.state_dict().items()})
+            if (ep + 1) % 10 == 0 or ep == 0:
+                log(f"  [{name}] epoch {ep + 1:3d}  train {e['total']:.4f}  val {e['val_total']:.4f}")
         curve.append(e)
     sec = time.time() - t0
+    if c.get("es") and best[2] is not None:             # val loss がいちばん低かった epoch の重みに戻す
+        model.load_state_dict(best[2])
+        log(f"  [{name}] early stopping: best epoch {best[1]}（val {best[0]:.4f}）")
     Ptr, Ltr = evaluate_split(model, tr, dev, cube_tab)
     Pva, Lva = evaluate_split(model, va, dev, cube_tab)
     res = {"config": c, "name": name, "params": nparam, "train_sec": round(sec, 1), "cache": str(CACHE),
-           "n_train_pairs": len(splits["train"]), "n_val_pairs": len(splits["val"]),
+           "n_train_pairs": len(splits["train"]), "n_val_pairs": len(splits["val"]), "best_epoch": best[1] if c.get("es") else None,
            "train_loss": {k: round(v, 5) for k, v in Ltr.items()}, "val_loss": {k: round(v, 5) for k, v in Lva.items()},
            "train": point_metrics(Ptr, truth), "val": point_metrics(Pva, truth), "curve": curve}
     f.parent.mkdir(parents=True, exist_ok=True)
@@ -318,6 +348,14 @@ def plan(which, epochs):
         for rep in REPS:
             lr = 1e-3 if rep.endswith("_num") else 3e-4
             P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=0, epochs=epochs, frac=0.25))
+    elif which == "es_v1":   # 過学習の対策: 毎 epoch val を測り、val loss 最小の epoch を使う（4 rep、全学習ペア、seed 0。--epochs 40 で）
+        for rep in REPS:
+            lr = 1e-3 if rep.endswith("_num") else 3e-4
+            P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=0, epochs=epochs, es=True))
+    elif which == "fused_pilot":   # 案 A の小さい試し: 画像 2 rep × 学習ペア 25 / 50%、seed 0（base の同じ run と比べる）
+        for frac in [0.25, 0.5]:
+            for rep in ["eef_img", "full_img"]:
+                P.append(dict(rep=rep, enc="fused", steps="raster", lr=3e-4, seed=0, epochs=epochs, frac=frac))
     elif which == "params":   # パラメータ数だけ数える
         pass
     return P
