@@ -1,0 +1,842 @@
+[
+ {
+  "config": {
+   "rep": "eef_img",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.0003,
+   "seed": 0,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "eef_img__base__raster__lr0.0003__s0__es40__ss__main",
+  "params": 1872139,
+  "train_sec": 339.0,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 9,
+  "train_loss": {
+   "pos": 0.01651,
+   "goal": 0.37588,
+   "coll": 0.40959,
+   "mask": 0.00628,
+   "contact": 0.13455,
+   "total": 0.94281
+  },
+  "val_loss": {
+   "pos": 0.01885,
+   "goal": 0.52612,
+   "coll": 0.44301,
+   "mask": 0.00641,
+   "contact": 0.14475,
+   "total": 1.13914
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 8.52210633456707,
+    "goal_auprc": 0.7794362450256936,
+    "goal_from_pos_auprc": 0.953468440420524,
+    "mask_iou": 0.8095723973862484
+   },
+   "B": {
+    "pos_err_mm": 9.492753073573112,
+    "goal_auprc": 0.7792761354512469,
+    "goal_from_pos_auprc": 0.9423353542151589,
+    "mask_iou": 0.7993266048797769,
+    "coll_auprc": 0.7914875542074635,
+    "coll_auprc_nonmp": 0.858655143565777
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 9.466160088777542,
+    "goal_auprc": 0.5430700230747323,
+    "goal_from_pos_auprc": 0.9641685181008413,
+    "mask_iou": 0.8031170849216841
+   },
+   "B": {
+    "pos_err_mm": 10.126790031790733,
+    "goal_auprc": 0.54389821782884,
+    "goal_from_pos_auprc": 0.9583551934094997,
+    "mask_iou": 0.7944166167950483,
+    "coll_auprc": 0.7839518742703678,
+    "coll_auprc_nonmp": 0.8461295687703025
+   }
+  },
+  "goal_tau_mm": 4.5
+ },
+ {
+  "config": {
+   "rep": "eef_img",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.0003,
+   "seed": 1,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "eef_img__base__raster__lr0.0003__s1__es40__ss__main",
+  "params": 1872139,
+  "train_sec": 304.5,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 9,
+  "train_loss": {
+   "pos": 0.0156,
+   "goal": 0.44245,
+   "coll": 0.43797,
+   "mask": 0.00538,
+   "contact": 0.11693,
+   "total": 1.01834
+  },
+  "val_loss": {
+   "pos": 0.01996,
+   "goal": 0.51441,
+   "coll": 0.43193,
+   "mask": 0.00567,
+   "contact": 0.13522,
+   "total": 1.1072
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 8.794805034995079,
+    "goal_auprc": 0.6497339211316592,
+    "goal_from_pos_auprc": 0.9514863367877315,
+    "mask_iou": 0.8264344997340908
+   },
+   "B": {
+    "pos_err_mm": 8.786593563854694,
+    "goal_auprc": 0.6504620629542757,
+    "goal_from_pos_auprc": 0.9534129152372344,
+    "mask_iou": 0.8245953212866157,
+    "coll_auprc": 0.7688366590319374,
+    "coll_auprc_nonmp": 0.8309916411636594
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 10.216373018920422,
+    "goal_auprc": 0.575415803646793,
+    "goal_from_pos_auprc": 0.958512362392875,
+    "mask_iou": 0.8181099900655142
+   },
+   "B": {
+    "pos_err_mm": 10.099037550389767,
+    "goal_auprc": 0.5746864086166202,
+    "goal_from_pos_auprc": 0.9591602448749441,
+    "mask_iou": 0.8151660720730209,
+    "coll_auprc": 0.7849879980259329,
+    "coll_auprc_nonmp": 0.8428983867897228
+   }
+  },
+  "goal_tau_mm": 4.5
+ },
+ {
+  "config": {
+   "rep": "eef_img",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.0003,
+   "seed": 2,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "eef_img__base__raster__lr0.0003__s2__es40__ss__main",
+  "params": 1872139,
+  "train_sec": 302.7,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 7,
+  "train_loss": {
+   "pos": 0.01497,
+   "goal": 0.44386,
+   "coll": 0.44083,
+   "mask": 0.00606,
+   "contact": 0.1281,
+   "total": 1.03382
+  },
+  "val_loss": {
+   "pos": 0.01658,
+   "goal": 0.53126,
+   "coll": 0.4594,
+   "mask": 0.00629,
+   "contact": 0.13949,
+   "total": 1.15303
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 8.49167350679636,
+    "goal_auprc": 0.6506714634477481,
+    "goal_from_pos_auprc": 0.9605440953367268,
+    "mask_iou": 0.7905444788734072
+   },
+   "B": {
+    "pos_err_mm": 8.57420451939106,
+    "goal_auprc": 0.6504395581398502,
+    "goal_from_pos_auprc": 0.9605841214101323,
+    "mask_iou": 0.7868660273056817,
+    "coll_auprc": 0.7623676685214381,
+    "coll_auprc_nonmp": 0.8104657155491445
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 8.98747332394123,
+    "goal_auprc": 0.5642012802718063,
+    "goal_from_pos_auprc": 0.9667709428510056,
+    "mask_iou": 0.783785997415896
+   },
+   "B": {
+    "pos_err_mm": 9.023288264870644,
+    "goal_auprc": 0.5646677284982482,
+    "goal_from_pos_auprc": 0.9678783615889055,
+    "mask_iou": 0.7802616343216842,
+    "coll_auprc": 0.7600224251096611,
+    "coll_auprc_nonmp": 0.7973602084404894
+   }
+  },
+  "goal_tau_mm": 3.5
+ },
+ {
+  "config": {
+   "rep": "eef_num",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.001,
+   "seed": 0,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "eef_num__base__raster__lr0.001__s0__es40__ss__main",
+  "params": 1698826,
+  "train_sec": 387.2,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 31,
+  "train_loss": {
+   "pos": 0.00766,
+   "goal": 0.07163,
+   "coll": 0.35717,
+   "mask": 0.00365,
+   "contact": 0.09975,
+   "total": 0.53986
+  },
+  "val_loss": {
+   "pos": 0.01033,
+   "goal": 0.14334,
+   "coll": 0.48452,
+   "mask": 0.00461,
+   "contact": 0.12816,
+   "total": 0.77095
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 5.9125046245753765,
+    "goal_auprc": 0.9935552598717544,
+    "goal_from_pos_auprc": 0.9864162797133706,
+    "mask_iou": 0.8780263194039533
+   },
+   "B": {
+    "pos_err_mm": 5.963276606053114,
+    "goal_auprc": 0.9936920346129978,
+    "goal_from_pos_auprc": 0.9865188852556076,
+    "mask_iou": 0.8762228894730884,
+    "coll_auprc": 0.8308726744161162,
+    "coll_auprc_nonmp": 0.8944102966531373
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 7.084796205163002,
+    "goal_auprc": 0.9673818422431968,
+    "goal_from_pos_auprc": 0.984366923822459,
+    "mask_iou": 0.8510356460406294
+   },
+   "B": {
+    "pos_err_mm": 7.104153744876385,
+    "goal_auprc": 0.9670685845411144,
+    "goal_from_pos_auprc": 0.9847532597761703,
+    "mask_iou": 0.8501211289592702,
+    "coll_auprc": 0.7680439326715212,
+    "coll_auprc_nonmp": 0.8053682304840796
+   }
+  },
+  "goal_tau_mm": 2.5
+ },
+ {
+  "config": {
+   "rep": "eef_num",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.001,
+   "seed": 1,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "eef_num__base__raster__lr0.001__s1__es40__ss__main",
+  "params": 1698826,
+  "train_sec": 350.0,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 29,
+  "train_loss": {
+   "pos": 0.00778,
+   "goal": 0.07618,
+   "coll": 0.36116,
+   "mask": 0.00383,
+   "contact": 0.10392,
+   "total": 0.55288
+  },
+  "val_loss": {
+   "pos": 0.00973,
+   "goal": 0.14682,
+   "coll": 0.46054,
+   "mask": 0.00485,
+   "contact": 0.12623,
+   "total": 0.74817
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 5.994243081659079,
+    "goal_auprc": 0.992307201566704,
+    "goal_from_pos_auprc": 0.9886549883698559,
+    "mask_iou": 0.8685609501528792
+   },
+   "B": {
+    "pos_err_mm": 6.046602036803961,
+    "goal_auprc": 0.9922972064698545,
+    "goal_from_pos_auprc": 0.988557753493836,
+    "mask_iou": 0.8671853560317507,
+    "coll_auprc": 0.8261319574067434,
+    "coll_auprc_nonmp": 0.8879651902504581
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 6.828046403825283,
+    "goal_auprc": 0.9596434107517645,
+    "goal_from_pos_auprc": 0.9810043312857992,
+    "mask_iou": 0.8450976788568154
+   },
+   "B": {
+    "pos_err_mm": 6.862590089440346,
+    "goal_auprc": 0.9613277822123274,
+    "goal_from_pos_auprc": 0.9810876688614868,
+    "mask_iou": 0.8442003513736328,
+    "coll_auprc": 0.773318481516552,
+    "coll_auprc_nonmp": 0.8128878653804658
+   }
+  },
+  "goal_tau_mm": 2.0
+ },
+ {
+  "config": {
+   "rep": "eef_num",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.001,
+   "seed": 2,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "eef_num__base__raster__lr0.001__s2__es40__ss__main",
+  "params": 1698826,
+  "train_sec": 361.0,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 40,
+  "train_loss": {
+   "pos": 0.0062,
+   "goal": 0.05258,
+   "coll": 0.34239,
+   "mask": 0.00343,
+   "contact": 0.09833,
+   "total": 0.50293
+  },
+  "val_loss": {
+   "pos": 0.00863,
+   "goal": 0.14149,
+   "coll": 0.44986,
+   "mask": 0.00489,
+   "contact": 0.12469,
+   "total": 0.72956
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 5.371191073209047,
+    "goal_auprc": 0.9981683970622393,
+    "goal_from_pos_auprc": 0.9896953461162248,
+    "mask_iou": 0.8843290436425459
+   },
+   "B": {
+    "pos_err_mm": 5.381186027079821,
+    "goal_auprc": 0.9982583652939243,
+    "goal_from_pos_auprc": 0.9900966869059551,
+    "mask_iou": 0.8821326138851147,
+    "coll_auprc": 0.8387564912307021,
+    "coll_auprc_nonmp": 0.9031253320241706
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 6.458782125264406,
+    "goal_auprc": 0.9738941349644694,
+    "goal_from_pos_auprc": 0.9808220476627921,
+    "mask_iou": 0.8487079258921912
+   },
+   "B": {
+    "pos_err_mm": 6.493963301181793,
+    "goal_auprc": 0.9734807208566614,
+    "goal_from_pos_auprc": 0.9800931168312683,
+    "mask_iou": 0.8487970930374688,
+    "coll_auprc": 0.7756387708314313,
+    "coll_auprc_nonmp": 0.8205573201651772
+   }
+  },
+  "goal_tau_mm": 2.0
+ },
+ {
+  "config": {
+   "rep": "full_img",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.0003,
+   "seed": 0,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "full_img__base__raster__lr0.0003__s0__es40__ss__main",
+  "params": 1872139,
+  "train_sec": 450.3,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 16,
+  "train_loss": {
+   "pos": 0.02774,
+   "goal": 0.29124,
+   "coll": 0.3002,
+   "mask": 0.00586,
+   "contact": 0.1242,
+   "total": 0.74924
+  },
+  "val_loss": {
+   "pos": 0.03206,
+   "goal": 0.5145,
+   "coll": 0.37945,
+   "mask": 0.00651,
+   "contact": 0.14148,
+   "total": 1.07399
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 11.966533027589321,
+    "goal_auprc": 0.862463462727807,
+    "goal_from_pos_auprc": 0.948855149166446,
+    "mask_iou": 0.8113752349117317
+   },
+   "B": {
+    "pos_err_mm": 11.945616453886032,
+    "goal_auprc": 0.8663508778949375,
+    "goal_from_pos_auprc": 0.9486610952807395,
+    "mask_iou": 0.8072431724834774,
+    "coll_auprc": 0.8801787453413155,
+    "coll_auprc_nonmp": 0.8942007926175992
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 13.19142896682024,
+    "goal_auprc": 0.6104104143510274,
+    "goal_from_pos_auprc": 0.9354238609157086,
+    "mask_iou": 0.7961714400389961
+   },
+   "B": {
+    "pos_err_mm": 13.107875362038612,
+    "goal_auprc": 0.6101748238162233,
+    "goal_from_pos_auprc": 0.9381607089776864,
+    "mask_iou": 0.7927036662579509,
+    "coll_auprc": 0.8188914628940174,
+    "coll_auprc_nonmp": 0.8276351684500363
+   }
+  },
+  "goal_tau_mm": 4.5
+ },
+ {
+  "config": {
+   "rep": "full_img",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.0003,
+   "seed": 1,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "full_img__base__raster__lr0.0003__s1__es40__ss__main",
+  "params": 1872139,
+  "train_sec": 379.5,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 8,
+  "train_loss": {
+   "pos": 0.03532,
+   "goal": 0.44656,
+   "coll": 0.37303,
+   "mask": 0.00763,
+   "contact": 0.13106,
+   "total": 0.9936
+  },
+  "val_loss": {
+   "pos": 0.03896,
+   "goal": 0.54493,
+   "coll": 0.36562,
+   "mask": 0.00782,
+   "contact": 0.13699,
+   "total": 1.09431
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 14.102754183113575,
+    "goal_auprc": 0.6707232514295852,
+    "goal_from_pos_auprc": 0.8919069461931937,
+    "mask_iou": 0.7583247785279202
+   },
+   "B": {
+    "pos_err_mm": 14.27124347537756,
+    "goal_auprc": 0.6703025812925532,
+    "goal_from_pos_auprc": 0.892625042099975,
+    "mask_iou": 0.7618783718468972,
+    "coll_auprc": 0.8186769524078215,
+    "coll_auprc_nonmp": 0.8429489959697815
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 15.234140679240227,
+    "goal_auprc": 0.516748499382542,
+    "goal_from_pos_auprc": 0.8686803187930675,
+    "mask_iou": 0.7526821415694719
+   },
+   "B": {
+    "pos_err_mm": 15.200063586235046,
+    "goal_auprc": 0.516301228391592,
+    "goal_from_pos_auprc": 0.8752045385081064,
+    "mask_iou": 0.7595194277947216,
+    "coll_auprc": 0.825596804212324,
+    "coll_auprc_nonmp": 0.8425015938819598
+   }
+  },
+  "goal_tau_mm": 7.0
+ },
+ {
+  "config": {
+   "rep": "full_img",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.0003,
+   "seed": 2,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "full_img__base__raster__lr0.0003__s2__es40__ss__main",
+  "params": 1872139,
+  "train_sec": 422.3,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 14,
+  "train_loss": {
+   "pos": 0.02645,
+   "goal": 0.36903,
+   "coll": 0.32056,
+   "mask": 0.00657,
+   "contact": 0.12663,
+   "total": 0.84923
+  },
+  "val_loss": {
+   "pos": 0.02959,
+   "goal": 0.53466,
+   "coll": 0.35666,
+   "mask": 0.00696,
+   "contact": 0.1465,
+   "total": 1.07437
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 11.726086027920246,
+    "goal_auprc": 0.7793354511353828,
+    "goal_from_pos_auprc": 0.9416411175949362,
+    "mask_iou": 0.7914070879538915
+   },
+   "B": {
+    "pos_err_mm": 12.012269347906113,
+    "goal_auprc": 0.7805863888742496,
+    "goal_from_pos_auprc": 0.9410363130689279,
+    "mask_iou": 0.782458201476551,
+    "coll_auprc": 0.8628228032194007,
+    "coll_auprc_nonmp": 0.8741038552499275
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 12.650526128709316,
+    "goal_auprc": 0.5629606001909435,
+    "goal_from_pos_auprc": 0.9327470198107608,
+    "mask_iou": 0.7828797694146751
+   },
+   "B": {
+    "pos_err_mm": 12.967003509402275,
+    "goal_auprc": 0.5610432556070108,
+    "goal_from_pos_auprc": 0.9319952792537458,
+    "mask_iou": 0.7727759680801314,
+    "coll_auprc": 0.8380614521390035,
+    "coll_auprc_nonmp": 0.855131159108934
+   }
+  },
+  "goal_tau_mm": 5.0
+ },
+ {
+  "config": {
+   "rep": "full_num",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.001,
+   "seed": 0,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "full_num__base__raster__lr0.001__s0__es40__ss__main",
+  "params": 1718666,
+  "train_sec": 275.6,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 20,
+  "train_loss": {
+   "pos": 0.01745,
+   "goal": 0.11029,
+   "coll": 0.24667,
+   "mask": 0.00492,
+   "contact": 0.11049,
+   "total": 0.48981
+  },
+  "val_loss": {
+   "pos": 0.02096,
+   "goal": 0.26449,
+   "coll": 0.43384,
+   "mask": 0.00562,
+   "contact": 0.13852,
+   "total": 0.86342
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 9.221803396940231,
+    "goal_auprc": 0.979797800088622,
+    "goal_from_pos_auprc": 0.9671424203218721,
+    "mask_iou": 0.839985812761114
+   },
+   "B": {
+    "pos_err_mm": 9.284189902245998,
+    "goal_auprc": 0.9795936573474605,
+    "goal_from_pos_auprc": 0.9667814766893954,
+    "mask_iou": 0.8382816740934577,
+    "coll_auprc": 0.9223208106117745,
+    "coll_auprc_nonmp": 0.9227407490977833
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 10.270657949149609,
+    "goal_auprc": 0.8926170922357017,
+    "goal_from_pos_auprc": 0.9383943104993044,
+    "mask_iou": 0.8214377501236081
+   },
+   "B": {
+    "pos_err_mm": 10.316366329789162,
+    "goal_auprc": 0.8921778151909141,
+    "goal_from_pos_auprc": 0.9402278289624841,
+    "mask_iou": 0.8212501992232926,
+    "coll_auprc": 0.7902670657172107,
+    "coll_auprc_nonmp": 0.8037943459729809
+   }
+  },
+  "goal_tau_mm": 3.5
+ },
+ {
+  "config": {
+   "rep": "full_num",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.001,
+   "seed": 1,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "full_num__base__raster__lr0.001__s1__es40__ss__main",
+  "params": 1718666,
+  "train_sec": 272.0,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 18,
+  "train_loss": {
+   "pos": 0.02182,
+   "goal": 0.1335,
+   "coll": 0.2878,
+   "mask": 0.00553,
+   "contact": 0.11414,
+   "total": 0.56279
+  },
+  "val_loss": {
+   "pos": 0.02527,
+   "goal": 0.25133,
+   "coll": 0.41782,
+   "mask": 0.00577,
+   "contact": 0.13613,
+   "total": 0.83632
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 10.582270100712776,
+    "goal_auprc": 0.9731306176070007,
+    "goal_from_pos_auprc": 0.9692859734465284,
+    "mask_iou": 0.81927816775276
+   },
+   "B": {
+    "pos_err_mm": 10.578441433608532,
+    "goal_auprc": 0.9730062071269779,
+    "goal_from_pos_auprc": 0.9688322874599472,
+    "mask_iou": 0.8181553002718371,
+    "coll_auprc": 0.8979874291980329,
+    "coll_auprc_nonmp": 0.9044535353693376
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 11.590871028602123,
+    "goal_auprc": 0.9106427892924467,
+    "goal_from_pos_auprc": 0.9222817213302327,
+    "mask_iou": 0.8109360782019355
+   },
+   "B": {
+    "pos_err_mm": 11.527348309755325,
+    "goal_auprc": 0.9098480601842481,
+    "goal_from_pos_auprc": 0.9214354348076176,
+    "mask_iou": 0.8108366314315573,
+    "coll_auprc": 0.8047842981061992,
+    "coll_auprc_nonmp": 0.8196679603680367
+   }
+  },
+  "goal_tau_mm": 3.5
+ },
+ {
+  "config": {
+   "rep": "full_num",
+   "enc": "base",
+   "steps": "raster",
+   "lr": 0.001,
+   "seed": 2,
+   "epochs": 40,
+   "es": true,
+   "patience": 8,
+   "spatial": true,
+   "tag": "main"
+  },
+  "name": "full_num__base__raster__lr0.001__s2__es40__ss__main",
+  "params": 1718666,
+  "train_sec": 237.4,
+  "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_main_v1\\_cache\\wm_128x25.h5",
+  "n_train_pairs": 220,
+  "n_val_pairs": 47,
+  "best_epoch": 14,
+  "train_loss": {
+   "pos": 0.01924,
+   "goal": 0.22402,
+   "coll": 0.32176,
+   "mask": 0.00584,
+   "contact": 0.13177,
+   "total": 0.70262
+  },
+  "val_loss": {
+   "pos": 0.02174,
+   "goal": 0.33677,
+   "coll": 0.39034,
+   "mask": 0.00632,
+   "contact": 0.14992,
+   "total": 0.90509
+  },
+  "train": {
+   "A": {
+    "pos_err_mm": 9.615125134587288,
+    "goal_auprc": 0.8933757199064585,
+    "goal_from_pos_auprc": 0.9719212663242325,
+    "mask_iou": 0.8145583838022157
+   },
+   "B": {
+    "pos_err_mm": 9.615889750421047,
+    "goal_auprc": 0.893166451503767,
+    "goal_from_pos_auprc": 0.9723815466063356,
+    "mask_iou": 0.8121300244414713,
+    "coll_auprc": 0.8688858570000347,
+    "coll_auprc_nonmp": 0.8828628042852763
+   }
+  },
+  "val": {
+   "A": {
+    "pos_err_mm": 10.479042306542397,
+    "goal_auprc": 0.790092946719429,
+    "goal_from_pos_auprc": 0.9428101175797292,
+    "mask_iou": 0.8010720476959304
+   },
+   "B": {
+    "pos_err_mm": 10.456251911818981,
+    "goal_auprc": 0.7894881433179162,
+    "goal_from_pos_auprc": 0.9499072559536516,
+    "mask_iou": 0.799590355614624,
+    "coll_auprc": 0.795020328698433,
+    "coll_auprc_nonmp": 0.8042181003546397
+   }
+  },
+  "goal_tau_mm": 3.5
+ }
+]
