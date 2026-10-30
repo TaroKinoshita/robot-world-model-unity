@@ -1,0 +1,471 @@
+===== P15 sweep main_v1 2026-10-30 05:58:33  device cuda  torch 2.5.1+cu121  runs 36
+cache C:\UnityProjects\PerceptionTestHDRP\Episodes\_main_v1\_cache\wm_128x25.h5  pairs train 220 / val 47 / test 47  excluded 6
+--- [1/36] eef_num__base__raster__lr0.001__s0__f025
+  [eef_num__base__raster__lr0.001__s0__f025] epoch   1  train 1.8725  val 1.6090
+  [eef_num__base__raster__lr0.001__s0__f025] epoch  10  train 1.1386  val 1.3005
+  [eef_num__base__raster__lr0.001__s0__f025] epoch  20  train 0.8974  val 1.1050
+  [eef_num__base__raster__lr0.001__s0__f025] epoch  30  train 0.7981  val 1.0794
+  [eef_num__base__raster__lr0.001__s0__f025] epoch  40  train 0.6486  val 1.1505
+  [eef_num__base__raster__lr0.001__s0__f025] epoch  50  train 0.5280  val 1.3702
+  [eef_num__base__raster__lr0.001__s0__f025] epoch  60  train 0.4139  val 1.4822
+  [eef_num__base__raster__lr0.001__s0__f025] epoch  70  train 0.3319  val 1.6780
+  [eef_num__base__raster__lr0.001__s0__f025] epoch  80  train 0.2726  val 1.9405
+  [eef_num__base__raster__lr0.001__s0__f025] epoch  90  train 0.2368  val 2.1256
+  [eef_num__base__raster__lr0.001__s0__f025] epoch 100  train 0.2252  val 2.1670
+  [eef_num__base__raster__lr0.001__s0__f025] done 193s params 1,747,593  TRAIN A pos 3.7 goal 1.000 | B pos 3.7 goal 1.000 coll 0.961 | val 2.1670
+--- [2/36] full_num__base__raster__lr0.001__s0__f025
+  [full_num__base__raster__lr0.001__s0__f025] epoch   1  train 1.8890  val 1.5761
+  [full_num__base__raster__lr0.001__s0__f025] epoch  10  train 1.0816  val 1.2590
+  [full_num__base__raster__lr0.001__s0__f025] epoch  20  train 0.7891  val 1.3207
+  [full_num__base__raster__lr0.001__s0__f025] epoch  30  train 0.5917  val 1.4185
+  [full_num__base__raster__lr0.001__s0__f025] epoch  40  train 0.3283  val 1.9355
+  [full_num__base__raster__lr0.001__s0__f025] epoch  50  train 0.2181  val 2.4302
+  [full_num__base__raster__lr0.001__s0__f025] epoch  60  train 0.1204  val 2.6986
+  [full_num__base__raster__lr0.001__s0__f025] epoch  70  train 0.0802  val 3.0879
+  [full_num__base__raster__lr0.001__s0__f025] epoch  80  train 0.0503  val 3.4621
+  [full_num__base__raster__lr0.001__s0__f025] epoch  90  train 0.0342  val 3.7558
+  [full_num__base__raster__lr0.001__s0__f025] epoch 100  train 0.0302  val 3.8271
+  [full_num__base__raster__lr0.001__s0__f025] done 193s params 1,767,433  TRAIN A pos 2.4 goal 1.000 | B pos 2.4 goal 1.000 coll 1.000 | val 3.8271
+--- [3/36] eef_img__base__raster__lr0.0003__s0__f025
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch   1  train 2.0921  val 1.6073
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch  10  train 0.5335  val 1.9885
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch  20  train 0.2196  val 2.3939
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch  30  train 0.1762  val 2.4510
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch  40  train 0.1550  val 2.6305
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch  50  train 0.1435  val 2.7316
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch  60  train 0.1296  val 2.8527
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch  70  train 0.1220  val 3.0381
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch  80  train 0.1256  val 3.1512
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch  90  train 0.1240  val 3.2372
+  [eef_img__base__raster__lr0.0003__s0__f025] epoch 100  train 0.1237  val 3.2553
+  [eef_img__base__raster__lr0.0003__s0__f025] done 315s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 0.971 | val 3.2553
+--- [4/36] full_img__base__raster__lr0.0003__s0__f025
+  [full_img__base__raster__lr0.0003__s0__f025] epoch   1  train 2.0493  val 1.6094
+  [full_img__base__raster__lr0.0003__s0__f025] epoch  10  train 0.5205  val 1.9241
+  [full_img__base__raster__lr0.0003__s0__f025] epoch  20  train 0.0926  val 2.5199
+  [full_img__base__raster__lr0.0003__s0__f025] epoch  30  train 0.0440  val 2.7452
+  [full_img__base__raster__lr0.0003__s0__f025] epoch  40  train 0.0205  val 2.7823
+  [full_img__base__raster__lr0.0003__s0__f025] epoch  50  train 0.0134  val 2.9853
+  [full_img__base__raster__lr0.0003__s0__f025] epoch  60  train 0.0069  val 3.1588
+  [full_img__base__raster__lr0.0003__s0__f025] epoch  70  train 0.0054  val 3.3703
+  [full_img__base__raster__lr0.0003__s0__f025] epoch  80  train 0.0041  val 3.5499
+  [full_img__base__raster__lr0.0003__s0__f025] epoch  90  train 0.0037  val 3.6465
+  [full_img__base__raster__lr0.0003__s0__f025] epoch 100  train 0.0036  val 3.6702
+  [full_img__base__raster__lr0.0003__s0__f025] done 335s params 1,969,673  TRAIN A pos 0.3 goal 1.000 | B pos 0.3 goal 1.000 coll 1.000 | val 3.6703
+--- [5/36] eef_num__base__raster__lr0.001__s0__f050
+  [eef_num__base__raster__lr0.001__s0__f050] epoch   1  train 1.7279  val 1.5009
+  [eef_num__base__raster__lr0.001__s0__f050] epoch  10  train 0.9961  val 1.1011
+  [eef_num__base__raster__lr0.001__s0__f050] epoch  20  train 0.8585  val 0.9642
+  [eef_num__base__raster__lr0.001__s0__f050] epoch  30  train 0.7015  val 0.9254
+  [eef_num__base__raster__lr0.001__s0__f050] epoch  40  train 0.5475  val 0.9935
+  [eef_num__base__raster__lr0.001__s0__f050] epoch  50  train 0.4223  val 1.0702
+  [eef_num__base__raster__lr0.001__s0__f050] epoch  60  train 0.3132  val 1.2222
+  [eef_num__base__raster__lr0.001__s0__f050] epoch  70  train 0.2589  val 1.3951
+  [eef_num__base__raster__lr0.001__s0__f050] epoch  80  train 0.2135  val 1.5387
+  [eef_num__base__raster__lr0.001__s0__f050] epoch  90  train 0.1912  val 1.6811
+  [eef_num__base__raster__lr0.001__s0__f050] epoch 100  train 0.1820  val 1.7028
+  [eef_num__base__raster__lr0.001__s0__f050] done 428s params 1,747,593  TRAIN A pos 3.4 goal 1.000 | B pos 3.4 goal 1.000 coll 0.966 | val 1.7028
+--- [6/36] full_num__base__raster__lr0.001__s0__f050
+  [full_num__base__raster__lr0.001__s0__f050] epoch   1  train 1.7355  val 1.4914
+  [full_num__base__raster__lr0.001__s0__f050] epoch  10  train 0.9407  val 1.1271
+  [full_num__base__raster__lr0.001__s0__f050] epoch  20  train 0.7367  val 1.1510
+  [full_num__base__raster__lr0.001__s0__f050] epoch  30  train 0.5184  val 1.3049
+  [full_num__base__raster__lr0.001__s0__f050] epoch  40  train 0.2951  val 1.6211
+  [full_num__base__raster__lr0.001__s0__f050] epoch  50  train 0.1773  val 2.0990
+  [full_num__base__raster__lr0.001__s0__f050] epoch  60  train 0.1130  val 2.2043
+  [full_num__base__raster__lr0.001__s0__f050] epoch  70  train 0.0753  val 2.3037
+  [full_num__base__raster__lr0.001__s0__f050] epoch  80  train 0.0398  val 2.7592
+  [full_num__base__raster__lr0.001__s0__f050] epoch  90  train 0.0261  val 3.0105
+  [full_num__base__raster__lr0.001__s0__f050] epoch 100  train 0.0226  val 3.0603
+  [full_num__base__raster__lr0.001__s0__f050] done 508s params 1,767,433  TRAIN A pos 2.6 goal 1.000 | B pos 2.6 goal 1.000 coll 1.000 | val 3.0603
+--- [7/36] eef_img__base__raster__lr0.0003__s0__f050
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch   1  train 1.8194  val 1.5224
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch  10  train 0.4974  val 2.1676
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch  20  train 0.2058  val 2.3924
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch  30  train 0.1691  val 2.5729
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch  40  train 0.1591  val 2.6623
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch  50  train 0.1433  val 2.7719
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch  60  train 0.1356  val 3.0379
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch  70  train 0.1341  val 3.2153
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch  80  train 0.1303  val 3.4390
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch  90  train 0.1306  val 3.5974
+  [eef_img__base__raster__lr0.0003__s0__f050] epoch 100  train 0.1299  val 3.6308
+  [eef_img__base__raster__lr0.0003__s0__f050] done 760s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 0.968 | val 3.6308
+--- [8/36] full_img__base__raster__lr0.0003__s0__f050
+  [full_img__base__raster__lr0.0003__s0__f050] epoch   1  train 1.7856  val 1.5147
+  [full_img__base__raster__lr0.0003__s0__f050] epoch  10  train 0.4882  val 2.1280
+  [full_img__base__raster__lr0.0003__s0__f050] epoch  20  train 0.0864  val 2.5290
+  [full_img__base__raster__lr0.0003__s0__f050] epoch  30  train 0.0388  val 2.7852
+  [full_img__base__raster__lr0.0003__s0__f050] epoch  40  train 0.1491  val 2.7894
+  [full_img__base__raster__lr0.0003__s0__f050] epoch  50  train 0.0100  val 3.2668
+  [full_img__base__raster__lr0.0003__s0__f050] epoch  60  train 0.0091  val 3.3700
+  [full_img__base__raster__lr0.0003__s0__f050] epoch  70  train 0.0062  val 3.6166
+  [full_img__base__raster__lr0.0003__s0__f050] epoch  80  train 0.0043  val 3.8726
+  [full_img__base__raster__lr0.0003__s0__f050] epoch  90  train 0.0037  val 4.0826
+  [full_img__base__raster__lr0.0003__s0__f050] epoch 100  train 0.0035  val 4.1366
+  [full_img__base__raster__lr0.0003__s0__f050] done 620s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 1.000 | val 4.1366
+--- [9/36] eef_num__base__raster__lr0.001__s0
+  [eef_num__base__raster__lr0.001__s0] epoch   1  train 1.5970  val 1.3929
+  [eef_num__base__raster__lr0.001__s0] epoch  10  train 0.8956  val 0.9362
+  [eef_num__base__raster__lr0.001__s0] epoch  20  train 0.7383  val 0.8775
+  [eef_num__base__raster__lr0.001__s0] epoch  30  train 0.6250  val 0.8196
+  [eef_num__base__raster__lr0.001__s0] epoch  40  train 0.5229  val 0.8947
+  [eef_num__base__raster__lr0.001__s0] epoch  50  train 0.4232  val 0.9664
+  [eef_num__base__raster__lr0.001__s0] epoch  60  train 0.3386  val 1.1898
+  [eef_num__base__raster__lr0.001__s0] epoch  70  train 0.2660  val 1.2439
+  [eef_num__base__raster__lr0.001__s0] epoch  80  train 0.2279  val 1.4252
+  [eef_num__base__raster__lr0.001__s0] epoch  90  train 0.2046  val 1.5575
+  [eef_num__base__raster__lr0.001__s0] epoch 100  train 0.1964  val 1.5957
+  [eef_num__base__raster__lr0.001__s0] done 713s params 1,747,593  TRAIN A pos 4.1 goal 1.000 | B pos 4.1 goal 1.000 coll 0.962 | val 1.5957
+--- [10/36] full_num__base__raster__lr0.001__s0
+  [full_num__base__raster__lr0.001__s0] epoch   1  train 1.5911  val 1.3019
+  [full_num__base__raster__lr0.001__s0] epoch  10  train 0.8330  val 0.9456
+  [full_num__base__raster__lr0.001__s0] epoch  20  train 0.6228  val 0.8821
+  [full_num__base__raster__lr0.001__s0] epoch  30  train 0.4261  val 1.0278
+  [full_num__base__raster__lr0.001__s0] epoch  40  train 0.3106  val 1.1590
+  [full_num__base__raster__lr0.001__s0] epoch  50  train 0.1954  val 1.4118
+  [full_num__base__raster__lr0.001__s0] epoch  60  train 0.1379  val 1.5396
+  [full_num__base__raster__lr0.001__s0] epoch  70  train 0.0847  val 1.7336
+  [full_num__base__raster__lr0.001__s0] epoch  80  train 0.0474  val 1.9463
+  [full_num__base__raster__lr0.001__s0] epoch  90  train 0.0343  val 2.1409
+  [full_num__base__raster__lr0.001__s0] epoch 100  train 0.0298  val 2.1936
+  [full_num__base__raster__lr0.001__s0] done 726s params 1,767,433  TRAIN A pos 3.4 goal 1.000 | B pos 3.3 goal 1.000 coll 1.000 | val 2.1936
+--- [11/36] eef_img__base__raster__lr0.0003__s0
+  [eef_img__base__raster__lr0.0003__s0] epoch   1  train 1.6497  val 1.4011
+  [eef_img__base__raster__lr0.0003__s0] epoch  10  train 0.4505  val 1.9400
+  [eef_img__base__raster__lr0.0003__s0] epoch  20  train 0.2170  val 2.4218
+  [eef_img__base__raster__lr0.0003__s0] epoch  30  train 0.1607  val 2.5255
+  [eef_img__base__raster__lr0.0003__s0] epoch  40  train 0.1511  val 2.6456
+  [eef_img__base__raster__lr0.0003__s0] epoch  50  train 0.1473  val 2.8085
+  [eef_img__base__raster__lr0.0003__s0] epoch  60  train 0.1406  val 2.9531
+  [eef_img__base__raster__lr0.0003__s0] epoch  70  train 0.1365  val 3.1234
+  [eef_img__base__raster__lr0.0003__s0] epoch  80  train 0.1367  val 3.2476
+  [eef_img__base__raster__lr0.0003__s0] epoch  90  train 0.1337  val 3.3690
+  [eef_img__base__raster__lr0.0003__s0] epoch 100  train 0.1326  val 3.3959
+  [eef_img__base__raster__lr0.0003__s0] done 1242s params 1,969,673  TRAIN A pos 0.5 goal 1.000 | B pos 0.5 goal 1.000 coll 0.964 | val 3.3959
+--- [12/36] full_img__base__raster__lr0.0003__s0
+  [full_img__base__raster__lr0.0003__s0] epoch   1  train 1.6006  val 1.3360
+  [full_img__base__raster__lr0.0003__s0] epoch  10  train 0.4144  val 1.9584
+  [full_img__base__raster__lr0.0003__s0] epoch  20  train 0.1859  val 2.7103
+  [full_img__base__raster__lr0.0003__s0] epoch  30  train 0.0654  val 2.7625
+  [full_img__base__raster__lr0.0003__s0] epoch  40  train 0.0226  val 3.1293
+  [full_img__base__raster__lr0.0003__s0] epoch  50  train 0.0179  val 3.1395
+  [full_img__base__raster__lr0.0003__s0] epoch  60  train 0.0146  val 3.4157
+  [full_img__base__raster__lr0.0003__s0] epoch  70  train 0.0073  val 3.6193
+  [full_img__base__raster__lr0.0003__s0] epoch  80  train 0.0049  val 3.9949
+  [full_img__base__raster__lr0.0003__s0] epoch  90  train 0.0041  val 4.2208
+  [full_img__base__raster__lr0.0003__s0] epoch 100  train 0.0039  val 4.2760
+  [full_img__base__raster__lr0.0003__s0] done 1256s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 1.000 | val 4.2760
+--- [13/36] eef_num__base__raster__lr0.001__s1__f025
+  [eef_num__base__raster__lr0.001__s1__f025] epoch   1  train 1.8798  val 1.6503
+  [eef_num__base__raster__lr0.001__s1__f025] epoch  10  train 1.1012  val 1.1682
+  [eef_num__base__raster__lr0.001__s1__f025] epoch  20  train 0.9072  val 1.0848
+  [eef_num__base__raster__lr0.001__s1__f025] epoch  30  train 0.7670  val 1.1149
+  [eef_num__base__raster__lr0.001__s1__f025] epoch  40  train 0.6433  val 1.1088
+  [eef_num__base__raster__lr0.001__s1__f025] epoch  50  train 0.5229  val 1.3208
+  [eef_num__base__raster__lr0.001__s1__f025] epoch  60  train 0.4097  val 1.4085
+  [eef_num__base__raster__lr0.001__s1__f025] epoch  70  train 0.3093  val 1.7403
+  [eef_num__base__raster__lr0.001__s1__f025] epoch  80  train 0.2530  val 2.0326
+  [eef_num__base__raster__lr0.001__s1__f025] epoch  90  train 0.2175  val 2.2377
+  [eef_num__base__raster__lr0.001__s1__f025] epoch 100  train 0.2165  val 2.2716
+  [eef_num__base__raster__lr0.001__s1__f025] done 178s params 1,747,593  TRAIN A pos 3.8 goal 1.000 | B pos 3.7 goal 1.000 coll 0.966 | val 2.2716
+--- [14/36] full_num__base__raster__lr0.001__s1__f025
+  [full_num__base__raster__lr0.001__s1__f025] epoch   1  train 1.8862  val 1.7169
+  [full_num__base__raster__lr0.001__s1__f025] epoch  10  train 1.0831  val 1.2167
+  [full_num__base__raster__lr0.001__s1__f025] epoch  20  train 0.7893  val 1.1025
+  [full_num__base__raster__lr0.001__s1__f025] epoch  30  train 0.5515  val 1.3159
+  [full_num__base__raster__lr0.001__s1__f025] epoch  40  train 0.3432  val 1.5647
+  [full_num__base__raster__lr0.001__s1__f025] epoch  50  train 0.2143  val 1.9369
+  [full_num__base__raster__lr0.001__s1__f025] epoch  60  train 0.1276  val 2.3553
+  [full_num__base__raster__lr0.001__s1__f025] epoch  70  train 0.0904  val 2.5872
+  [full_num__base__raster__lr0.001__s1__f025] epoch  80  train 0.0517  val 2.9319
+  [full_num__base__raster__lr0.001__s1__f025] epoch  90  train 0.0382  val 3.1719
+  [full_num__base__raster__lr0.001__s1__f025] epoch 100  train 0.0347  val 3.2347
+  [full_num__base__raster__lr0.001__s1__f025] done 190s params 1,767,433  TRAIN A pos 2.7 goal 1.000 | B pos 2.5 goal 1.000 coll 1.000 | val 3.2347
+--- [15/36] eef_img__base__raster__lr0.0003__s1__f025
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch   1  train 2.0813  val 1.6668
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch  10  train 0.4874  val 2.2884
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch  20  train 0.2143  val 2.3990
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch  30  train 0.1674  val 2.4984
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch  40  train 0.1532  val 2.5583
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch  50  train 0.1387  val 2.7838
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch  60  train 0.1356  val 2.8603
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch  70  train 0.1291  val 3.0340
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch  80  train 0.1258  val 3.1481
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch  90  train 0.1201  val 3.2319
+  [eef_img__base__raster__lr0.0003__s1__f025] epoch 100  train 0.1274  val 3.2519
+  [eef_img__base__raster__lr0.0003__s1__f025] done 325s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 0.971 | val 3.2519
+--- [16/36] full_img__base__raster__lr0.0003__s1__f025
+  [full_img__base__raster__lr0.0003__s1__f025] epoch   1  train 2.0236  val 1.6297
+  [full_img__base__raster__lr0.0003__s1__f025] epoch  10  train 0.5232  val 2.3272
+  [full_img__base__raster__lr0.0003__s1__f025] epoch  20  train 0.0843  val 2.4571
+  [full_img__base__raster__lr0.0003__s1__f025] epoch  30  train 0.0373  val 2.5971
+  [full_img__base__raster__lr0.0003__s1__f025] epoch  40  train 0.0203  val 2.7721
+  [full_img__base__raster__lr0.0003__s1__f025] epoch  50  train 0.0106  val 2.9926
+  [full_img__base__raster__lr0.0003__s1__f025] epoch  60  train 0.0079  val 3.1020
+  [full_img__base__raster__lr0.0003__s1__f025] epoch  70  train 0.0053  val 3.3253
+  [full_img__base__raster__lr0.0003__s1__f025] epoch  80  train 0.0039  val 3.4876
+  [full_img__base__raster__lr0.0003__s1__f025] epoch  90  train 0.0036  val 3.5777
+  [full_img__base__raster__lr0.0003__s1__f025] epoch 100  train 0.0034  val 3.5969
+  [full_img__base__raster__lr0.0003__s1__f025] done 445s params 1,969,673  TRAIN A pos 0.3 goal 1.000 | B pos 0.4 goal 1.000 coll 1.000 | val 3.5969
+--- [17/36] eef_num__base__raster__lr0.001__s1__f050
+  [eef_num__base__raster__lr0.001__s1__f050] epoch   1  train 1.7341  val 1.4808
+  [eef_num__base__raster__lr0.001__s1__f050] epoch  10  train 1.0009  val 1.1379
+  [eef_num__base__raster__lr0.001__s1__f050] epoch  20  train 0.8485  val 1.0052
+  [eef_num__base__raster__lr0.001__s1__f050] epoch  30  train 0.7104  val 0.9851
+  [eef_num__base__raster__lr0.001__s1__f050] epoch  40  train 0.5784  val 0.9923
+  [eef_num__base__raster__lr0.001__s1__f050] epoch  50  train 0.4302  val 1.1101
+  [eef_num__base__raster__lr0.001__s1__f050] epoch  60  train 0.3256  val 1.2991
+  [eef_num__base__raster__lr0.001__s1__f050] epoch  70  train 0.2621  val 1.5796
+  [eef_num__base__raster__lr0.001__s1__f050] epoch  80  train 0.2130  val 1.7231
+  [eef_num__base__raster__lr0.001__s1__f050] epoch  90  train 0.1913  val 1.8948
+  [eef_num__base__raster__lr0.001__s1__f050] epoch 100  train 0.1831  val 1.9244
+  [eef_num__base__raster__lr0.001__s1__f050] done 485s params 1,747,593  TRAIN A pos 3.5 goal 1.000 | B pos 3.5 goal 1.000 coll 0.967 | val 1.9244
+--- [18/36] full_num__base__raster__lr0.001__s1__f050
+  [full_num__base__raster__lr0.001__s1__f050] epoch   1  train 1.7659  val 1.5150
+  [full_num__base__raster__lr0.001__s1__f050] epoch  10  train 0.9585  val 1.2046
+  [full_num__base__raster__lr0.001__s1__f050] epoch  20  train 0.7233  val 1.2797
+  [full_num__base__raster__lr0.001__s1__f050] epoch  30  train 0.5063  val 1.4404
+  [full_num__base__raster__lr0.001__s1__f050] epoch  40  train 0.3193  val 1.7738
+  [full_num__base__raster__lr0.001__s1__f050] epoch  50  train 0.1925  val 1.9019
+  [full_num__base__raster__lr0.001__s1__f050] epoch  60  train 0.1113  val 2.2447
+  [full_num__base__raster__lr0.001__s1__f050] epoch  70  train 0.0678  val 2.4410
+  [full_num__base__raster__lr0.001__s1__f050] epoch  80  train 0.0404  val 2.7226
+  [full_num__base__raster__lr0.001__s1__f050] epoch  90  train 0.0285  val 2.9533
+  [full_num__base__raster__lr0.001__s1__f050] epoch 100  train 0.0239  val 3.0173
+  [full_num__base__raster__lr0.001__s1__f050] done 550s params 1,767,433  TRAIN A pos 2.6 goal 1.000 | B pos 2.5 goal 1.000 coll 1.000 | val 3.0172
+--- [19/36] eef_img__base__raster__lr0.0003__s1__f050
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch   1  train 1.8319  val 1.5232
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch  10  train 0.4706  val 2.0151
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch  20  train 0.1975  val 2.4091
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch  30  train 0.1719  val 2.4265
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch  40  train 0.1501  val 2.4870
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch  50  train 0.1420  val 2.6037
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch  60  train 0.1367  val 2.8643
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch  70  train 0.1329  val 3.0708
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch  80  train 0.1308  val 3.2662
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch  90  train 0.1278  val 3.3743
+  [eef_img__base__raster__lr0.0003__s1__f050] epoch 100  train 0.1277  val 3.4210
+  [eef_img__base__raster__lr0.0003__s1__f050] done 881s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 0.968 | val 3.4210
+--- [20/36] full_img__base__raster__lr0.0003__s1__f050
+  [full_img__base__raster__lr0.0003__s1__f050] epoch   1  train 1.7795  val 1.4771
+  [full_img__base__raster__lr0.0003__s1__f050] epoch  10  train 0.4324  val 2.0084
+  [full_img__base__raster__lr0.0003__s1__f050] epoch  20  train 0.1277  val 2.8053
+  [full_img__base__raster__lr0.0003__s1__f050] epoch  30  train 0.0314  val 2.7279
+  [full_img__base__raster__lr0.0003__s1__f050] epoch  40  train 0.0231  val 2.8656
+  [full_img__base__raster__lr0.0003__s1__f050] epoch  50  train 0.0148  val 3.1576
+  [full_img__base__raster__lr0.0003__s1__f050] epoch  60  train 0.0076  val 3.4111
+  [full_img__base__raster__lr0.0003__s1__f050] epoch  70  train 0.0052  val 3.6364
+  [full_img__base__raster__lr0.0003__s1__f050] epoch  80  train 0.0039  val 3.9031
+  [full_img__base__raster__lr0.0003__s1__f050] epoch  90  train 0.0034  val 4.0904
+  [full_img__base__raster__lr0.0003__s1__f050] epoch 100  train 0.0032  val 4.1346
+  [full_img__base__raster__lr0.0003__s1__f050] done 800s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 1.000 | val 4.1346
+--- [21/36] eef_num__base__raster__lr0.001__s1
+  [eef_num__base__raster__lr0.001__s1] epoch   1  train 1.5863  val 1.3591
+  [eef_num__base__raster__lr0.001__s1] epoch  10  train 0.9155  val 0.9670
+  [eef_num__base__raster__lr0.001__s1] epoch  20  train 0.7453  val 0.9277
+  [eef_num__base__raster__lr0.001__s1] epoch  30  train 0.6105  val 0.8711
+  [eef_num__base__raster__lr0.001__s1] epoch  40  train 0.4907  val 0.9206
+  [eef_num__base__raster__lr0.001__s1] epoch  50  train 0.3894  val 1.1060
+  [eef_num__base__raster__lr0.001__s1] epoch  60  train 0.3075  val 1.1218
+  [eef_num__base__raster__lr0.001__s1] epoch  70  train 0.2522  val 1.2649
+  [eef_num__base__raster__lr0.001__s1] epoch  80  train 0.2108  val 1.4230
+  [eef_num__base__raster__lr0.001__s1] epoch  90  train 0.1928  val 1.5451
+  [eef_num__base__raster__lr0.001__s1] epoch 100  train 0.1860  val 1.5744
+  [eef_num__base__raster__lr0.001__s1] done 711s params 1,747,593  TRAIN A pos 4.0 goal 1.000 | B pos 3.9 goal 1.000 coll 0.962 | val 1.5744
+--- [22/36] full_num__base__raster__lr0.001__s1
+  [full_num__base__raster__lr0.001__s1] epoch   1  train 1.5725  val 1.3198
+  [full_num__base__raster__lr0.001__s1] epoch  10  train 0.8368  val 0.9447
+  [full_num__base__raster__lr0.001__s1] epoch  20  train 0.6352  val 0.9355
+  [full_num__base__raster__lr0.001__s1] epoch  30  train 0.4491  val 1.0802
+  [full_num__base__raster__lr0.001__s1] epoch  40  train 0.2940  val 1.2697
+  [full_num__base__raster__lr0.001__s1] epoch  50  train 0.2253  val 1.5747
+  [full_num__base__raster__lr0.001__s1] epoch  60  train 0.1226  val 1.7087
+  [full_num__base__raster__lr0.001__s1] epoch  70  train 0.0852  val 1.9270
+  [full_num__base__raster__lr0.001__s1] epoch  80  train 0.0457  val 2.1920
+  [full_num__base__raster__lr0.001__s1] epoch  90  train 0.0326  val 2.4068
+  [full_num__base__raster__lr0.001__s1] epoch 100  train 0.0287  val 2.4606
+  [full_num__base__raster__lr0.001__s1] done 850s params 1,767,433  TRAIN A pos 3.3 goal 1.000 | B pos 3.3 goal 1.000 coll 1.000 | val 2.4606
+--- [23/36] eef_img__base__raster__lr0.0003__s1
+  [eef_img__base__raster__lr0.0003__s1] epoch   1  train 1.6458  val 1.4039
+  [eef_img__base__raster__lr0.0003__s1] epoch  10  train 0.4442  val 1.9502
+  [eef_img__base__raster__lr0.0003__s1] epoch  20  train 0.2216  val 2.4742
+  [eef_img__base__raster__lr0.0003__s1] epoch  30  train 0.1607  val 2.6742
+  [eef_img__base__raster__lr0.0003__s1] epoch  40  train 0.1539  val 2.8566
+  [eef_img__base__raster__lr0.0003__s1] epoch  50  train 0.1467  val 2.8772
+  [eef_img__base__raster__lr0.0003__s1] epoch  60  train 0.1388  val 3.1228
+  [eef_img__base__raster__lr0.0003__s1] epoch  70  train 0.1381  val 3.2552
+  [eef_img__base__raster__lr0.0003__s1] epoch  80  train 0.1329  val 3.4643
+  [eef_img__base__raster__lr0.0003__s1] epoch  90  train 0.1317  val 3.5539
+  [eef_img__base__raster__lr0.0003__s1] epoch 100  train 0.1318  val 3.5859
+  [eef_img__base__raster__lr0.0003__s1] done 1505s params 1,969,673  TRAIN A pos 0.5 goal 1.000 | B pos 0.5 goal 1.000 coll 0.964 | val 3.5859
+--- [24/36] full_img__base__raster__lr0.0003__s1
+  [full_img__base__raster__lr0.0003__s1] epoch   1  train 1.5978  val 1.2825
+  [full_img__base__raster__lr0.0003__s1] epoch  10  train 0.4186  val 2.0999
+  [full_img__base__raster__lr0.0003__s1] epoch  20  train 0.1068  val 2.6168
+  [full_img__base__raster__lr0.0003__s1] epoch  30  train 0.0826  val 2.6622
+  [full_img__base__raster__lr0.0003__s1] epoch  40  train 0.1118  val 2.7646
+  [full_img__base__raster__lr0.0003__s1] epoch  50  train 0.0189  val 2.9136
+  [full_img__base__raster__lr0.0003__s1] epoch  60  train 0.0122  val 3.0350
+  [full_img__base__raster__lr0.0003__s1] epoch  70  train 0.0066  val 3.2611
+  [full_img__base__raster__lr0.0003__s1] epoch  80  train 0.0043  val 3.6390
+  [full_img__base__raster__lr0.0003__s1] epoch  90  train 0.0037  val 3.8280
+  [full_img__base__raster__lr0.0003__s1] epoch 100  train 0.0035  val 3.8743
+  [full_img__base__raster__lr0.0003__s1] done 1352s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.5 goal 1.000 coll 1.000 | val 3.8743
+--- [25/36] eef_num__base__raster__lr0.001__s2__f025
+  [eef_num__base__raster__lr0.001__s2__f025] epoch   1  train 1.8617  val 1.5960
+  [eef_num__base__raster__lr0.001__s2__f025] epoch  10  train 1.1588  val 1.3334
+  [eef_num__base__raster__lr0.001__s2__f025] epoch  20  train 0.9198  val 1.2298
+  [eef_num__base__raster__lr0.001__s2__f025] epoch  30  train 0.7865  val 1.1325
+  [eef_num__base__raster__lr0.001__s2__f025] epoch  40  train 0.6578  val 1.1228
+  [eef_num__base__raster__lr0.001__s2__f025] epoch  50  train 0.5464  val 1.0749
+  [eef_num__base__raster__lr0.001__s2__f025] epoch  60  train 0.4203  val 1.4560
+  [eef_num__base__raster__lr0.001__s2__f025] epoch  70  train 0.3552  val 1.5400
+  [eef_num__base__raster__lr0.001__s2__f025] epoch  80  train 0.2768  val 1.7709
+  [eef_num__base__raster__lr0.001__s2__f025] epoch  90  train 0.2369  val 1.9424
+  [eef_num__base__raster__lr0.001__s2__f025] epoch 100  train 0.2325  val 1.9880
+  [eef_num__base__raster__lr0.001__s2__f025] done 174s params 1,747,593  TRAIN A pos 4.2 goal 1.000 | B pos 4.0 goal 1.000 coll 0.961 | val 1.9880
+--- [26/36] full_num__base__raster__lr0.001__s2__f025
+  [full_num__base__raster__lr0.001__s2__f025] epoch   1  train 1.8731  val 1.5851
+  [full_num__base__raster__lr0.001__s2__f025] epoch  10  train 1.1164  val 1.3650
+  [full_num__base__raster__lr0.001__s2__f025] epoch  20  train 0.8021  val 1.3651
+  [full_num__base__raster__lr0.001__s2__f025] epoch  30  train 0.5410  val 1.4048
+  [full_num__base__raster__lr0.001__s2__f025] epoch  40  train 0.3237  val 2.0669
+  [full_num__base__raster__lr0.001__s2__f025] epoch  50  train 0.2137  val 2.2219
+  [full_num__base__raster__lr0.001__s2__f025] epoch  60  train 0.1409  val 2.5575
+  [full_num__base__raster__lr0.001__s2__f025] epoch  70  train 0.0773  val 2.9131
+  [full_num__base__raster__lr0.001__s2__f025] epoch  80  train 0.0517  val 3.2782
+  [full_num__base__raster__lr0.001__s2__f025] epoch  90  train 0.0373  val 3.5872
+  [full_num__base__raster__lr0.001__s2__f025] epoch 100  train 0.0335  val 3.6563
+  [full_num__base__raster__lr0.001__s2__f025] done 197s params 1,767,433  TRAIN A pos 2.5 goal 1.000 | B pos 2.5 goal 1.000 coll 1.000 | val 3.6563
+--- [27/36] eef_img__base__raster__lr0.0003__s2__f025
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch   1  train 2.0730  val 1.6547
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch  10  train 0.5143  val 2.1444
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch  20  train 0.2414  val 2.3040
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch  30  train 0.1679  val 2.6028
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch  40  train 0.1454  val 2.6366
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch  50  train 0.1388  val 2.7181
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch  60  train 0.1262  val 2.8748
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch  70  train 0.1303  val 3.0117
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch  80  train 0.1238  val 3.1621
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch  90  train 0.1206  val 3.2323
+  [eef_img__base__raster__lr0.0003__s2__f025] epoch 100  train 0.1223  val 3.2485
+  [eef_img__base__raster__lr0.0003__s2__f025] done 379s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 0.971 | val 3.2485
+--- [28/36] full_img__base__raster__lr0.0003__s2__f025
+  [full_img__base__raster__lr0.0003__s2__f025] epoch   1  train 2.0668  val 1.5869
+  [full_img__base__raster__lr0.0003__s2__f025] epoch  10  train 0.5681  val 1.9887
+  [full_img__base__raster__lr0.0003__s2__f025] epoch  20  train 0.1125  val 2.5116
+  [full_img__base__raster__lr0.0003__s2__f025] epoch  30  train 0.0403  val 2.7206
+  [full_img__base__raster__lr0.0003__s2__f025] epoch  40  train 0.0205  val 2.9068
+  [full_img__base__raster__lr0.0003__s2__f025] epoch  50  train 0.0153  val 2.9860
+  [full_img__base__raster__lr0.0003__s2__f025] epoch  60  train 0.0091  val 3.2073
+  [full_img__base__raster__lr0.0003__s2__f025] epoch  70  train 0.0056  val 3.4466
+  [full_img__base__raster__lr0.0003__s2__f025] epoch  80  train 0.0040  val 3.6209
+  [full_img__base__raster__lr0.0003__s2__f025] epoch  90  train 0.0036  val 3.7203
+  [full_img__base__raster__lr0.0003__s2__f025] epoch 100  train 0.0035  val 3.7418
+  [full_img__base__raster__lr0.0003__s2__f025] done 394s params 1,969,673  TRAIN A pos 0.3 goal 1.000 | B pos 0.3 goal 1.000 coll 1.000 | val 3.7418
+--- [29/36] eef_num__base__raster__lr0.001__s2__f050
+  [eef_num__base__raster__lr0.001__s2__f050] epoch   1  train 1.7031  val 1.4706
+  [eef_num__base__raster__lr0.001__s2__f050] epoch  10  train 1.0045  val 1.1469
+  [eef_num__base__raster__lr0.001__s2__f050] epoch  20  train 0.8519  val 1.0030
+  [eef_num__base__raster__lr0.001__s2__f050] epoch  30  train 0.7137  val 0.9465
+  [eef_num__base__raster__lr0.001__s2__f050] epoch  40  train 0.5800  val 0.9938
+  [eef_num__base__raster__lr0.001__s2__f050] epoch  50  train 0.4464  val 1.2089
+  [eef_num__base__raster__lr0.001__s2__f050] epoch  60  train 0.3484  val 1.3607
+  [eef_num__base__raster__lr0.001__s2__f050] epoch  70  train 0.2746  val 1.4805
+  [eef_num__base__raster__lr0.001__s2__f050] epoch  80  train 0.2197  val 1.7382
+  [eef_num__base__raster__lr0.001__s2__f050] epoch  90  train 0.1957  val 1.9324
+  [eef_num__base__raster__lr0.001__s2__f050] epoch 100  train 0.1879  val 1.9675
+  [eef_num__base__raster__lr0.001__s2__f050] done 472s params 1,747,593  TRAIN A pos 3.7 goal 1.000 | B pos 3.8 goal 1.000 coll 0.966 | val 1.9675
+--- [30/36] full_num__base__raster__lr0.001__s2__f050
+  [full_num__base__raster__lr0.001__s2__f050] epoch   1  train 1.7487  val 1.5523
+  [full_num__base__raster__lr0.001__s2__f050] epoch  10  train 0.9730  val 1.1483
+  [full_num__base__raster__lr0.001__s2__f050] epoch  20  train 0.7125  val 1.1722
+  [full_num__base__raster__lr0.001__s2__f050] epoch  30  train 0.4640  val 1.2921
+  [full_num__base__raster__lr0.001__s2__f050] epoch  40  train 0.3035  val 1.6893
+  [full_num__base__raster__lr0.001__s2__f050] epoch  50  train 0.1771  val 1.9532
+  [full_num__base__raster__lr0.001__s2__f050] epoch  60  train 0.1124  val 2.0752
+  [full_num__base__raster__lr0.001__s2__f050] epoch  70  train 0.0749  val 2.3787
+  [full_num__base__raster__lr0.001__s2__f050] epoch  80  train 0.0352  val 2.7293
+  [full_num__base__raster__lr0.001__s2__f050] epoch  90  train 0.0257  val 2.9958
+  [full_num__base__raster__lr0.001__s2__f050] epoch 100  train 0.0220  val 3.0631
+  [full_num__base__raster__lr0.001__s2__f050] done 475s params 1,767,433  TRAIN A pos 2.7 goal 1.000 | B pos 2.6 goal 1.000 coll 1.000 | val 3.0631
+--- [31/36] eef_img__base__raster__lr0.0003__s2__f050
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch   1  train 1.8214  val 1.5151
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch  10  train 0.4751  val 1.9455
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch  20  train 0.1878  val 2.3922
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch  30  train 0.1645  val 2.4810
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch  40  train 0.1477  val 2.7075
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch  50  train 0.1399  val 2.8186
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch  60  train 0.1404  val 2.8058
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch  70  train 0.1299  val 3.0350
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch  80  train 0.1303  val 3.2378
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch  90  train 0.1271  val 3.3471
+  [eef_img__base__raster__lr0.0003__s2__f050] epoch 100  train 0.1265  val 3.3798
+  [eef_img__base__raster__lr0.0003__s2__f050] done 890s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 0.968 | val 3.3798
+--- [32/36] full_img__base__raster__lr0.0003__s2__f050
+  [full_img__base__raster__lr0.0003__s2__f050] epoch   1  train 1.7858  val 1.4885
+  [full_img__base__raster__lr0.0003__s2__f050] epoch  10  train 0.4923  val 1.9119
+  [full_img__base__raster__lr0.0003__s2__f050] epoch  20  train 0.0915  val 2.6159
+  [full_img__base__raster__lr0.0003__s2__f050] epoch  30  train 0.0384  val 2.8151
+  [full_img__base__raster__lr0.0003__s2__f050] epoch  40  train 0.0231  val 2.9128
+  [full_img__base__raster__lr0.0003__s2__f050] epoch  50  train 0.0156  val 3.0629
+  [full_img__base__raster__lr0.0003__s2__f050] epoch  60  train 0.0092  val 3.3649
+  [full_img__base__raster__lr0.0003__s2__f050] epoch  70  train 0.0056  val 3.6524
+  [full_img__base__raster__lr0.0003__s2__f050] epoch  80  train 0.0040  val 3.9433
+  [full_img__base__raster__lr0.0003__s2__f050] epoch  90  train 0.0036  val 4.1085
+  [full_img__base__raster__lr0.0003__s2__f050] epoch 100  train 0.0034  val 4.1568
+  [full_img__base__raster__lr0.0003__s2__f050] done 1125s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.4 goal 1.000 coll 1.000 | val 4.1568
+--- [33/36] eef_num__base__raster__lr0.001__s2
+  [eef_num__base__raster__lr0.001__s2] epoch   1  train 1.5770  val 1.3780
+  [eef_num__base__raster__lr0.001__s2] epoch  10  train 0.9138  val 1.1472
+  [eef_num__base__raster__lr0.001__s2] epoch  20  train 0.7626  val 0.8692
+  [eef_num__base__raster__lr0.001__s2] epoch  30  train 0.6403  val 0.9379
+  [eef_num__base__raster__lr0.001__s2] epoch  40  train 0.5369  val 0.8911
+  [eef_num__base__raster__lr0.001__s2] epoch  50  train 0.4350  val 0.9314
+  [eef_num__base__raster__lr0.001__s2] epoch  60  train 0.3311  val 1.1642
+  [eef_num__base__raster__lr0.001__s2] epoch  70  train 0.2569  val 1.3828
+  [eef_num__base__raster__lr0.001__s2] epoch  80  train 0.2241  val 1.4723
+  [eef_num__base__raster__lr0.001__s2] epoch  90  train 0.2029  val 1.6258
+  [eef_num__base__raster__lr0.001__s2] epoch 100  train 0.1960  val 1.6428
+  [eef_num__base__raster__lr0.001__s2] done 1074s params 1,747,593  TRAIN A pos 4.1 goal 1.000 | B pos 4.0 goal 1.000 coll 0.963 | val 1.6428
+--- [34/36] full_num__base__raster__lr0.001__s2
+  [full_num__base__raster__lr0.001__s2] epoch   1  train 1.5818  val 1.4066
+  [full_num__base__raster__lr0.001__s2] epoch  10  train 0.8208  val 1.1241
+  [full_num__base__raster__lr0.001__s2] epoch  20  train 0.5785  val 0.8197
+  [full_num__base__raster__lr0.001__s2] epoch  30  train 0.3706  val 1.0539
+  [full_num__base__raster__lr0.001__s2] epoch  40  train 0.2476  val 1.3154
+  [full_num__base__raster__lr0.001__s2] epoch  50  train 0.1803  val 1.4464
+  [full_num__base__raster__lr0.001__s2] epoch  60  train 0.1149  val 1.5904
+  [full_num__base__raster__lr0.001__s2] epoch  70  train 0.0682  val 1.8999
+  [full_num__base__raster__lr0.001__s2] epoch  80  train 0.0390  val 2.1464
+  [full_num__base__raster__lr0.001__s2] epoch  90  train 0.0256  val 2.3983
+  [full_num__base__raster__lr0.001__s2] epoch 100  train 0.0221  val 2.4575
+  [full_num__base__raster__lr0.001__s2] done 1284s params 1,767,433  TRAIN A pos 3.0 goal 1.000 | B pos 2.9 goal 1.000 coll 1.000 | val 2.4575
+--- [35/36] eef_img__base__raster__lr0.0003__s2
+  [eef_img__base__raster__lr0.0003__s2] epoch   1  train 1.6426  val 1.4188
+  [eef_img__base__raster__lr0.0003__s2] epoch  10  train 0.4295  val 2.1156
+  [eef_img__base__raster__lr0.0003__s2] epoch  20  train 0.2023  val 2.5828
+  [eef_img__base__raster__lr0.0003__s2] epoch  30  train 0.1741  val 3.1134
+  [eef_img__base__raster__lr0.0003__s2] epoch  40  train 0.1535  val 2.8539
+  [eef_img__base__raster__lr0.0003__s2] epoch  50  train 0.1447  val 3.0216
+  [eef_img__base__raster__lr0.0003__s2] epoch  60  train 0.1389  val 3.1086
+  [eef_img__base__raster__lr0.0003__s2] epoch  70  train 0.1338  val 3.2972
+  [eef_img__base__raster__lr0.0003__s2] epoch  80  train 0.1348  val 3.4891
+  [eef_img__base__raster__lr0.0003__s2] epoch  90  train 0.1343  val 3.6158
+  [eef_img__base__raster__lr0.0003__s2] epoch 100  train 0.1343  val 3.6498
+  [eef_img__base__raster__lr0.0003__s2] done 2263s params 1,969,673  TRAIN A pos 0.5 goal 1.000 | B pos 0.5 goal 1.000 coll 0.964 | val 3.6498
+--- [36/36] full_img__base__raster__lr0.0003__s2
+  [full_img__base__raster__lr0.0003__s2] epoch   1  train 1.5972  val 1.3368
+  [full_img__base__raster__lr0.0003__s2] epoch  10  train 0.4390  val 1.9676
+  [full_img__base__raster__lr0.0003__s2] epoch  20  train 0.1513  val 2.9713
+  [full_img__base__raster__lr0.0003__s2] epoch  30  train 0.0544  val 2.9947
+  [full_img__base__raster__lr0.0003__s2] epoch  40  train 0.1432  val 3.1140
+  [full_img__base__raster__lr0.0003__s2] epoch  50  train 0.0152  val 3.2484
+  [full_img__base__raster__lr0.0003__s2] epoch  60  train 0.0091  val 3.3683
+  [full_img__base__raster__lr0.0003__s2] epoch  70  train 0.0070  val 3.6518
+  [full_img__base__raster__lr0.0003__s2] epoch  80  train 0.0047  val 3.8698
+  [full_img__base__raster__lr0.0003__s2] epoch  90  train 0.0039  val 4.0692
+  [full_img__base__raster__lr0.0003__s2] epoch 100  train 0.0036  val 4.1148
+  [full_img__base__raster__lr0.0003__s2] done 2343s params 1,969,673  TRAIN A pos 0.4 goal 1.000 | B pos 0.5 goal 1.000 coll 1.000 | val 4.1148
+===== P15 sweep main_v1 finished 2026-10-30 13:29:23

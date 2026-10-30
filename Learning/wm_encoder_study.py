@@ -9,6 +9,10 @@ P15: action エンコーダの公平な比較（ルールは Docs/encoder_fix/pr
   py -3.11 Learning/wm_encoder_study.py sweep --plan diag  --out Docs/encoder_fix/results
   py -3.11 Learning/wm_encoder_study.py sweep --plan main  --out Docs/encoder_fix/results
   py -3.11 Learning/wm_encoder_study.py summary --out Docs/encoder_fix/results
+
+量産データ（protocol 追記 3・§5）: E0 base だけ、学習ペアを 25 / 50 / 100% にした学習曲線 × seed 3 つ
+  py -3.11 Learning/wm_encoder_study.py sweep --plan main_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_main_v1
+  （seed 0 の 12 run が先に終わるように並べてある。途中で止めても、もう一度同じコマンドで続きから回る）
 """
 import argparse
 import json
@@ -213,7 +217,20 @@ def point_metrics(P, truth):
 
 def run_name(c):
     s = f"{c['rep']}__{c['enc']}__{c['steps']}__lr{c['lr']:g}__s{c['seed']}"
+    if c.get("frac", 1.0) < 1.0:
+        s += f"__f{int(round(c['frac'] * 100)):03d}"
     return s + ("__cube" if c.get("cube") else "")
+
+
+def subset_train(splits, frac, seed=0):
+    """学習ペアを frac だけ使う。順番は seed 0 で固定なので 25% ⊂ 50% ⊂ 100%（学習曲線用）。val・test は変えない"""
+    if frac >= 1.0:
+        return splits
+    tr = list(splits["train"])
+    order = np.random.default_rng(seed).permutation(len(tr))
+    k = max(1, int(round(frac * len(tr))))
+    sp = dict(splits); sp["train"] = sorted(tr[i] for i in order[:k])
+    return sp
 
 
 def run_one(c, out, dev, truth, splits, pos_mean, log):
@@ -222,6 +239,7 @@ def run_one(c, out, dev, truth, splits, pos_mean, log):
     if f.exists():
         return json.loads(f.read_text(encoding="utf-8"))
     torch.manual_seed(c["seed"]); np.random.seed(c["seed"])
+    splits = subset_train(splits, c.get("frac", 1.0))
     kw = dict(task="both", splits=splits, in_memory=True, num_steps=c["steps"])
     tr = WMDataset(CACHE, c["rep"], split="train", **kw)
     va = WMDataset(CACHE, c["rep"], split="val", **kw)
@@ -263,7 +281,8 @@ def run_one(c, out, dev, truth, splits, pos_mean, log):
     sec = time.time() - t0
     Ptr, Ltr = evaluate_split(model, tr, dev, cube_tab)
     Pva, Lva = evaluate_split(model, va, dev, cube_tab)
-    res = {"config": c, "name": name, "params": nparam, "train_sec": round(sec, 1),
+    res = {"config": c, "name": name, "params": nparam, "train_sec": round(sec, 1), "cache": str(CACHE),
+           "n_train_pairs": len(splits["train"]), "n_val_pairs": len(splits["val"]),
            "train_loss": {k: round(v, 5) for k, v in Ltr.items()}, "val_loss": {k: round(v, 5) for k, v in Lva.items()},
            "train": point_metrics(Ptr, truth), "val": point_metrics(Pva, truth), "curve": curve}
     f.parent.mkdir(parents=True, exist_ok=True)
@@ -289,6 +308,16 @@ def plan(which, epochs):
                 for enc in ["base", "attn", "gru", "tf"]:
                     for rep in REPS:
                         P.append(dict(rep=rep, enc=enc, steps="raster", lr=lr, seed=seed, epochs=epochs))
+    elif which == "main_v1":  # protocol 追記 3・§5: E0 base だけ、学習ペア 25 / 50 / 100%、seed 0 → 1 → 2 の順
+        for seed in [0, 1, 2]:
+            for frac in [0.25, 0.5, 1.0]:
+                for rep in REPS:
+                    lr = 1e-3 if rep.endswith("_num") else 3e-4
+                    P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=seed, epochs=epochs, frac=frac))
+    elif which == "main_v1_smoke":  # 動くかだけ確かめる（学習ペア 25%・seed 0・4 rep。--epochs 2 などで）
+        for rep in REPS:
+            lr = 1e-3 if rep.endswith("_num") else 3e-4
+            P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=0, epochs=epochs, frac=0.25))
     elif which == "params":   # パラメータ数だけ数える
         pass
     return P
@@ -317,7 +346,11 @@ def main():
     ap.add_argument("--plan", default="diag")
     ap.add_argument("--out", default=str(ROOT / "Docs/encoder_fix/results"))
     ap.add_argument("--epochs", type=int, default=100)
+    ap.add_argument("--cache", default=None, help="省略時は P15 と同じ _p8_20scenes のキャッシュ")
     args = ap.parse_args()
+    global CACHE
+    if args.cache:
+        CACHE = Path(args.cache) if Path(args.cache).is_absolute() else ROOT / args.cache
     out = Path(args.out); out.mkdir(parents=True, exist_ok=True)
     logf = open(out / "log.txt", "a", encoding="utf-8")
 
@@ -337,6 +370,7 @@ def main():
     pos_mean = truth["final_pos"][tr0.idx].mean(0).tolist()
     P = plan(args.plan, args.epochs)
     log(f"===== P15 sweep {args.plan} {time.strftime('%Y-%m-%d %H:%M:%S')}  device {dev}  torch {torch.__version__}  runs {len(P)}")
+    log(f"cache {CACHE}  pairs train {len(splits['train'])} / val {len(splits['val'])} / test {len(splits['test'])}  excluded {len(splits.get('_info', {}).get('excluded_pairs', []))}")
     for i, c in enumerate(P):
         try:
             log(f"--- [{i + 1}/{len(P)}] {run_name(c)}")
