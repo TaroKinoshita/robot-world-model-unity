@@ -17,6 +17,9 @@ P15: action エンコーダの公平な比較（ルールは Docs/encoder_fix/pr
 early stopping（毎 epoch val を測って、val loss 最小の epoch の重みを使う）:
   py -3.11 Learning/wm_encoder_study.py sweep --plan es_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
 
+診断: 予測した最終位置からゴールまでの距離で goal を判定（goal ヘッドが原因かを確かめる。SS と同じ 4 run）:
+  py -3.11 Learning/wm_encoder_study.py sweep --plan ss_gp --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
+
 SS（座標チャネル + spatial softmax、protocol 追記 5）。まず動作確認、それから本番:
   py -3.11 Learning/wm_encoder_study.py sweep --plan ss_smoke --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Temp/study_ss_smoke --epochs 1
   py -3.11 Learning/wm_encoder_study.py sweep --plan ss_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
@@ -269,6 +272,10 @@ def point_metrics(P, truth):
         d = (P["final_pos"][s] - truth["final_pos"][e])[:, [0, 2]]
         m = {"pos_err_mm": float(1000 * np.linalg.norm(d, axis=1).mean()),
              "goal_auprc": float(wm_eval.average_precision(truth["goal"][e].astype(bool), P["goal"][s])),
+             # 診断: goal ヘッドを使わず、予測した最終位置とゴール中心の距離（近いほど goal らしい）で判定した AUPRC
+             # （goal のラベル = 最終位置が中心から 30 mm 以内・倒れていない・止まっている。EpisodeRecorder.cs）
+             **({"goal_from_pos_auprc": float(wm_eval.average_precision(truth["goal"][e].astype(bool),
+                 -np.linalg.norm(P["final_pos"][s][:, [0, 2]] - truth["goal_xz"][e], axis=1)))} if "goal_xz" in truth else {}),
              "mask_iou": float(np.nanmean(wm_eval.mask_iou(P["final_mask"][s], truth["final_mask"][e])))}
         if tk == 1:
             m["coll_auprc"] = float(wm_eval.average_precision(truth["coll"][e] == 1, P["coll"][s]))
@@ -287,6 +294,8 @@ def run_name(c):
         s += f"__es{c['epochs']}"
     if c.get("spatial"):
         s += "__ss"
+    if c.get("tag"):
+        s += "__" + c["tag"]
     return s + ("__cube" if c.get("cube") else "")
 
 
@@ -365,6 +374,8 @@ def run_one(c, out, dev, truth, splits, pos_mean, log):
            "train": point_metrics(Ptr, truth), "val": point_metrics(Pva, truth), "curve": curve}
     f.parent.mkdir(parents=True, exist_ok=True)
     f.write_text(json.dumps(res, indent=1), encoding="utf-8")
+    pd = out / "preds"; pd.mkdir(exist_ok=True)                      # val の予測（mask 以外）を残す。あとで分析できるように
+    wm_eval.save_predictions(pd / f"{name}__val.npz", Pva["ep"], Pva["final_pos"], Pva["goal"], Pva["coll"])
     tm = res["train"]
     log(f"  [{name}] done {sec:.0f}s params {nparam:,}  TRAIN A pos {tm['A']['pos_err_mm']:.1f} goal {tm['A']['goal_auprc']:.3f} | "
         f"B pos {tm['B']['pos_err_mm']:.1f} goal {tm['B']['goal_auprc']:.3f} coll {tm['B']['coll_auprc']:.3f} | val {Lva['total']:.4f}")
@@ -408,6 +419,10 @@ def plan(which, epochs):
             if smoke:
                 c["frac"] = 0.25
             P.append(c)
+    elif which == "ss_gp":   # 診断: SS と同じ 4 run をもう一度回し、予測位置から計算した goal（goal_from_pos）も出す
+        for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
+            lr = 1e-3 if rep.endswith("_num") else 3e-4
+            P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=0, epochs=epochs, es=True, patience=8, spatial=True, tag="gp"))
     elif which in ("f_v1", "f_smoke"):   # protocol 追記 4: F（conv）を数値・画像の両方に。画像を先に（遅い・エラーを早く見るため）
         smoke = which == "f_smoke"
         for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
@@ -471,6 +486,9 @@ def main():
     dev = "cuda" if torch.cuda.is_available() else "cpu"
     splits = make_splits(CACHE)
     truth = wm_eval.load_truth(CACHE)
+    import h5py
+    with h5py.File(CACHE, "r") as h:                                  # episode ごとのゴール中心（x, z）。goal_from_pos 用
+        truth["goal_xz"] = h["scenes/goal_xz"][:][h["episodes/scene_idx"][:]]
     tr0 = WMDataset(CACHE, "eef_num", split="train", splits=splits)
     pos_mean = truth["final_pos"][tr0.idx].mean(0).tolist()
     P = plan(args.plan, args.epochs)
