@@ -17,7 +17,10 @@ P15: action エンコーダの公平な比較（ルールは Docs/encoder_fix/pr
 early stopping（毎 epoch val を測って、val loss 最小の epoch の重みを使う）:
   py -3.11 Learning/wm_encoder_study.py sweep --plan es_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
 
-案 A（画像の action を初期画像・ゴールと同じ CNN に重ねる = enc fused）の小さい試し（効果なし。results_fused_pilot）:
+案 A を early stopping 付きで（画像 2 rep、全学習ペア、seed 0）:
+  py -3.11 Learning/wm_encoder_study.py sweep --plan fused_es --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
+
+案 A（画像の action を初期画像・ゴールと同じ CNN に重ねる = enc fused）の小さい試し（100 epoch では効果なし。results_fused_pilot）:
   py -3.11 Learning/wm_encoder_study.py sweep --plan fused_pilot --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_fused_pilot
 """
 import argparse
@@ -352,6 +355,9 @@ def plan(which, epochs):
         for rep in REPS:
             lr = 1e-3 if rep.endswith("_num") else 3e-4
             P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=0, epochs=epochs, es=True))
+    elif which == "fused_es":   # 案 A を early stopping 付きでやり直す（fused_pilot は 100 epoch の過学習で比べてしまったため）
+        for rep in ["eef_img", "full_img"]:
+            P.append(dict(rep=rep, enc="fused", steps="raster", lr=3e-4, seed=0, epochs=epochs, es=True))
     elif which == "fused_pilot":   # 案 A の小さい試し: 画像 2 rep × 学習ペア 25 / 50%、seed 0（base の同じ run と比べる）
         for frac in [0.25, 0.5]:
             for rep in ["eef_img", "full_img"]:
