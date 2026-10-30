@@ -33,3 +33,22 @@ cache C:\UnityProjects\PerceptionTestHDRP\Episodes\_main_v1\_cache\wm_128x25.h5 
   [full_img__base__raster__lr0.0003__s0__es40] early stopping: best epoch 4（val 1.1618）
   [full_img__base__raster__lr0.0003__s0__es40] done 632s params 1,969,673  TRAIN A pos 12.7 goal 0.772 | B pos 12.8 goal 0.772 coll 0.853 | val 1.1618
 ===== P15 sweep es_v1 finished 2026-10-30 21:16:56
+===== P15 sweep fused_es 2026-10-30 21:26:50  device cuda  torch 2.5.1+cu121  runs 2
+cache C:\UnityProjects\PerceptionTestHDRP\Episodes\_main_v1\_cache\wm_128x25.h5  pairs train 220 / val 47 / test 47  excluded 6
+--- [1/2] eef_img__fused__raster__lr0.0003__s0__es40
+  [eef_img__fused__raster__lr0.0003__s0__es40] epoch   1  train 1.6583  val 1.4038
+  [eef_img__fused__raster__lr0.0003__s0__es40] epoch  10  train 0.4496  val 1.6815
+  [eef_img__fused__raster__lr0.0003__s0__es40] epoch  20  train 0.1909  val 2.1088
+  [eef_img__fused__raster__lr0.0003__s0__es40] epoch  30  train 0.1416  val 2.3243
+  [eef_img__fused__raster__lr0.0003__s0__es40] epoch  40  train 0.1354  val 2.5108
+  [eef_img__fused__raster__lr0.0003__s0__es40] early stopping: best epoch 4（val 1.1896）
+  [eef_img__fused__raster__lr0.0003__s0__es40] done 697s params 1,971,113  TRAIN A pos 16.6 goal 0.923 | B pos 16.6 goal 0.922 coll 0.806 | val 1.1896
+--- [2/2] full_img__fused__raster__lr0.0003__s0__es40
+  [full_img__fused__raster__lr0.0003__s0__es40] epoch   1  train 1.5974  val 1.3835
+  [full_img__fused__raster__lr0.0003__s0__es40] epoch  10  train 0.4010  val 1.4903
+  [full_img__fused__raster__lr0.0003__s0__es40] epoch  20  train 0.1030  val 2.1944
+  [full_img__fused__raster__lr0.0003__s0__es40] epoch  30  train 0.0221  val 2.3998
+  [full_img__fused__raster__lr0.0003__s0__es40] epoch  40  train 0.0099  val 2.6211
+  [full_img__fused__raster__lr0.0003__s0__es40] early stopping: best epoch 4（val 1.1436）
+  [full_img__fused__raster__lr0.0003__s0__es40] done 662s params 1,971,113  TRAIN A pos 14.6 goal 0.785 | B pos 14.4 goal 0.787 coll 0.851 | val 1.1436
+===== P15 sweep fused_es finished 2026-10-30 21:50:21
