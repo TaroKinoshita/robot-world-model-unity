@@ -17,6 +17,10 @@ P15: action エンコーダの公平な比較（ルールは Docs/encoder_fix/pr
 early stopping（毎 epoch val を測って、val loss 最小の epoch の重みを使う）:
   py -3.11 Learning/wm_encoder_study.py sweep --plan es_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
 
+F（1 時刻ずつ CNN / MLP → 1D CNN、protocol 追記 4）。まず動作確認、それから本番:
+  py -3.11 Learning/wm_encoder_study.py sweep --plan f_smoke --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Temp/study_f_smoke --epochs 1
+  py -3.11 Learning/wm_encoder_study.py sweep --plan f_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
+
 案 A を early stopping 付きで（画像 2 rep、全学習ペア、seed 0）:
   py -3.11 Learning/wm_encoder_study.py sweep --plan fused_es --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
 
@@ -94,6 +98,9 @@ class SeqEnc(nn.Module):
         elif kind == "gru":
             self.gru = nn.GRU(d, d, num_layers=2, batch_first=True)
             self.out = nn.Sequential(nn.Linear(2 * d, d), nn.SiLU())
+        elif kind == "conv":      # F（protocol 追記 4）: 数値の E0 と同じ形の 1D CNN で時間方向にまとめる
+            self.net = nn.Sequential(nn.Conv1d(d, 64, 5, 1, 2), nn.SiLU(), nn.Conv1d(64, 128, 5, 2, 2), nn.SiLU(),
+                                     nn.Conv1d(128, d, 5, 2, 2), nn.SiLU())
         elif kind == "tf":
             self.cls = nn.Parameter(torch.randn(1, 1, d) * 0.02)
             layer = nn.TransformerEncoderLayer(d, 4, 2 * d, dropout=0.0, batch_first=True, norm_first=True)
@@ -105,6 +112,12 @@ class SeqEnc(nn.Module):
     def forward(self, a, length=None):
         x = self.tok(a)                                         # (B, T, d)
         B, T, d = x.shape
+        if self.kind == "conv":                               # 時刻の埋め込みなし（1D CNN が順番を扱う）
+            valid = torch.ones(B, T, device=x.device) if length is None else \
+                (torch.arange(T, device=x.device)[None] < length[:, None]).float()
+            h = self.net((x * valid[..., None]).transpose(1, 2))             # (B, d, T/4)
+            m = F.interpolate(valid[:, None], size=h.shape[-1], mode="nearest")
+            return (h * m).sum(-1) / m.sum(-1).clamp(min=1)
         x = x + time_embed(T, d, x.device)[None]
         pad = None
         if length is not None:
@@ -308,6 +321,9 @@ def run_one(c, out, dev, truth, splits, pos_mean, log):
             if (ep + 1) % 10 == 0 or ep == 0:
                 log(f"  [{name}] epoch {ep + 1:3d}  train {e['total']:.4f}  val {e['val_total']:.4f}")
         curve.append(e)
+        if c.get("patience") and ep + 1 - best[1] >= c["patience"]:   # 改善がない epoch が続いたら打ち切り
+            log(f"  [{name}] epoch {ep + 1}: {c['patience']} epoch 改善なしで打ち切り")
+            break
     sec = time.time() - t0
     if c.get("es") and best[2] is not None:             # val loss がいちばん低かった epoch の重みに戻す
         model.load_state_dict(best[2])
@@ -355,6 +371,14 @@ def plan(which, epochs):
         for rep in REPS:
             lr = 1e-3 if rep.endswith("_num") else 3e-4
             P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=0, epochs=epochs, es=True))
+    elif which in ("f_v1", "f_smoke"):   # protocol 追記 4: F（conv）を数値・画像の両方に。画像を先に（遅い・エラーを早く見るため）
+        smoke = which == "f_smoke"
+        for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
+            lr = 1e-3 if rep.endswith("_num") else 3e-4
+            c = dict(rep=rep, enc="conv", steps="raster", lr=lr, seed=0, epochs=epochs, es=True, patience=8)
+            if smoke:
+                c["frac"] = 0.25
+            P.append(c)
     elif which == "fused_es":   # 案 A を early stopping 付きでやり直す（fused_pilot は 100 epoch の過学習で比べてしまったため）
         for rep in ["eef_img", "full_img"]:
             P.append(dict(rep=rep, enc="fused", steps="raster", lr=3e-4, seed=0, epochs=epochs, es=True))
