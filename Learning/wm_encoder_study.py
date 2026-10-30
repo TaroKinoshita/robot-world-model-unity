@@ -17,6 +17,10 @@ P15: action エンコーダの公平な比較（ルールは Docs/encoder_fix/pr
 early stopping（毎 epoch val を測って、val loss 最小の epoch の重みを使う）:
   py -3.11 Learning/wm_encoder_study.py sweep --plan es_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
 
+SS（座標チャネル + spatial softmax、protocol 追記 5）。まず動作確認、それから本番:
+  py -3.11 Learning/wm_encoder_study.py sweep --plan ss_smoke --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Temp/study_ss_smoke --epochs 1
+  py -3.11 Learning/wm_encoder_study.py sweep --plan ss_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
+
 F（1 時刻ずつ CNN / MLP → 1D CNN、protocol 追記 4）。まず動作確認、それから本番:
   py -3.11 Learning/wm_encoder_study.py sweep --plan f_smoke --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Temp/study_f_smoke --epochs 1
   py -3.11 Learning/wm_encoder_study.py sweep --plan f_v1 --cache Episodes/_main_v1/_cache/wm_128x25.h5 --out Docs/encoder_fix/results_es_v1 --epochs 40
@@ -153,20 +157,43 @@ def goal_heatmap(uv, R, sigma=3.0):
     return (gy[:, :, None] * gx[:, None, :])[:, None]               # (B, 1, R, R)
 
 
+class SSImgEnc(nn.Module):
+    """SS（protocol 追記 5）: 座標チャネル（CoordConv, Liu et al. 2018）+ spatial softmax（Levine et al. 2016）
+    平均プーリングで消える「画面のどこにあるか」を残す。出力 = 各特徴マップの期待位置 (x, y) と平均（k × 3）→ 線形 → d"""
+    def __init__(self, cin, d=D, k=64):
+        super().__init__()
+        self.net = nn.Sequential(conv(cin + 2, 32), conv(32, 64), conv(64, 96, 1), conv(96, 128, 1),
+                                 nn.Conv2d(128, k, 3, 1, 1))          # 128 → 64 → 32 → 32 → 32（px）
+        self.log_temp = nn.Parameter(torch.zeros(1))                   # softmax の温度（学習する）
+        self.out = nn.Sequential(nn.Linear(3 * k, d), nn.SiLU())
+
+    def forward(self, x):
+        B, _, H, W = x.shape
+        gy, gx = torch.meshgrid(torch.linspace(-1, 1, H, device=x.device), torch.linspace(-1, 1, W, device=x.device), indexing="ij")
+        x = torch.cat([x, gx.expand(B, 1, H, W), gy.expand(B, 1, H, W)], 1)
+        f = self.net(x)                                                 # (B, k, h, w)
+        b, k, h, w = f.shape
+        p = torch.softmax(f.flatten(2) / self.log_temp.exp(), -1).view(b, k, h, w)
+        ex = (p.sum(2) * torch.linspace(-1, 1, w, device=x.device)).sum(-1)    # 期待位置 x (b, k)
+        ey = (p.sum(3) * torch.linspace(-1, 1, h, device=x.device)).sum(-1)    # 期待位置 y (b, k)
+        return self.out(torch.cat([ex, ey, f.mean((2, 3))], 1))
+
+
 class StudyWM(nn.Module):
     """P14 の SmokeWM と同じ構造。action エンコーダだけ差し替える。cube=True は診断 Q4 専用（箱の初期位置・向きを渡す）"""
-    def __init__(self, rep, enc, frames, num_dim=None, num_mean=None, num_std=None, pos_mean=(0, 0, 0), cube=False, d=D):
+    def __init__(self, rep, enc, frames, num_dim=None, num_mean=None, num_std=None, pos_mean=(0, 0, 0), cube=False, d=D, spatial=False):
         super().__init__()
         self.rep, self.enc, self.cube = rep, enc, cube
         self.register_buffer("pos_mean", torch.as_tensor(pos_mean, dtype=torch.float32))
-        self.obs = ImgEnc(4, d)
+        Img = SSImgEnc if spatial else ImgEnc           # spatial = protocol 追記 5（2D の画像エンコーダを全部 SS に）
+        self.obs = Img(4, d)
         self.goal = nn.Sequential(nn.Linear(4 + (5 if cube else 0), 64), nn.SiLU(), nn.Linear(64, d))
         num = rep.endswith("_num")
         if enc == "base":
-            self.act = NumEnc(num_dim, num_mean, num_std, d) if num else ImgEnc(2 * frames, d)
+            self.act = NumEnc(num_dim, num_mean, num_std, d) if num else Img(2 * frames, d)
         elif enc == "fused":     # 画像だけ: 初期画像 4ch + ゴール 1ch + action 50ch を最初から重ねて 1 つの CNN（Action Image・Transporter の考え方）
             assert not num, "fused は画像の action 専用"
-            self.act = ImgEnc(4 + 1 + 2 * frames, d)
+            self.act = Img(4 + 1 + 2 * frames, d)
         else:
             tok = NumTokens(num_dim, num_mean, num_std, d) if num else ImgTokens(d)
             self.act = SeqEnc(tok, enc, d)
@@ -258,6 +285,8 @@ def run_name(c):
         s += f"__f{int(round(c['frac'] * 100)):03d}"
     if c.get("es"):
         s += f"__es{c['epochs']}"
+    if c.get("spatial"):
+        s += "__ss"
     return s + ("__cube" if c.get("cube") else "")
 
 
@@ -292,7 +321,7 @@ def run_one(c, out, dev, truth, splits, pos_mean, log):
             p = h["scenes/target_init_pos"][:]; yw = np.deg2rad(h["scenes/target_init_yaw_deg"][:])
         tab = np.c_[p, np.sin(4 * yw), np.cos(4 * yw)].astype(np.float32)   # 立方体なので 90° ごとに同じ → 4 倍角
         cube_tab = torch.from_numpy(tab).to(dev)
-    model = StudyWM(c["rep"], c["enc"], tr.frames, nd, mean, std, pos_mean, cube=bool(c.get("cube"))).to(dev)
+    model = StudyWM(c["rep"], c["enc"], tr.frames, nd, mean, std, pos_mean, cube=bool(c.get("cube")), spatial=bool(c.get("spatial"))).to(dev)
     nparam = sum(p.numel() for p in model.parameters())
     opt = torch.optim.AdamW(model.parameters(), lr=c["lr"], weight_decay=1e-4)
     g = torch.Generator(); g.manual_seed(c["seed"])
@@ -371,6 +400,14 @@ def plan(which, epochs):
         for rep in REPS:
             lr = 1e-3 if rep.endswith("_num") else 3e-4
             P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=0, epochs=epochs, es=True))
+    elif which in ("ss_v1", "ss_smoke"):   # protocol 追記 5: 2D の画像エンコーダを全部 SS（座標チャネル + spatial softmax）に。画像を先に
+        smoke = which == "ss_smoke"
+        for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
+            lr = 1e-3 if rep.endswith("_num") else 3e-4
+            c = dict(rep=rep, enc="base", steps="raster", lr=lr, seed=0, epochs=epochs, es=True, patience=8, spatial=True)
+            if smoke:
+                c["frac"] = 0.25
+            P.append(c)
     elif which in ("f_v1", "f_smoke"):   # protocol 追記 4: F（conv）を数値・画像の両方に。画像を先に（遅い・エラーを早く見るため）
         smoke = which == "f_smoke"
         for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
