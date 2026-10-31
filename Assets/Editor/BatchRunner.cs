@@ -46,6 +46,7 @@ public static class BatchRunner
         public float stopAfterHours = 0f;        // 0 より大きいと、開始からこの時間までに終わるシーンだけ始める(夜だけ回す用)
         public float timeScale = 1f;             // Play 中の Time.timeScale(早回し)。1 = 実時間
         public bool inspectAtEnd = true;         // 終わったら inspect_batch.py を回して inspection.md を更新
+        public string forceOverlapBranch = "";   // H5 専用データ: 円柱を当てる枝(空 / wrist_down / wrist_up / alternate)。空なら今までと同じ
     }
 
     [Serializable]
@@ -278,7 +279,7 @@ public static class BatchRunner
 
         st.curJobId = $"seed{st.curSeed}_{DateTime.Now:yyyyMMdd_HHmmss}";
         try { if (File.Exists(BatchJob.ResultPath)) File.Delete(BatchJob.ResultPath); } catch { }
-        var job = new BatchJob.Job { jobId = st.curJobId, seed = st.curSeed, sceneIndex = st.curScene, pairIndex = st.curPair, outputRoot = st.rootAbs, timeScale = cfg.timeScale };
+        var job = new BatchJob.Job { jobId = st.curJobId, seed = st.curSeed, sceneIndex = st.curScene, pairIndex = st.curPair, outputRoot = st.rootAbs, timeScale = cfg.timeScale, forceOverlapBranch = cfg.forceOverlapBranch ?? "" };
         Directory.CreateDirectory(BatchJob.Dir);
         File.WriteAllText(BatchJob.JobPath, JsonUtility.ToJson(job, true), new UTF8Encoding(false));
         st.jobStart = Now;

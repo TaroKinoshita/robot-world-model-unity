@@ -88,6 +88,8 @@ public class AutoSceneSettings
     public float occlusionMarginView = 0.01f;
     [Tooltip("整理: 円柱の置き場所を、ターゲットを円柱の方へ押す候補が作れる所(届く・押し始めが土台から遠い・机の上)に絞る。見つからなければ絞らずに置く")]
     public bool requireTowardSecondaryFeasible = true;
+    [Tooltip("H5 専用データ: 円柱を当てる matched pair の枝を決める。空 = どちらでも(v1・v2 と同じ)、wrist_down / wrist_up = その枝だけ、alternate = seed が偶数なら wrist_down・奇数なら wrist_up")]
+    public string forceOverlapBranch = "";
     public float gridStep = 0.01f;
 
     public int maxSceneAttempts = 20;
@@ -512,6 +514,18 @@ public static class SceneGenerator
         return false;
     }
 
+    // H5 専用データ: k = 0 は wrist_down、1 は wrist_up の腕に円柱を当てる
+    static bool BranchAllowed(AutoSceneSettings s, GeneratedScene g, int k)
+    {
+        switch (s.forceOverlapBranch)
+        {
+            case "wrist_down": return k == 0;
+            case "wrist_up": return k == 1;
+            case "alternate": return k == ((g.seed % 2 == 0) ? 0 : 1);
+            default: return true;
+        }
+    }
+
     static bool PlaceSecondaryAt(Context c, AutoSceneSettings s, GeneratedScene g, Vector3 tPos, Quaternion tRot, Vector3 goal,
                                  CandidateSpec down, CandidateSpec up, float[][,] maps, List<Vector3>[] lists, float H,
                                  List<List<Vector3>> otherLists, bool towardStrict = false)
@@ -542,6 +556,7 @@ public static class SceneGenerator
                 float cD = Clearance(s, armD, x, z, top, 0.1f), cU = Clearance(s, armU, x, z, top, 0.1f);
                 for (int k = 0; k < 2; k++)
                 {
+                    if (!BranchAllowed(s, g, k)) continue;
                     float ov = -(k == 0 ? cD : cU), other = k == 0 ? cU : cD;
                     if (other >= s.otherBranchClearance - slack) gBestOv = Mathf.Max(gBestOv, ov);
                     if (ov < s.armOverlapRange.x - slack || ov > s.armOverlapRange.y + slack || other < s.otherBranchClearance - slack) { gRange++; continue; }
@@ -562,6 +577,7 @@ public static class SceneGenerator
         {
             for (int k = 0; k < 2; k++)
             {
+                if (!BranchAllowed(s, g, k)) continue;
                 // 重なる側の腕の一番近い点へ向かって、重なりが目標になるまで中心をずらす(数回)
                 var hitPts = k == 0 ? wArmD : wArmU; var otherPts = k == 0 ? wArmU : wArmD;
                 float cx = cd.x, cz = cd.z, ov = 0f;

@@ -179,6 +179,7 @@ public class EpisodeRecorder : MonoBehaviour
             pairIndex = batchJob.pairIndex;
             if (!string.IsNullOrEmpty(batchJob.outputRoot)) outputRoot = batchJob.outputRoot;
             if (batchJob.timeScale > 0f) playTimeScale = batchJob.timeScale;
+            if (!string.IsNullOrEmpty(batchJob.forceOverlapBranch)) autoScene.forceOverlapBranch = batchJob.forceOverlapBranch;   // H5 専用データ
             Debug.Log($"[EpisodeRecorder] batch job {batchJob.jobId}: seed={seed}, sceneIndex={sceneIndex}, pairIndex={pairIndex}, outputRoot='{outputRoot}'");
         }
 
