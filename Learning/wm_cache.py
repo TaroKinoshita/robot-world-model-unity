@@ -233,8 +233,11 @@ def git_commit(sd):
 # ---------- 本体 ----------
 
 def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=print, share_eef=True):
+    roots = list(root) if isinstance(root, (list, tuple)) else [root]   # 複数の量産フォルダをまとめられる（scene / pair の番号は重ならない前提）
     scenes = {}
-    for sd in sorted(root.glob("scene_*")):
+    for sd in sorted((s for r in roots for s in r.glob("scene_*")), key=lambda s: s.name):
+        if sd.name in scenes:
+            sys.exit(f"同じ名前のシーンが 2 つある: {sd.name}")
         if not (sd / "candidates.json").is_file() or not (sd / "metadata.json").is_file():
             continue
         task = (_json(sd / "scene_initial.json").get("task") or {})
@@ -243,8 +246,8 @@ def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=pri
     pair_scene = {p: {s["task"]: n for n, s in scenes.items() if s["pair"] == p} for p in pairs}
     pairs = [p for p in pairs if set(pair_scene[p]) == {"A", "B"}]
     if not pairs:
-        sys.exit(f"ペアが見つからない: {root}")
-    log(f"[cache] {root}: ペア {len(pairs)}")
+        sys.exit(f"ペアが見つからない: {roots}")
+    log(f"[cache] {', '.join(str(r) for r in roots)}: ペア {len(pairs)}")
 
     first = scenes[pair_scene[pairs[0]]["A"]]["dir"]
     cam = _json(first / "camera.json")
@@ -381,7 +384,7 @@ def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=pri
         gp.create_dataset("pair_id", data=np.array(pairs, dtype="S16"))
         gp.create_dataset("seed", data=np.array([S[2 * i]["seed"] for i in range(len(pairs))], np.int64))
 
-        h.attrs.update({"version": VERSION, "res": res, "frames": frames, "source_root": str(root),
+        h.attrs.update({"version": VERSION, "res": res, "frames": frames, "source_root": ";".join(str(r) for r in roots),
                         "created": dt.datetime.now().isoformat(timespec="seconds"),
                         "K": K, "T_world_to_cam_cv": np.asarray(cam["T_world_to_cam_cv"], np.float64),
                         "git_commits": json.dumps(sorted(commits)), "contact_touch_tolerance_m": tol,
@@ -396,7 +399,7 @@ def build(root: Path, out_path: Path, res: int, frames: int, tol: float, log=pri
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--episodes", default="Episodes/_p8_20scenes", help="プロジェクトからの相対 or 絶対パス")
+    ap.add_argument("--episodes", nargs="+", default=["Episodes/_p8_20scenes"], help="プロジェクトからの相対 or 絶対パス。複数並べるとまとめて 1 つのキャッシュにする（--out が必要）")
     ap.add_argument("--out", default=None, help="省略時は <episodes>/_cache/wm_<res>x<frames>.h5")
     ap.add_argument("--res", type=int, default=128)
     ap.add_argument("--frames", type=int, default=25)
@@ -404,12 +407,14 @@ def main():
     ap.add_argument("--no-share-eef", action="store_true", help="matched pair の EEF action を共有しない(v2 と同じ)")
     args = ap.parse_args()
     project = Path(__file__).resolve().parents[1]
-    root = Path(args.episodes)
-    if not root.is_absolute():
-        root = project / root
-    out = Path(args.out) if args.out else root / "_cache" / f"wm_{args.res}x{args.frames}.h5"
+    roots = [Path(e) if Path(e).is_absolute() else project / e for e in args.episodes]
+    if len(roots) > 1 and not args.out:
+        sys.exit("量産フォルダを複数まとめるときは --out を指定する")
+    out = Path(args.out) if args.out else roots[0] / "_cache" / f"wm_{args.res}x{args.frames}.h5"
+    if not out.is_absolute():
+        out = project / out
     t0 = dt.datetime.now()
-    build(root, out, args.res, args.frames, args.touch_tol, share_eef=not args.no_share_eef)
+    build(roots if len(roots) > 1 else roots[0], out, args.res, args.frames, args.touch_tol, share_eef=not args.no_share_eef)
     print(f"[cache] {(dt.datetime.now() - t0).total_seconds():.0f} s")
 
 

@@ -1,0 +1,15 @@
+{
+  "note": "Pairs excluded from training/evaluation (_main_v2). Raw data is kept on disk. Decided 2026-10-31 by Taro after the _main_v2 inspection (inspection.md), same rule as _main_v1.",
+  "excluded": [
+    {"pair": "pair_0389", "scenes": ["scene_0778", "scene_0779"], "seed": 2069, "reason": "Task B initial image: secondary (cylinder) has 0 px in the semantic image (validation NG); cylinder-direction candidate filled with random. Same as _main_v1 pair_0040."},
+    {"pair": "pair_0440", "scenes": ["scene_0880", "scene_0881"], "seed": 2120, "reason": "Same as pair_0389: cylinder 0 px in Task B initial image."},
+    {"pair": "pair_0498", "scenes": ["scene_0996", "scene_0997"], "seed": 2178, "reason": "Same as pair_0389: cylinder 0 px in Task B initial image."}
+  ],
+  "kept_with_note": [
+    {"pair": "pair_0370", "scenes": ["scene_0740", "scene_0741"], "seed": 2050, "reason": "Validation FAIL: scene_0741 candidate c012 has no final/with_robot capture (folder missing). The training cache does not read final/with_robot (it uses the robot-free initial images, actions and final/target_mask.png), so kept on purpose."}
+  ],
+  "cylinder_dir_fallback_pairs": {
+    "note": "Pairs where the cylinder-direction candidates were filled with random-direction candidates (inspection.md section 5). Not excluded; flagged. Three of the seven are already excluded above.",
+    "pairs": ["pair_0332", "pair_0379", "pair_0389", "pair_0403", "pair_0440", "pair_0468", "pair_0498"]
+  }
+}

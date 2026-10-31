@@ -1,0 +1,18 @@
+{
+  "note": "Pairs excluded from training/evaluation. Raw data is kept on disk (nothing deleted). Exclusions of pair_0040/0190 decided 2026-10-29 by Taro; pair_0219/0275/0292/0299 added 2026-10-30 (same cause, found in the 2nd production run) after Taro said to proceed with the plan.",
+  "excluded": [
+    {"pair": "pair_0040", "scenes": ["scene_0080", "scene_0081"], "seed": 1040, "reason": "Task B initial image: secondary (cylinder) has 0 px in the semantic image; the cylinder-direction candidate could not be made (random fill)."},
+    {"pair": "pair_0190", "scenes": ["scene_0380", "scene_0381"], "seed": 1190, "reason": "Same as pair_0040: cylinder not visible in Task B initial image; cylinder-direction candidate replaced by random."},
+    {"pair": "pair_0219", "scenes": ["scene_0438", "scene_0439"], "seed": 1219, "reason": "Same as pair_0040: cylinder 0 px in Task B initial image (validation NG: initial image secondary 0 px)."},
+    {"pair": "pair_0275", "scenes": ["scene_0550", "scene_0551"], "seed": 1275, "reason": "Same as pair_0040: cylinder 0 px in Task B initial image."},
+    {"pair": "pair_0292", "scenes": ["scene_0584", "scene_0585"], "seed": 1292, "reason": "Same as pair_0040: cylinder 0 px in Task B initial image."},
+    {"pair": "pair_0299", "scenes": ["scene_0598", "scene_0599"], "seed": 1299, "reason": "Same as pair_0040: cylinder 0 px in Task B initial image."}
+  ],
+  "kept_with_note": [
+    {"pair": "pair_0082", "scenes": ["scene_0164", "scene_0165"], "seed": 1082, "reason": "Validation FAIL on one check only (c004 final cube vs target_mask IoU 0.838 < 0.85); 107/107 pair-level checks pass. Kept on purpose."}
+  ],
+  "cylinder_dir_fallback_pairs": {
+    "note": "Pairs where the cylinder-direction candidates could not be made and were filled with random-direction candidates (inspection.md section 5). Not excluded (validation passes); flagged so the cylinder-direction kind can be filtered if needed. Six of the 15 are already in excluded above.",
+    "pairs": ["pair_0040", "pair_0057", "pair_0059", "pair_0061", "pair_0149", "pair_0172", "pair_0173", "pair_0176", "pair_0190", "pair_0219", "pair_0245", "pair_0275", "pair_0282", "pair_0292", "pair_0299"]
+  }
+}
