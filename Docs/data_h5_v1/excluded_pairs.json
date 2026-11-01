@@ -1,0 +1,269 @@
+{
+  "note": "Pairs excluded from evaluation (_h5_v1, evaluation-only H5 set, forceOverlapBranch=alternate). Raw data is kept. Decided 2026-11-01 by Taro after the _h5_v1 inspection. All 24 exclusions are wrist_down-forced scenes (24/75); none of the 75 wrist_up-forced scenes failed. After exclusion: 126 pairs, one-sided matched-pair collisions wrist_down 61 / wrist_up 119.",
+  "excluded": [
+    {
+      "pair": "pair_0524",
+      "scenes": [
+        "scene_1048",
+        "scene_1049"
+      ],
+      "seed": 3104,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0526",
+      "scenes": [
+        "scene_1052",
+        "scene_1053"
+      ],
+      "seed": 3106,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0528",
+      "scenes": [
+        "scene_1056",
+        "scene_1057"
+      ],
+      "seed": 3108,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0562",
+      "scenes": [
+        "scene_1124",
+        "scene_1125"
+      ],
+      "seed": 3142,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0564",
+      "scenes": [
+        "scene_1128",
+        "scene_1129"
+      ],
+      "seed": 3144,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0568",
+      "scenes": [
+        "scene_1136",
+        "scene_1137"
+      ],
+      "seed": 3148,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0570",
+      "scenes": [
+        "scene_1140",
+        "scene_1141"
+      ],
+      "seed": 3150,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0578",
+      "scenes": [
+        "scene_1156",
+        "scene_1157"
+      ],
+      "seed": 3158,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0580",
+      "scenes": [
+        "scene_1160",
+        "scene_1161"
+      ],
+      "seed": 3160,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0584",
+      "scenes": [
+        "scene_1168",
+        "scene_1169"
+      ],
+      "seed": 3164,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0588",
+      "scenes": [
+        "scene_1176",
+        "scene_1177"
+      ],
+      "seed": 3168,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0598",
+      "scenes": [
+        "scene_1196",
+        "scene_1197"
+      ],
+      "seed": 3178,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0608",
+      "scenes": [
+        "scene_1216",
+        "scene_1217"
+      ],
+      "seed": 3188,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0618",
+      "scenes": [
+        "scene_1236",
+        "scene_1237"
+      ],
+      "seed": 3198,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0622",
+      "scenes": [
+        "scene_1244",
+        "scene_1245"
+      ],
+      "seed": 3202,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0628",
+      "scenes": [
+        "scene_1256",
+        "scene_1257"
+      ],
+      "seed": 3208,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0640",
+      "scenes": [
+        "scene_1280",
+        "scene_1281"
+      ],
+      "seed": 3220,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0642",
+      "scenes": [
+        "scene_1284",
+        "scene_1285"
+      ],
+      "seed": 3222,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0654",
+      "scenes": [
+        "scene_1308",
+        "scene_1309"
+      ],
+      "seed": 3234,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0656",
+      "scenes": [
+        "scene_1312",
+        "scene_1313"
+      ],
+      "seed": 3236,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0658",
+      "scenes": [
+        "scene_1316",
+        "scene_1317"
+      ],
+      "seed": 3238,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0660",
+      "scenes": [
+        "scene_1320",
+        "scene_1321"
+      ],
+      "seed": 3240,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0662",
+      "scenes": [
+        "scene_1324",
+        "scene_1325"
+      ],
+      "seed": 3242,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    },
+    {
+      "pair": "pair_0668",
+      "scenes": [
+        "scene_1336",
+        "scene_1337"
+      ],
+      "seed": 3248,
+      "reason": "Task B initial image: cylinder 0 px (validation NG). wrist_down-forced scene (even seed); the cylinder was placed near the front-left of the table close to the robot base."
+    }
+  ],
+  "kept_with_note": [
+    {
+      "pair": "pair_0548",
+      "scenes": [
+        "scene_1096",
+        "scene_1097"
+      ],
+      "seed": 3128,
+      "reason": "Validation FAIL on one check only (c014 final cube vs target_mask IoU 0.844 < 0.85), same kind as _main_v1 pair_0082. Kept on purpose."
+    }
+  ],
+  "cylinder_dir_fallback_pairs": {
+    "note": "Cylinder-direction candidates filled with random-direction ones (inspection.md section 5). Not excluded; flagged.",
+    "pairs": [
+      "pair_0524",
+      "pair_0526",
+      "pair_0528",
+      "pair_0530",
+      "pair_0550",
+      "pair_0552",
+      "pair_0562",
+      "pair_0564",
+      "pair_0568",
+      "pair_0570",
+      "pair_0578",
+      "pair_0580",
+      "pair_0584",
+      "pair_0586",
+      "pair_0588",
+      "pair_0598",
+      "pair_0604",
+      "pair_0608",
+      "pair_0618",
+      "pair_0622",
+      "pair_0626",
+      "pair_0628",
+      "pair_0633",
+      "pair_0640",
+      "pair_0642",
+      "pair_0654",
+      "pair_0656",
+      "pair_0658",
+      "pair_0659",
+      "pair_0660",
+      "pair_0662",
+      "pair_0668"
+    ]
+  }
+}

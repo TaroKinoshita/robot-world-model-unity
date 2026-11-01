@@ -407,6 +407,11 @@ def run_one(c, out, dev, truth, splits, pos_mean, log):
         f.write_text(json.dumps(res, indent=1), encoding="utf-8")
     else:
         wm_eval.save_predictions(pd / f"{name}__val.npz", Pva["ep"], Pva["final_pos"], Pva["goal"], Pva["coll"])
+    # 学習した重み（early stopping なら val loss 最小の epoch）を残す。あとで別のデータ（H5 セット・test）を予測できるように（Learning/wm_predict.py）
+    mdl = out / "models"; mdl.mkdir(exist_ok=True)
+    torch.save({"state_dict": {k: v.detach().cpu() for k, v in model.state_dict().items()}, "config": c, "frames": int(tr.frames),
+                "num_dim": nd, "goal_tau_mm": res.get("goal_tau_mm"), "cache": str(CACHE), "best_epoch": best[1] if c.get("es") else None,
+                "params": nparam}, mdl / f"{name}.pt")
     tm = res["train"]
     log(f"  [{name}] done {sec:.0f}s params {nparam:,}  TRAIN A pos {tm['A']['pos_err_mm']:.1f} goal {tm['A']['goal_auprc']:.3f} | "
         f"B pos {tm['B']['pos_err_mm']:.1f} goal {tm['B']['goal_auprc']:.3f} coll {tm['B']['coll_auprc']:.3f} | val {Lva['total']:.4f}")
