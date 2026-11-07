@@ -34,3 +34,11 @@
 - **腕全体・数値**：手首の向きの偏りだけでは説明できない情報を使っている。ただし seed のばらつきが大きく、wrist_down 側だけの CI は 0.5 をまたぐ
 - **腕全体・画像**：balanced は 0.5 を少し上回るだけで、wrist_down 側は 5 seed とも 0.5 未満。主に wrist_up 寄りの偏りに乗っている
 - 注意：**balanced で判定してよいか、AUROC を使うかは指導教員に未確認**（protocol にもまだ書いていない）。test の前に決めて protocol に書く
+
+## test（1 回だけ、2026-11-08、protocol 追記 8 のルールで判定）
+
+- `wm_predict.py --split test --name test` → `eval_test.md`、判定は `Learning/wm_test_judge.py` → `test_judgement.md`。76 シーンペア、5 seed
+- **H1 supported（数値・画像）、H2 supported（数値 +0.028 [+0.009, +0.047]、画像 +0.050 [+0.025, +0.074]）、H4 not supported（数値・画像）**
+- **H5 supported（数値・画像）**：balanced 数値 0.842 [0.785, 0.893]、画像 0.719 [0.638, 0.799]（Holm 後も有意）。AUROC（副）は 0.941、0.898
+- seed ごとの balanced：数値 0.918 / 0.877 / 0.780 / 0.856 / 0.779、画像 0.710 / 0.705 / 0.711 / 0.745 / 0.723（5 seed とも 0.5 超え）
+- 注意：画像の wrist_down 側は 0.500 [0.344, 0.657] で、まだ wrist_up 寄りの偏りがある（両方同じ組の c_up − c_down は全 seed で +0.35〜+0.44）。test は H5 セットより学習データに近い割合（down 36 / up 77）なので、H5 セット（画像 0.603）より高く出ている
