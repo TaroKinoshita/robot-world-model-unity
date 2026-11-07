@@ -137,3 +137,12 @@
   - 数値の action エンコーダ：E0 の 1D CNN
   - 学習：lr 数値 1e-3・画像 3e-4、最大 40 epoch、cosine、毎 epoch val、val loss 最小の重み、8 epoch 改善なしで打ち切り
 - 次に回すもの：この構成で 4 モデル × seed 0・1・2、全学習ペア（`--plan main_ss`）
+
+### 追記 7（2026-11-08、main_ss5 を回す前に書いた。test はまだ使っていない）
+
+- 背景：`results_main_v1v2_ckpt`（seed 0・1・2）の H5 評価専用セットで、腕全体・数値の balanced が seed ごとに 0.893 / 0.683 / 0.601 と大きくばらついた（`results_main_v1v2_ckpt/h5_analysis.md`）。seed 3 つでは、結論が seed の当たり外れに左右されるおそれがある
+- 変更：**seed を 0〜4 の 5 つに増やす**（`--plan main_ss5`）。構成・データ・分割・ハイパーパラメータは追記 6 のまま。新しく回すのは seed 3・4 の 8 run だけで、seed 0〜2 の 12 run はそのまま使う（同じ `--out` なので、終わった run は飛ばされる）
+- 実行環境は seed 0〜2 と揃える：RunPod の RTX 4090、torch 2.8.0+cu128、`OMP_NUM_THREADS=8 MKL_NUM_THREADS=8`
+- これ以降、val・H5 セット・test の数字は **5 seed の平均**で報告し、seed ごとの値も並べる
+- seed を増やすと決めたのは H5 セットの結果を見たあと。ただし、増やすのは推定のばらつきを減らすためで、どの seed を使うかを選ぶものではない（5 つ全部を使う）
+- H5 をどの指標で判定するか（balanced か、組の中の AUROC か）はまだ決めていない。指導教員に確認して、test を回す前に追記する

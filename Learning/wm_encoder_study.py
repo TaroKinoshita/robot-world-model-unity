@@ -455,8 +455,8 @@ def plan(which, epochs):
             if smoke:
                 c["frac"] = 0.25
             P.append(c)
-    elif which == "main_ss":   # protocol 追記 6: 本番の構成で 4 モデル × seed 0・1・2、全学習ペア
-        for seed in [0, 1, 2]:
+    elif which in ("main_ss", "main_ss5"):   # protocol 追記 6: 本番の構成で 4 モデル × seed 0・1・2、全学習ペア。追記 7: main_ss5 は seed 0〜4
+        for seed in ([0, 1, 2, 3, 4] if which == "main_ss5" else [0, 1, 2]):
             for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
                 lr = 1e-3 if rep.endswith("_num") else 3e-4
                 P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=seed, epochs=epochs, es=True, patience=8, spatial=True, tag="main"))
