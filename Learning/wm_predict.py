@@ -57,7 +57,9 @@ def predict(ckpt_path, cache, truth, pairs, dev):
     tau = (ck.get('goal_tau_mm') or 3.0) / 1000.0
     gp = 1 / (1 + np.exp(-(S.GOAL_RADIUS - S.goal_dist(P, truth)) / tau))
     return {'ep': P['ep'].astype(np.int64), 'final_pos': P['final_pos'].astype(np.float32), 'goal': gp.astype(np.float32),
-            'goal_head': P['goal'].astype(np.float32), 'coll': P['coll'].astype(np.float32)}
+            'goal_head': P['goal'].astype(np.float32), 'coll': P['coll'].astype(np.float32),
+            # protocol 追記 9（H3 用）。mask そのものは大きいので、episode ごとの IoU だけ持つ
+            'mask_iou_ep': wm_eval.mask_iou(P['final_mask'], truth['final_mask'][P['ep']]).astype(np.float32)}
 
 
 def group_baseline(train_truth, train_pairs, truth, eval_eps, by):
@@ -157,8 +159,16 @@ def main():
                                  models={k: v for k, v in models.items() if k in REPS})
     h5md, h5res = h5_table(truth, models, pairs, args.n_boot)
     md += '\n## H5（当たった側の枝ごとの h5_acc と、その平均。手首の向きだけの基準は balanced = 0.5）\n\n' + h5md
-    (runs / f'eval_{args.name}.md').write_text(md, encoding='utf-8')
     js = wm_eval.to_jsonable(res); js['h5_by_branch'] = h5res
+    if all(r in models for r in REPS):   # protocol 追記 9: H3（mask IoU、proposal §2.6 の基準）
+        h3 = wm_eval.judge_hypotheses(res)['H3']
+        md += '\n## H3（mask IoU 画像 − 数値の CI 下限 > 0、かつ位置誤差 数値 − 画像の CI 上限 ≤ 3 mm）\n\n'
+        for k, v in h3.items():
+            i, p = v['iou_gain'], v['num_pos_excess_mm']
+            md += (f"- H3（{k}）：**{v['verdict']}** — IoU 改善 {i['diff']:.3f} [{i['lo']:.3f}, {i['hi']:.3f}]、"
+                   f"数値の位置誤差の超過 {p['diff']:.1f} mm [{p['lo']:.1f}, {p['hi']:.1f}]\n")
+        js['H3'] = {k: {'verdict': v['verdict'], 'iou_gain': v['iou_gain'], 'num_pos_excess_mm': v['num_pos_excess_mm']} for k, v in h3.items()}
+    (runs / f'eval_{args.name}.md').write_text(md, encoding='utf-8')
     (runs / f'eval_{args.name}.json').write_text(json.dumps(js, indent=1, ensure_ascii=False), encoding='utf-8')
     print(md)
 

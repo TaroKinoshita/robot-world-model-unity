@@ -147,6 +147,8 @@ def episode_scene_stats(truth, pred, task):
     st["ep_pos_err_mm"] = 1000 * np.linalg.norm(d, axis=1)
     if "final_mask" in P:
         st["ep_mask_iou"] = mask_iou(P["final_mask"].astype(np.float32), truth["final_mask"][ep])
+    elif "mask_iou_ep" in P:   # 予測側で計算済みの episode ごとの IoU（mask をメモリに持たないため。wm_predict.py）
+        st["ep_mask_iou"] = P["mask_iou_ep"].astype(np.float64)
     if "contact_point" in P:
         cv = truth["contact_valid"][ep].astype(bool)
         ce = np.full(len(ep), np.nan)
