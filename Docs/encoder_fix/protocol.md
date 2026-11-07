@@ -146,3 +146,14 @@
 - これ以降、val・H5 セット・test の数字は **5 seed の平均**で報告し、seed ごとの値も並べる
 - seed を増やすと決めたのは H5 セットの結果を見たあと。ただし、増やすのは推定のばらつきを減らすためで、どの seed を使うかを選ぶものではない（5 つ全部を使う）
 - H5 をどの指標で判定するか（balanced か、組の中の AUROC か）はまだ決めていない。指導教員に確認して、test を回す前に追記する
+
+### 追記 8（2026-11-08、test を回す前に書いた。test はまだ使っていない）
+
+- H5 の判定ルールを決める。指導教員には確認せず、自分で決めた
+- **主な判定は balanced**：wrist_down 側が当たった組の h5_acc と、wrist_up 側が当たった組の h5_acc の平均。手首の向きだけの基準（`base_kind_branch`）は 0.5
+  - 腕全体モデル（数値・画像それぞれ）の **5 seed 平均の balanced の 95% CI（シーンペア単位 bootstrap 2000 回）の下限が 0.5 より上なら supported**、上限が 0.5 より下なら refuted、それ以外は inconclusive
+  - 数値と画像の両方を主張するときは、追記までと同じように Holm で補正する
+- **AUROC は副**：組ごとの c_up − c_down で、「up 側が当たった組」と「down 側が当たった組」を分けられるか。手首の向きの偏りの影響を受けない指標として報告するが、判定には使わない。結果を見てから考えた指標だと論文に書く
+- seed ごとの balanced・AUROC と、wrist_down 側・wrist_up 側の値も必ず並べる（CI に seed のばらつきは入っていない）
+- 決めたのは val と H5 評価専用セットの結果を見たあと（`results_main_v1v2_ckpt/h5_analysis.md`）。balanced は H5 セットを作るときに考えていた指標なので、そちらを主にした
+- test：`results_main_v1v2_ckpt` の 20 モデル（4 モデル × seed 0〜4、保存した重み）で `wm_predict.py --split test` を 1 回だけ回す。H1・H2・H4 も同じ 1 回で判定する
