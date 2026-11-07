@@ -157,3 +157,10 @@
 - seed ごとの balanced・AUROC と、wrist_down 側・wrist_up 側の値も必ず並べる（CI に seed のばらつきは入っていない）
 - 決めたのは val と H5 評価専用セットの結果を見たあと（`results_main_v1v2_ckpt/h5_analysis.md`）。balanced は H5 セットを作るときに考えていた指標なので、そちらを主にした
 - test：`results_main_v1v2_ckpt` の 20 モデル（4 モデル × seed 0〜4、保存した重み）で `wm_predict.py --split test` を 1 回だけ回す。H1・H2・H4 も同じ 1 回で判定する
+
+### 追記 9（2026-11-08、H3 を test で判定する前に書いた。H1・H2・H4・H5 の test 判定は追記 8 のとおり済み）
+
+- 背景：追記 8 の test では、`wm_predict.py` が予測 mask を保存していなかったので H3 を判定できなかった
+- 変更：`wm_predict.py` で `final_mask` も保存するようにして、同じ 20 モデル（4 モデル × seed 0〜4、保存した重み）・同じ test 76 シーンペアで予測を作り直す。重み・データ・分割は変えない
+- H3 の基準は proposal §2.6 のまま（`wm_eval.judge_hypotheses`）：Task A・B × 手先・腕全体のそれぞれで、mask IoU（画像 − 数値）の 95% CI 下限 > 0、かつ位置誤差（数値 − 画像）の 95% CI 上限 ≤ 3.0 mm なら supported
+- H1・H2・H4・H5 は追記 8 の結果をそのまま使う。作り直した予測で数字が変わらないこと（同じ重みなので変わらないはず）を確認し、変わったら記録する
