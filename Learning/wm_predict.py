@@ -59,7 +59,8 @@ def predict(ckpt_path, cache, truth, pairs, dev):
     return {'ep': P['ep'].astype(np.int64), 'final_pos': P['final_pos'].astype(np.float32), 'goal': gp.astype(np.float32),
             'goal_head': P['goal'].astype(np.float32), 'coll': P['coll'].astype(np.float32),
             # protocol 追記 9（H3 用）。mask そのものは大きいので、episode ごとの IoU だけ持つ
-            'mask_iou_ep': wm_eval.mask_iou(P['final_mask'], truth['final_mask'][P['ep']]).astype(np.float32)}
+            'mask_iou_ep': wm_eval.mask_iou(P['final_mask'], truth['final_mask'][P['ep']]).astype(np.float32),
+            'contact_point': P['contact_point'].astype(np.float32)}   # protocol 追記 10
 
 
 def group_baseline(train_truth, train_pairs, truth, eval_eps, by):

@@ -246,7 +246,7 @@ def add_cube(b, cube_tab):
 @torch.no_grad()
 def evaluate_split(model, ds, dev, cube_tab=None):
     model.eval()
-    P = {"ep": [], "final_pos": [], "goal": [], "coll": [], "final_mask": []}
+    P = {"ep": [], "final_pos": [], "goal": [], "coll": [], "final_mask": [], "contact_point": []}
     tot, n = {}, 0
     for b in batches(ds, 32, False):
         b = prepare_batch(b, dev)
@@ -259,6 +259,7 @@ def evaluate_split(model, ds, dev, cube_tab=None):
         P["ep"].append(b["ep"].cpu().numpy()); P["final_pos"].append(o["final_pos"].cpu().numpy())
         P["goal"].append(torch.sigmoid(o["goal_logit"]).cpu().numpy()); P["coll"].append(torch.sigmoid(o["coll_logit"]).cpu().numpy())
         P["final_mask"].append(torch.sigmoid(o["mask_logit"])[:, 0].cpu().numpy())
+        P["contact_point"].append(o["contact_point"].cpu().numpy())
     P = {k: np.concatenate(v) for k, v in P.items()}
     return P, {k: v / n for k, v in tot.items()}
 
