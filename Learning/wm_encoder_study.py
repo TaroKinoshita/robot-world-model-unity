@@ -476,6 +476,10 @@ def plan(which, epochs):
     elif which == "fused_es":   # 案 A を early stopping 付きでやり直す（fused_pilot は 100 epoch の過学習で比べてしまったため）
         for rep in ["eef_img", "full_img"]:
             P.append(dict(rep=rep, enc="fused", steps="raster", lr=3e-4, seed=0, epochs=epochs, es=True))
+    elif which == "fused_ss5":   # protocol 追記 11（探索的、test は使わない）: 今の本番の構成（SS・early stopping・全学習ペア）で fused を画像 2 rep × seed 0〜4
+        for seed in [0, 1, 2, 3, 4]:
+            for rep in ["eef_img", "full_img"]:
+                P.append(dict(rep=rep, enc="fused", steps="raster", lr=3e-4, seed=seed, epochs=epochs, es=True, patience=8, spatial=True, tag="fused"))
     elif which == "fused_pilot":   # 案 A の小さい試し: 画像 2 rep × 学習ペア 25 / 50%、seed 0（base の同じ run と比べる）
         for frac in [0.25, 0.5]:
             for rep in ["eef_img", "full_img"]:

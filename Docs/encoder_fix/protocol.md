@@ -171,3 +171,10 @@
 - 変更：予測を集める `evaluate_split` で接触位置も取り出し、`wm_predict.py` で保存する。同じ 20 モデル・同じ test 76 シーンペアで予測を作り直す。重み・データ・分割は変えない
 - 接触位置の誤差は **探索的な指標**として報告する（仮説の判定には使わない）。正解の接触がある episode だけで計算する（`wm_eval` の定義のまま）
 - H1〜H5 の数字が変わらないことを確認し、変わったら記録する
+
+### 追記 11（2026-11-11、fused_ss5 を回す前に書いた。探索的な追加実験。test は使わない）
+
+- 背景：`Docs/analysis_20261111/image_diagnosis_and_related_work.md`。画像の action と初期画像の depth だけを使う学習なしのルールで、matched pair の balanced が val 0.914・H5 評価専用セット 0.895（腕全体・画像のモデルは 0.740・0.603）。画像モデルが弱いのは、初期画像と action 画像を別々にベクトルにする late fusion のせいでは、という仮説
+- 変更：画像の 2 モデルだけ、action エンコーダを `enc=fused`（初期画像 4ch + ゴール 1ch + action 50ch を最初から重ねて 1 つの SS エンコーダ）にする。それ以外（SS、lr 3e-4、最大 40 epoch、early stopping patience 8、全学習ペア、seed 0〜4）は追記 6・7 のまま。`--plan fused_ss5`、出力は `results_fused_ss5`
+- 評価は **val と H5 評価専用セットだけ**。比べる相手は `results_main_v1v2_ckpt` の画像モデル（base）。主に見るのは H5 の balanced（追記 8 と同じ計算）と、衝突 AUPRC・位置誤差・mask IoU
+- test は追記 8〜10 で使用済みなので、この実験には使わない。論文では、仮説の判定とは別の探索的な追加実験として書く
