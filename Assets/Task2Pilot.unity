@@ -20730,6 +20730,101 @@ MeshCollider:
   m_Convex: 1
   m_CookingOptions: 30
   m_Mesh: {fileID: 4300000, guid: 9588adb57a56c7b41bde4b0099a112d3, type: 2}
+--- !u!1 &1773357284
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1773357286}
+  - component: {fileID: 1773357285}
+  m_Layer: 0
+  m_Name: Task2Test
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1773357285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1773357284}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f31270cea05dc4643bca22cff1c5855e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  autoRun: 1
+  frontZ: 0.4
+  depth: 0.32
+  board: 0.02
+  tableTop: 0.773
+  approachDist: 0.3
+  speed: 0.1
+  holdAbove: 0.13
+  settleSeconds: 2
+  stiffness: 10000
+  damping: 100
+  seedADeg:
+  - -13
+  - -72
+  - 98
+  - -117
+  - -90
+  - 0
+  seedBDeg:
+  - -167
+  - -108
+  - -98
+  - -63
+  - 90
+  - 0
+  layouts:
+  - basketX: -0.05
+    basketZ: 0.14
+    width: 0.32
+    height: 0.5
+    offset: -0.06
+  - basketX: -0.05
+    basketZ: 0.14
+    width: 0.32
+    height: 0.5
+    offset: 0.06
+  - basketX: 0.05
+    basketZ: 0.14
+    width: 0.32
+    height: 0.5
+    offset: -0.06
+  - basketX: 0.05
+    basketZ: 0.14
+    width: 0.32
+    height: 0.5
+    offset: 0.06
+  - basketX: 0
+    basketZ: 0.14
+    width: 0.4
+    height: 0.5
+    offset: 0
+--- !u!4 &1773357286
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1773357284}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1780177860
 GameObject:
   m_ObjectHideFlags: 0
@@ -21673,7 +21768,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1823688464}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4467405dbcbd3d64ab4363e9ae8bb813, type: 3}
   m_Name: 
@@ -26193,3 +26288,4 @@ SceneRoots:
   - {fileID: 1696397983}
   - {fileID: 1725148058}
   - {fileID: 375486197}
+  - {fileID: 1773357286}
