@@ -1,0 +1,78 @@
+===== P15 sweep fused_ss5 2026-11-11 06:03:32  device cuda  torch 2.5.1+cu121  runs 10
+cache C:\UnityProjects\PerceptionTestHDRP\Episodes\_main_v1v2\_cache\wm_128x25.h5  pairs train 358 / val 77 / test 76  excluded 9
+--- [1/10] eef_img__fused__raster__lr0.0003__s0__es40__ss__fused
+  [eef_img__fused__raster__lr0.0003__s0__es40__ss__fused] epoch   1  train 1.6841  val 1.3916
+  [eef_img__fused__raster__lr0.0003__s0__es40__ss__fused] epoch  10  train 0.6731  val 0.8548
+  [eef_img__fused__raster__lr0.0003__s0__es40__ss__fused] epoch 19: 8 epoch 改善なしで打ち切り
+  [eef_img__fused__raster__lr0.0003__s0__es40__ss__fused] early stopping: best epoch 11（val 0.7897）
+  [eef_img__fused__raster__lr0.0003__s0__es40__ss__fused] done 658s params 1,873,579  TRAIN A pos 11.8 goal 0.994 | B pos 12.0 goal 0.994 coll 0.805 | val 0.7897
+--- [2/10] full_img__fused__raster__lr0.0003__s0__es40__ss__fused
+  [full_img__fused__raster__lr0.0003__s0__es40__ss__fused] epoch   1  train 1.6526  val 1.4116
+  [full_img__fused__raster__lr0.0003__s0__es40__ss__fused] epoch  10  train 0.6203  val 0.7470
+  [full_img__fused__raster__lr0.0003__s0__es40__ss__fused] epoch  20  train 0.2719  val 0.9979
+  [full_img__fused__raster__lr0.0003__s0__es40__ss__fused] epoch 20: 8 epoch 改善なしで打ち切り
+  [full_img__fused__raster__lr0.0003__s0__es40__ss__fused] early stopping: best epoch 12（val 0.7089）
+  [full_img__fused__raster__lr0.0003__s0__es40__ss__fused] done 1477s params 1,873,579  TRAIN A pos 11.0 goal 0.991 | B pos 11.3 goal 0.990 coll 0.916 | val 0.7089
+--- [3/10] eef_img__fused__raster__lr0.0003__s1__es40__ss__fused
+  [eef_img__fused__raster__lr0.0003__s1__es40__ss__fused] epoch   1  train 1.6514  val 1.3449
+  [eef_img__fused__raster__lr0.0003__s1__es40__ss__fused] epoch  10  train 0.6781  val 0.7896
+  [eef_img__fused__raster__lr0.0003__s1__es40__ss__fused] epoch 19: 8 epoch 改善なしで打ち切り
+  [eef_img__fused__raster__lr0.0003__s1__es40__ss__fused] early stopping: best epoch 11（val 0.7330）
+  [eef_img__fused__raster__lr0.0003__s1__es40__ss__fused] done 3782s params 1,873,579  TRAIN A pos 10.4 goal 0.988 | B pos 10.4 goal 0.987 coll 0.797 | val 0.7330
+--- [4/10] full_img__fused__raster__lr0.0003__s1__es40__ss__fused
+  [full_img__fused__raster__lr0.0003__s1__es40__ss__fused] epoch   1  train 1.6873  val 1.3892
+  [full_img__fused__raster__lr0.0003__s1__es40__ss__fused] epoch  10  train 0.7689  val 0.7846
+  [full_img__fused__raster__lr0.0003__s1__es40__ss__fused] epoch  20  train 0.4324  val 0.7533
+  [full_img__fused__raster__lr0.0003__s1__es40__ss__fused] epoch 24: 8 epoch 改善なしで打ち切り
+  [full_img__fused__raster__lr0.0003__s1__es40__ss__fused] early stopping: best epoch 16（val 0.7107）
+  [full_img__fused__raster__lr0.0003__s1__es40__ss__fused] done 1872s params 1,873,579  TRAIN A pos 11.9 goal 0.993 | B pos 11.8 goal 0.993 coll 0.911 | val 0.7107
+--- [5/10] eef_img__fused__raster__lr0.0003__s2__es40__ss__fused
+  [eef_img__fused__raster__lr0.0003__s2__es40__ss__fused] epoch   1  train 1.6212  val 1.3728
+===== P15 sweep fused_ss5 2026-11-12 15:46:11  device cuda  torch 2.8.0+cu128  runs 10
+cache /workspace/robot-world-model-unity/Episodes/_main_v1v2/_cache/wm_128x25.h5  pairs train 358 / val 77 / test 76  excluded 9
+--- [1/10] eef_img__fused__raster__lr0.0003__s0__es40__ss__fused
+--- [2/10] full_img__fused__raster__lr0.0003__s0__es40__ss__fused
+--- [3/10] eef_img__fused__raster__lr0.0003__s1__es40__ss__fused
+--- [4/10] full_img__fused__raster__lr0.0003__s1__es40__ss__fused
+--- [5/10] eef_img__fused__raster__lr0.0003__s2__es40__ss__fused
+  [eef_img__fused__raster__lr0.0003__s2__es40__ss__fused] epoch   1  train 1.6205  val 1.3482
+  [eef_img__fused__raster__lr0.0003__s2__es40__ss__fused] epoch  10  train 0.6954  val 0.7833
+  [eef_img__fused__raster__lr0.0003__s2__es40__ss__fused] epoch  20  train 0.4467  val 0.7957
+  [eef_img__fused__raster__lr0.0003__s2__es40__ss__fused] epoch 23: 8 epoch 改善なしで打ち切り
+  [eef_img__fused__raster__lr0.0003__s2__es40__ss__fused] early stopping: best epoch 15（val 0.7456）
+  [eef_img__fused__raster__lr0.0003__s2__es40__ss__fused] done 393s params 1,873,579  TRAIN A pos 7.3 goal 0.997 | B pos 7.6 goal 0.997 coll 0.840 | val 0.7456
+--- [6/10] full_img__fused__raster__lr0.0003__s2__es40__ss__fused
+  [full_img__fused__raster__lr0.0003__s2__es40__ss__fused] epoch   1  train 1.6167  val 1.4064
+  [full_img__fused__raster__lr0.0003__s2__es40__ss__fused] epoch  10  train 0.6620  val 0.8047
+  [full_img__fused__raster__lr0.0003__s2__es40__ss__fused] epoch  20  train 0.3303  val 0.9399
+  [full_img__fused__raster__lr0.0003__s2__es40__ss__fused] epoch 23: 8 epoch 改善なしで打ち切り
+  [full_img__fused__raster__lr0.0003__s2__es40__ss__fused] early stopping: best epoch 15（val 0.7959）
+  [full_img__fused__raster__lr0.0003__s2__es40__ss__fused] done 402s params 1,873,579  TRAIN A pos 11.0 goal 0.995 | B pos 11.9 goal 0.995 coll 0.945 | val 0.7959
+--- [7/10] eef_img__fused__raster__lr0.0003__s3__es40__ss__fused
+  [eef_img__fused__raster__lr0.0003__s3__es40__ss__fused] epoch   1  train 1.6669  val 1.3703
+  [eef_img__fused__raster__lr0.0003__s3__es40__ss__fused] epoch  10  train 0.6609  val 0.7943
+  [eef_img__fused__raster__lr0.0003__s3__es40__ss__fused] epoch  20  train 0.4270  val 0.8129
+  [eef_img__fused__raster__lr0.0003__s3__es40__ss__fused] epoch 22: 8 epoch 改善なしで打ち切り
+  [eef_img__fused__raster__lr0.0003__s3__es40__ss__fused] early stopping: best epoch 14（val 0.7244）
+  [eef_img__fused__raster__lr0.0003__s3__es40__ss__fused] done 396s params 1,873,579  TRAIN A pos 8.6 goal 0.997 | B pos 8.7 goal 0.998 coll 0.846 | val 0.7244
+--- [8/10] full_img__fused__raster__lr0.0003__s3__es40__ss__fused
+  [full_img__fused__raster__lr0.0003__s3__es40__ss__fused] epoch   1  train 1.6876  val 1.3990
+  [full_img__fused__raster__lr0.0003__s3__es40__ss__fused] epoch  10  train 0.6899  val 0.7460
+  [full_img__fused__raster__lr0.0003__s3__es40__ss__fused] epoch 18: 8 epoch 改善なしで打ち切り
+  [full_img__fused__raster__lr0.0003__s3__es40__ss__fused] early stopping: best epoch 10（val 0.7460）
+  [full_img__fused__raster__lr0.0003__s3__es40__ss__fused] done 315s params 1,873,579  TRAIN A pos 12.7 goal 0.955 | B pos 13.4 goal 0.954 coll 0.864 | val 0.7460
+--- [9/10] eef_img__fused__raster__lr0.0003__s4__es40__ss__fused
+  [eef_img__fused__raster__lr0.0003__s4__es40__ss__fused] epoch   1  train 1.6956  val 1.3500
+  [eef_img__fused__raster__lr0.0003__s4__es40__ss__fused] epoch  10  train 0.7095  val 0.8015
+  [eef_img__fused__raster__lr0.0003__s4__es40__ss__fused] epoch  20  train 0.4905  val 0.8346
+  [eef_img__fused__raster__lr0.0003__s4__es40__ss__fused] epoch 26: 8 epoch 改善なしで打ち切り
+  [eef_img__fused__raster__lr0.0003__s4__es40__ss__fused] early stopping: best epoch 18（val 0.7516）
+  [eef_img__fused__raster__lr0.0003__s4__es40__ss__fused] done 455s params 1,873,579  TRAIN A pos 7.9 goal 0.999 | B pos 8.0 goal 0.999 coll 0.853 | val 0.7516
+--- [10/10] full_img__fused__raster__lr0.0003__s4__es40__ss__fused
+  [full_img__fused__raster__lr0.0003__s4__es40__ss__fused] epoch   1  train 1.6957  val 1.4029
+  [full_img__fused__raster__lr0.0003__s4__es40__ss__fused] epoch  10  train 0.7136  val 0.7905
+  [full_img__fused__raster__lr0.0003__s4__es40__ss__fused] epoch  20  train 0.3701  val 0.9405
+  [full_img__fused__raster__lr0.0003__s4__es40__ss__fused] epoch 22: 8 epoch 改善なしで打ち切り
+  [full_img__fused__raster__lr0.0003__s4__es40__ss__fused] early stopping: best epoch 14（val 0.7632）
+  [full_img__fused__raster__lr0.0003__s4__es40__ss__fused] done 390s params 1,873,579  TRAIN A pos 10.9 goal 0.985 | B pos 11.0 goal 0.985 coll 0.905 | val 0.7632
+===== P15 sweep fused_ss5 finished 2026-11-12 16:29:56
