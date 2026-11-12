@@ -1,4 +1,4 @@
-# Progress report — 2026-11-08
+# Progress report — 2026-11-08 (updated 2026-11-13)
 
 **Thesis:** How Much of the Robot Should a World Model See? Comparing End-Effector and Full-Body Action Representations for Robot–Object Prediction and Planning
 
@@ -6,6 +6,7 @@
 
 - **The core experiment (Phase 2) is complete.** The 4 world models (end-effector / full-body × numeric / image) were trained with 5 seeds and evaluated **once** on the held-out test set.
 - **Results:** H1, H2 and H5 are supported, and H3 and H4 are not supported. Each verdict holds for both the numeric and the image format.
+- **Why the image models are weaker (new, exploratory):** the image input is correct and contains the needed information. One confirmed cause is late fusion: switching to early fusion raised the image model's H5 balanced accuracy by about +0.08 on val and on the H5 set (test not used). See §5.
 - **Schedule:** about 4 weeks ahead. Data generation and training were planned to finish by 2026-12-04, and evaluation is already done as well. From now on, the time goes to writing.
 
 ## 2. What was done since the last report
@@ -70,7 +71,52 @@
 
 - **Caveat.** Both full-body models still carry a bias towards "wrist_up collides". Even in pairs where both candidates have the same outcome, the predicted collision probability is higher on the wrist_up side (+0.16 to +0.46). The image model in particular is near or below chance on the wrist_down side (test 0.500, H5 set 0.325). The claim we can make is "full-body models capture information beyond the wrist branch", **not** "they predict both branches equally well".
 
-## 5. Changes from the proposal (to be stated in the thesis)
+## 5. Why are the image models weaker? (exploratory, test not used)
+
+### 5.1 Is the image input correct?
+
+Yes. I checked the rendered action images against the Unity scene.
+
+- **Camera:** the camera in the dataset matches the Unity camera exactly (position, 10° pitch, 60° field of view).
+- **Alignment:** the projected tool-centre point lies a median of 1.45 px from the rendered gripper mask, and 98% of the arm keypoints fall on the rendered arm mask.
+- **Information content:** a simple rule with **no learning**, using only the action image and the depth of the initial image, reaches a balanced accuracy of 0.887 on test, 0.914 on val and 0.895 on the H5 set. The trained full-body image model reaches 0.719 / 0.740 / 0.603 on the same sets.
+
+So the information is in the images; the model does not use it fully.
+
+### 5.2 Causes
+
+| Result | Cause |
+|---|---|
+| H5 and H2: image weaker than numeric | **Late fusion.** The initial image and the action image are each compressed to a vector by separate encoders and only then concatenated. The pixel-wise overlap of arm and cylinder, including depth, is lost before the two are compared. |
+| Position error 3.6–4 mm worse for image | **Resolution:** at 128 px, 1 px ≈ 10.8 mm at the scene distance. |
+| H3: mask IoU lower for image | Mask IoU is driven by position error, and the mask decoder has no skip connection from the action image. |
+| H4 not supported (both formats) | **Floor effect:** only 5.4% of goal-reaching candidates collide, so better collision prediction rarely changes the selected trajectory. |
+
+### 5.3 Early fusion check (protocol entry 11, written before running)
+
+Only the fusion was changed: the observation (4 ch), goal (1 ch) and action image (50 ch) are stacked and read by **one** encoder. Everything else is as in the main runs (5 seeds). Evaluated on val and the H5 set only.
+
+| Full-body image, H5 balanced | Numeric (ref.) | Image, late | **Image, early** | Early − late [95% CI] | No-learning rule |
+|---|---|---|---|---|---|
+| H5 set (126 scene pairs) | 0.747 | 0.603 | **0.687** | **+0.084** [+0.052, +0.120] | 0.895 |
+| val (77 scene pairs) | 0.836 | 0.740 | **0.815** | **+0.075** [+0.019, +0.133] | 0.914 |
+
+- Early ≥ late for all 5 seeds on both sets. AUROC moves in the same direction.
+- Val position error improves from 14.2 to 12.0 mm, and collision AUPRC from 0.837 to 0.861.
+- About 60% of the gap to the numeric model closes on the H5 set. The wrist_down side is still below 0.5 (0.452), so the bias towards wrist_up remains.
+- **Interpretation:** late fusion is part of the cause, now shown experimentally. It is not the whole cause; the remaining candidates are resolution, data size and the training-set bias.
+- **Status in the thesis:** the main verdicts (pre-registered design, test used once) are unchanged. This result goes into the discussion as an exploratory finding.
+
+### 5.4 Comparison with prior work
+
+| Work | Their finding | Mine |
+|---|---|---|
+| Ganapathi et al. 2022 (IKP) | Joint-space wins when the elbow matters (box flipping 98.4% vs 38.6%); Cartesian wins for sweeping (79.4% vs 44.3%) | **Same direction:** full-body helps where the arm shape decides the outcome (H2, H5); end-effector suffices where it does not (H1) |
+| Khansari et al. 2020 (Action Image) | Action as an image, stacked with the observation in one CNN: 84% vs 53% grasp success | Late fusion: image worse. Stacking (early fusion) improves it by +0.08, which partly reproduces their benefit |
+| Wang et al. 2025; Kim et al. 2026; Alzayer et al. 2026 | Image actions win in large pretrained video models that output pixels and target new robots or cameras. Wang notes numeric states are nearly lossless with a fixed camera | Fixed camera, one robot, small model trained from scratch, low-dimensional outputs: the condition where numeric is expected to be strong |
+| Yu et al. 2026 | Better prediction does not imply better decisions | H2 improves but H4 does not, partly because of the floor effect |
+
+## 6. Changes from the proposal (to be stated in the thesis)
 
 | Item | Proposal | Now | Reason |
 |---|---|---|---|
@@ -79,7 +125,7 @@
 | Matched pair | elbow-up / elbow-down IK | Wrist flip (wrist_up / wrist_down) | Decided earlier (P3) |
 | Compute | Lab PC | RunPod RTX 4090 + laptop RTX 4060 | Lab PC unavailable; results reproduce |
 
-## 6. Schedule
+## 7. Schedule
 
 | Task | Planned deadline | Status |
 |---|---|---|
@@ -89,13 +135,16 @@
 | Evaluation + writing | 2027-01-14 | Evaluation ✅, writing next |
 | Final submission | 2027-01-15 | — |
 
-## 7. Next steps
+## 8. Next steps
 
 1. **Writing:** the methods and results chapters first (2–3 weeks), with figures: bar charts with CIs, per-seed spread, the H5 branch breakdown, and qualitative prediction examples.
-2. **Phase 3 (optional, short-horizon video prediction):** decide after the draft. It needs new data recording, because intermediate frames were not saved, plus the supervisor's agreement.
+2. **Discussion chapter:** why the image models are weaker (§5) and the comparison with prior work.
+3. **Future work (not planned in this thesis):** higher image resolution, and a skip connection from the action image to the mask decoder. Early fusion as the main design would need a fresh test set.
+4. **Phase 3 (optional, short-horizon video prediction):** decide after the draft. It needs new data recording, because intermediate frames were not saved, plus the supervisor's agreement.
 
 ## Questions for the meeting
 
 - Is the H5 framing acceptable: balanced accuracy against the wrist-branch baseline, with AUROC as secondary?
 - Is H3 being not supported (numeric beats image even on mask IoU) a reasonable result to report as-is?
+- I plan to report the early-fusion result as an exploratory finding in the discussion, and to leave a redesign of the image model to future work, because the test set has already been used and the research question concerns the scope of the robot representation, not the best input format. Is that acceptable?
 - Is there interest in Phase 3, given about 9 weeks remain before submission?
