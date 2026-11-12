@@ -103,11 +103,11 @@ public class Task2PhysicsTest : MonoBehaviour
         Set("Top", new Vector3(0, th + H + th / 2, D / 2), new Vector3(W + 2 * th, th, D));
         Set("Left", new Vector3(-W / 2 - th / 2, th + H / 2, D / 2), new Vector3(th, H, D));
         Set("Right", new Vector3(W / 2 + th / 2, th + H / 2, D / 2), new Vector3(th, H, D));
-        Set("Back", new Vector3(0, th + H / 2 + th / 2, D + th / 2), new Vector3(W + 2 * th, H + 2 * th, th));
+        if (shelf.Find("Back").gameObject.activeSelf) Set("Back", new Vector3(0, th + H / 2 + th / 2, D + th / 2), new Vector3(W + 2 * th, H + 2 * th, th));
         basket.localPosition = new Vector3(-L.offset, th, L.basketZ);
         Physics.SyncTransforms();
         shelfCols = new List<Collider>();
-        foreach (var n in new[] { "Bottom", "Top", "Left", "Right", "Back" }) shelfCols.Add(shelf.Find(n).GetComponent<Collider>());
+        foreach (var n in new[] { "Bottom", "Top", "Left", "Right", "Back" }) if (shelf.Find(n).gameObject.activeSelf) shelfCols.Add(shelf.Find(n).GetComponent<Collider>());
         basketCols = basket.GetComponentsInChildren<Collider>().ToList();
     }
 
