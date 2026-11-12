@@ -141,7 +141,7 @@ Only the fusion was changed: the observation (4 ch), goal (1 ch) and action imag
 2. **Discussion chapter:** why the image models are weaker (§5) and the comparison with prior work.
 3. **Future work (not planned in this thesis):** higher image resolution, and a skip connection from the action image to the mask decoder. Early fusion as the main design would need a fresh test set.
 4. **Phase 3 (optional, short-horizon video prediction):** decide after the draft. It needs new data recording, because intermediate frames were not saved, plus the supervisor's agreement.
-
+4. **Second task (§9):** connect the pilot to the data pipeline, fix the protocol, generate data, train and evaluate. Phase 3 (video prediction) is dropped.
 ## 9. Second task (in progress, pilot only)
 
 Following the suggestion to test the claim on another task, I am building a second task: **placing a held apple into a basket inside a shelf compartment**. Design notes: `Docs/task2/design_memo.md`.
