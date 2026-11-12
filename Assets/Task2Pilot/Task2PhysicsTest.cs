@@ -190,7 +190,7 @@ public class Task2PhysicsTest : MonoBehaviour
         float t = 0f;
         while (t < settleSeconds) { yield return new WaitForFixedUpdate(); t += Time.fixedDeltaTime; if (stopStep < 0) CheckContacts(armHits, toolHits, ref appleShelf); }
         // かごの中で止まったか
-        var bb = new Bounds(basket.position + Vector3.up * 0.035f, new Vector3(0.16f, 0.07f, 0.16f));
+        var bb = basketCols[0].bounds; foreach (var bc in basketCols) bb.Encapsulate(bc.bounds); bb.Expand(new Vector3(0f, 0.06f, 0f));   // かごの当たり判定の箱を合わせた範囲（上に少し伸ばす）
         bool placed = joint == null && bb.Contains(apple.position) && appleRb.linearVelocity.magnitude < 0.02f;
         Report(id, L, branch, stopStep >= 0 ? "stopped" : "completed", stopStep, string.Join("|", armHits), string.Join("|", toolHits), appleShelf, apple.position, placed, maxTcpErr, plan.Count);
         if (joint != null) Destroy(joint);
