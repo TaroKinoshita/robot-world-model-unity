@@ -142,9 +142,25 @@ Only the fusion was changed: the observation (4 ch), goal (1 ch) and action imag
 3. **Future work (not planned in this thesis):** higher image resolution, and a skip connection from the action image to the mask decoder. Early fusion as the main design would need a fresh test set.
 4. **Phase 3 (optional, short-horizon video prediction):** decide after the draft. It needs new data recording, because intermediate frames were not saved, plus the supervisor's agreement.
 
+## 9. Second task (in progress, pilot only)
+
+Following the suggestion to test the claim on another task, I am building a second task: **placing a held apple into a basket inside a shelf compartment**. Design notes: `Docs/task2/design_memo.md`.
+
+- **Why a shelf compartment.** Ganapathi et al. (2022) show that the useful action representation depends on whether the task depends on the arm's configuration. Fishman et al. (2022) use confined spaces such as cubbies as a harder environment class than an open tabletop. Here the gripper can reach the basket, but the forearm may hit a side wall, so only the full-body representation can tell the outcome.
+- **Grasping is scripted** (the apple is attached to the gripper), so the comparison stays on the action representation. If an arm link touches the shelf, the arm stops (protective stop), so the apple is not placed.
+- **Matched pairs.** Same gripper path, two arm configurations (shoulder left / right). The task-1 wrist-flip pairs were tried first, but only one side could ever hit the shelf.
+- **Pilot results (20 layouts, physics, run twice):**
+  - Labels identical across the two runs.
+  - Pairs: only A stops 7, only B stops 7, both 4, neither 2. All shelf contacts are forearm or wrist, never the gripper.
+  - The camera is the task-1 view pulled back 0.2 m, so the basket, apple, forearm and both side walls are visible.
+  - Visuals use CC0 models (Poly Haven); colliders stay simple boxes and spheres, and the labels did not change.
+- **Planned hypotheses:** H1, H2 and H5, plus how the gap between end-effector and full-body changes with how tight the compartment is. The protocol will be fixed before generating data.
+- **Next:** connect to the data pipeline, fix the protocol, generate ~150–200 pairs, train and evaluate (target: early December).
+
 ## Questions for the meeting
 
 - Is the H5 framing acceptable: balanced accuracy against the wrist-branch baseline, with AUROC as secondary?
 - Is H3 being not supported (numeric beats image even on mask IoU) a reasonable result to report as-is?
 - I plan to report the early-fusion result as an exploratory finding in the discussion, and to leave a redesign of the image model to future work, because the test set has already been used and the research question concerns the scope of the robot representation, not the best input format. Is that acceptable?
-- Is there interest in Phase 3, given about 9 weeks remain before submission?
+- Is the second task (shelf compartment, scripted grasp, protective stop, shoulder left/right matched pairs) a good test of the claim?
+- Phase 3 (video prediction) is dropped in favour of the second task. Is that acceptable?
