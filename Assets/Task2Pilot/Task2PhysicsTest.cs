@@ -204,7 +204,7 @@ public class Task2PhysicsTest : MonoBehaviour
     {
         bool any = false;
         // PhysX の接触通知（押し戻されてめり込みが残らない接触も拾う）
-        foreach (var (link, board, sep) in ShelfContactProbe.Hits)
+        foreach (var (link, board, sep, _) in ShelfContactProbe.Hits)
         {
             bool isBasket = board.StartsWith("B") && board.Length <= 6 && board != "Bottom" && board != "Back";
             bool isTool = toolLinks.Contains(link);

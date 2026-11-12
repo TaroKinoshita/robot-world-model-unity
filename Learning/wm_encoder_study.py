@@ -461,6 +461,11 @@ def plan(which, epochs):
             for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
                 lr = 1e-3 if rep.endswith("_num") else 3e-4
                 P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=seed, epochs=epochs, es=True, patience=8, spatial=True, tag="main"))
+    elif which in ("t2_ss5", "t2_smoke"):   # protocol 追記 12: 2 つ目のタスク。本番（main_ss5）と同じ構成で 4 モデル × seed 0〜4。smoke は seed 0 だけ
+        for seed in ([0] if which == "t2_smoke" else [0, 1, 2, 3, 4]):
+            for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
+                lr = 1e-3 if rep.endswith("_num") else 3e-4
+                P.append(dict(rep=rep, enc="base", steps="raster", lr=lr, seed=seed, epochs=epochs, es=True, patience=8, spatial=True, tag="t2"))
     elif which == "ss_gp":   # 診断: SS と同じ 4 run をもう一度回し、予測位置から計算した goal（goal_from_pos）も出す
         for rep in ["eef_img", "full_img", "eef_num", "full_num"]:
             lr = 1e-3 if rep.endswith("_num") else 3e-4
