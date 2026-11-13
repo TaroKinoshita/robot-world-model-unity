@@ -8,6 +8,7 @@
 - **Results:** H1, H2 and H5 are supported, and H3 and H4 are not supported. Each verdict holds for both the numeric and the image format.
 - **Why the image models are weaker (new, exploratory):** the image input is correct and contains the needed information. One confirmed cause is late fusion: switching to early fusion raised the image model's H5 balanced accuracy by about +0.08 on val and on the H5 set (test not used). See §5.
 - **Second task (new):** H5 replicates on a shelf-placement task for both formats; H2 for numeric only. See §9.
+- **Third task (new):** when the forearm pushes an object, the full-body model also predicts the object's final position better (H1 flips; numeric and image). See §10.
 - **Schedule:** about 4 weeks ahead. Data generation and training were planned to finish by 2026-12-04, and evaluation is already done as well. From now on, the time goes to writing.
 
 ## 2. What was done since the last report
@@ -168,11 +169,27 @@ Following the suggestion to test the claim on another task, I built a second tas
 - **Compartment tightness** (clearance = width / 2 − |offset|, split into thirds): no clear trend. In the tight third ~90% of candidates stop, so AUPRC is near its ceiling for both models. On val + test, the numeric gap is positive in every third (+0.05 / +0.03 / +0.07); the image gap is near 0 throughout. This analysis does not separate tightness from the base rate. (`results_t2/tertiles.md`)
 - **Why the image model is weaker on H5:** it has the information but is biased. Its predicted collision difference between B and A separates "only A stops" from "only B stops" with AUROC 0.86. But it is shifted toward B by about +0.09 (B stops more often in training: 76% vs 65%), so at threshold 0 it almost always picks B. Re-centring the threshold on val raises test balanced accuracy from 0.62 to 0.79 (numeric: 0.90 → 0.94). This is the same pattern as the late-fusion weakness in task 1 (§5). (`results_t2/h5_bias.md`)
 
+## 10. Third task: forearm pushing (protocol entry 13, test used once)
+
+Tasks 1 and 2 only involve *unintended* arm contact (a collision flag), and the object's final position is set almost entirely by the gripper. The third task makes the arm the tool: the forearm/wrist pushes a tall box (28–42 cm) while the gripper passes beside it. This follows Ganapathi et al. (2022), where joint actions beat Cartesian actions (98.4% vs 38.6%) on a task that uses elbow contact, and the "pushing" class of whole-arm manipulation (Salisbury 1987; Eberman 1989). Design and results: `Docs/task3/design_memo.md`, `Docs/task3/results.md`.
+
+- **Data:** 300 layouts, 765 matched pairs (only A touches 157, only B 149, neither 459, gripper contact 0). A pushed box tips and moves ~0.2 m. Labels identical at 1× and 8× time scale.
+- **Test results (5 seeds, scene-level bootstrap):**
+
+| Hypothesis | Numeric | Image |
+|---|---|---|
+| **H1′** box position error, end-effector − full-body (> 0) | **supported**, 35.6 → 25.1 mm, +10.5 [+3.3, +18.6] | **supported**, 35.0 → 27.1 mm, +7.9 [+1.6, +15.7] |
+| **H5** balanced accuracy (> 0.5) | **supported**, 1.000 | **supported**, 1.000 |
+| H2 (reported) contact AUPRC gap | +0.446 [+0.399, +0.497] | +0.426 [+0.333, +0.506] |
+
+- **H1 flips direction.** When the arm itself moves the object, the full-body representation predicts the object's final state better, not only collisions. Across the three tasks, the gap grows with how much the outcome depends on the arm configuration.
+- **Caveat on H5 = 1.000:** in this task, which shoulder touches is fully determined by which side of the path the box is on (306 / 306 pairs). The full-body model only needs that rule; the end-effector model is still stuck at 0.5 by construction.
+
 ## Questions for the meeting
 
 - Is the H5 framing acceptable: balanced accuracy against the wrist-branch baseline, with AUROC as secondary?
 - Is H3 being not supported (numeric beats image even on mask IoU) a reasonable result to report as-is?
 - I plan to report the early-fusion result as an exploratory finding in the discussion, and to leave a redesign of the image model to future work, because the test set has already been used and the research question concerns the scope of the robot representation, not the best input format. Is that acceptable?
-- The second task replicates H5 for both formats, and H2 for numeric only. Is one replication task enough for the thesis, or should I add a third task or move to a real-robot check?
+- With three tasks (unintended collision, shelf collision, intended arm pushing), I plan to stop adding experiments and write. Is that acceptable, with the real-robot check left to future work?
 - Should the second task be its own chapter, or a section of the results chapter?
 - Phase 3 (video prediction) is dropped in favour of the second task. Is that acceptable?
