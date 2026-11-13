@@ -18094,6 +18094,95 @@ MeshFilter:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1465630300}
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!1 &1475059215
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1475059217}
+  - component: {fileID: 1475059218}
+  m_Layer: 0
+  m_Name: Task3Rec
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1475059217
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1475059215}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1475059218
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1475059215}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: aa2da6ab010220f47a037b777a333f80, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  outputRoot: Episodes/_task3_v1
+  startSeed: 0
+  sceneCount: 300
+  timeScale: 8
+  autoRun: 1
+  tcpXRange: {x: -0.07, y: 0.13}
+  tcpZRange: {x: 0.53, y: 0.6}
+  tcpAboveTable: 0.06
+  boxLatRange: {x: 0.1, y: 0.2}
+  boxAlongRange: {x: -0.03, y: 0.12}
+  boxWRange: {x: 0.06, y: 0.1}
+  boxDRange: {x: 0.05, y: 0.08}
+  boxHRange: {x: 0.28, y: 0.42}
+  boxMass: 0.4
+  gripMargin: 0.1
+  tableTop: 0.773
+  approachDist: 0.3
+  speed: 0.1
+  approachDx:
+  - -0.05
+  - 0
+  - 0.05
+  settleSeconds: 2
+  stiffness: 10000
+  damping: 100
+  seedADeg:
+  - -13
+  - -72
+  - 98
+  - -117
+  - -90
+  - 0
+  seedBDeg:
+  - -167
+  - -108
+  - -98
+  - -63
+  - 90
+  - 0
+  raster:
+    rasterStride: 5
+    rasterFrames: 25
+    eefRadiusPx: 3
+    bodyLineRadiusPx: 1.5
+    bodyJointRadiusPx: 2.5
 --- !u!1 &1478750338
 GameObject:
   m_ObjectHideFlags: 8
@@ -21791,7 +21880,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1815827529}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 85e8fbe24b690f14c9d5b1ec2526c70f, type: 3}
   m_Name: 
@@ -26854,3 +26943,4 @@ SceneRoots:
   - {fileID: 1773357286}
   - {fileID: 1424303047}
   - {fileID: 1815827531}
+  - {fileID: 1475059217}

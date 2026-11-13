@@ -271,6 +271,8 @@ def diff_ci(res, task, a, b, metric, alpha=0.05):
     pa = res["point"][task][a][metric]; pb = res["point"][task][b][metric]
     d = res["boot"][task][a][metric] - res["boot"][task][b][metric]
     d = d[np.isfinite(d)]
+    if len(d) == 0:   # 評価するペアに該当がない指標（小さい試作データなど）。それまでの結果には影響しない
+        return {"diff": pa - pb, "lo": float("nan"), "hi": float("nan"), "p_le0": float("nan")}
     lo, hi = np.percentile(d, [100 * alpha / 2, 100 * (1 - alpha / 2)])
     p = (np.sum(d <= 0) + 1) / (len(d) + 1)
     return {"diff": pa - pb, "lo": float(lo), "hi": float(hi), "p_le0": float(p)}
