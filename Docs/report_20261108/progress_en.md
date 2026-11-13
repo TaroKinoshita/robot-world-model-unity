@@ -7,6 +7,7 @@
 - **The core experiment (Phase 2) is complete.** The 4 world models (end-effector / full-body × numeric / image) were trained with 5 seeds and evaluated **once** on the held-out test set.
 - **Results:** H1, H2 and H5 are supported, and H3 and H4 are not supported. Each verdict holds for both the numeric and the image format.
 - **Why the image models are weaker (new, exploratory):** the image input is correct and contains the needed information. One confirmed cause is late fusion: switching to early fusion raised the image model's H5 balanced accuracy by about +0.08 on val and on the H5 set (test not used). See §5.
+- **Second task (new):** H5 replicates on a shelf-placement task for both formats; H2 for numeric only. See §9.
 - **Schedule:** about 4 weeks ahead. Data generation and training were planned to finish by 2026-12-04, and evaluation is already done as well. From now on, the time goes to writing.
 
 ## 2. What was done since the last report
@@ -141,26 +142,37 @@ Only the fusion was changed: the observation (4 ch), goal (1 ch) and action imag
 2. **Discussion chapter:** why the image models are weaker (§5) and the comparison with prior work.
 3. **Future work (not planned in this thesis):** higher image resolution, and a skip connection from the action image to the mask decoder. Early fusion as the main design would need a fresh test set.
 4. **Phase 3 (optional, short-horizon video prediction):** decide after the draft. It needs new data recording, because intermediate frames were not saved, plus the supervisor's agreement.
-4. **Second task (§9):** connect the pilot to the data pipeline, fix the protocol, generate data, train and evaluate. Phase 3 (video prediction) is dropped.
-## 9. Second task (in progress, pilot only)
+5. **Second task (§9):** done. Add it to the results chapter as a replication. Phase 3 (video prediction) is dropped.
+## 9. Second task (done: protocol entry 12, test used once)
 
-Following the suggestion to test the claim on another task, I am building a second task: **placing a held apple into a basket inside a shelf compartment**. Design notes: `Docs/task2/design_memo.md`.
+Following the suggestion to test the claim on another task, I built a second task: **placing a held apple into a basket inside a shelf compartment**. Design notes: `Docs/task2/design_memo.md`; results: `Docs/task2/results.md`.
 
 - **Why a shelf compartment.** Ganapathi et al. (2022) show that the useful action representation depends on whether the task depends on the arm's configuration. Fishman et al. (2022) use confined spaces such as cubbies as a harder environment class than an open tabletop. Here the gripper can reach the basket, but the forearm may hit a side wall, so only the full-body representation can tell the outcome.
 - **Grasping is scripted** (the apple is attached to the gripper), so the comparison stays on the action representation. If an arm link touches the shelf, the arm stops (protective stop), so the apple is not placed.
-- **Matched pairs.** Same gripper path, two arm configurations (shoulder left / right). The task-1 wrist-flip pairs were tried first, but only one side could ever hit the shelf.
-- **Pilot results (20 layouts, physics, run twice):**
-  - Labels identical across the two runs.
-  - Pairs: only A stops 7, only B stops 7, both 4, neither 2. All shelf contacts are forearm or wrist, never the gripper.
-  - The camera is the task-1 view pulled back 0.2 m, so the basket, apple, forearm and both side walls are visible.
-  - Visuals use CC0 models (Poly Haven); colliders stay simple boxes and spheres, and the labels did not change.
-- **Planned hypotheses:** H1, H2 and H5, plus how the gap between end-effector and full-body changes with how tight the compartment is. The protocol will be fixed before generating data.
-- **Next:** connect to the data pipeline, fix the protocol, generate ~150–200 pairs, train and evaluate (target: early December).
+- **Matched pairs.** Same gripper path, two arm configurations (shoulder A / B).
+- **Data:** 300 random layouts, 2262 candidates, 1131 matched pairs. Only A stops: 60, only B stops: 188, both: 676, neither: 207. Split by scene 210 / 45 / 45. Same 4 models × 5 seeds as task 1, trained on the laptop GPU (about 50 min).
+
+### 9.1 Test results (45 scene pairs, 5 seeds, scene-level bootstrap)
+
+| Hypothesis | Numeric | Image |
+|---|---|---|
+| **H5** balanced accuracy on pairs where only one side stops (> 0.5) | **supported**, 0.900 [0.750, 0.986] | **supported**, 0.623 [0.541, 0.707] |
+| **H2** collision AUPRC, full-body − end-effector (> 0) | **supported**, +0.034 [+0.005, +0.071] | not supported, −0.009 [−0.023, +0.006] |
+| H1 (reported only) end-effector not worse | inconclusive | inconclusive |
+
+- **H5 replicates on a second task**, for both formats. End-effector models are at 0.5 by construction, because both sides of a pair share the same gripper path.
+- **H2 holds only for numeric.** In this task the gripper path alone already predicts most collisions (end-effector AUPRC ≈ 0.88), so there is little room for a gap.
+
+### 9.2 Exploratory analyses (not used for the verdicts)
+
+- **Compartment tightness** (clearance = width / 2 − |offset|, split into thirds): no clear trend. In the tight third ~90% of candidates stop, so AUPRC is near its ceiling for both models. On val + test, the numeric gap is positive in every third (+0.05 / +0.03 / +0.07); the image gap is near 0 throughout. This analysis does not separate tightness from the base rate. (`results_t2/tertiles.md`)
+- **Why the image model is weaker on H5:** it has the information but is biased. Its predicted collision difference between B and A separates "only A stops" from "only B stops" with AUROC 0.86. But it is shifted toward B by about +0.09 (B stops more often in training: 76% vs 65%), so at threshold 0 it almost always picks B. Re-centring the threshold on val raises test balanced accuracy from 0.62 to 0.79 (numeric: 0.90 → 0.94). This is the same pattern as the late-fusion weakness in task 1 (§5). (`results_t2/h5_bias.md`)
 
 ## Questions for the meeting
 
 - Is the H5 framing acceptable: balanced accuracy against the wrist-branch baseline, with AUROC as secondary?
 - Is H3 being not supported (numeric beats image even on mask IoU) a reasonable result to report as-is?
 - I plan to report the early-fusion result as an exploratory finding in the discussion, and to leave a redesign of the image model to future work, because the test set has already been used and the research question concerns the scope of the robot representation, not the best input format. Is that acceptable?
-- Is the second task (shelf compartment, scripted grasp, protective stop, shoulder left/right matched pairs) a good test of the claim?
+- The second task replicates H5 for both formats, and H2 for numeric only. Is one replication task enough for the thesis, or should I add a third task or move to a real-robot check?
+- Should the second task be its own chapter, or a section of the results chapter?
 - Phase 3 (video prediction) is dropped in favour of the second task. Is that acceptable?
