@@ -5,7 +5,7 @@ test（1 回だけ）の仮説判定。protocol 追記 8 のルール。
 - AUROC（副、判定には使わない）と seed ごとの値も出す
 使い方: python Learning/wm_test_judge.py   （wm_predict.py --split test --name test の後）
 '''
-import json, sys
+import json, sys, os
 from pathlib import Path
 import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -15,11 +15,12 @@ src = (Path(__file__).resolve().parent / 'wm_h5_deep.py').read_text(encoding='ut
 exec(src[:src.index("\nrun('val")])   # items / stats / boot を使う（末尾の実行部分は除く）
 
 ROOT = Path(__file__).resolve().parent.parent
-RUNS = ROOT / 'Docs/encoder_fix/results_main_v1v2_ckpt'
-CACHE = ROOT / 'Episodes/_main_v1v2/_cache/wm_128x25.h5'
+RUNS = ROOT / os.environ.get('WMJ_RUNS', 'Docs/encoder_fix/results_main_v1v2_ckpt')   # 追記 12: 2 つ目のタスクは環境変数で差し替える
+CACHE = ROOT / os.environ.get('WMJ_CACHE', 'Episodes/_main_v1v2/_cache/wm_128x25.h5')
+TAG = os.environ.get('WMJ_TAG', 'main')
 truth = wm_eval.load_truth(CACHE); ids = truth['pair_ids']; sp = make_splits(CACHE)
 te = [ids.index(p) for p in sp['test']]; tr = [ids.index(p) for p in sp['train']]
-models = {r: [wm_eval.load_predictions(f) for f in sorted((RUNS / 'preds_test').glob(f'{r}__*main.npz'))] for r in wm_eval_val.REPS}
+models = {r: [wm_eval.load_predictions(f) for f in sorted((RUNS / 'preds_test').glob(f'{r}__*{TAG}.npz'))] for r in wm_eval_val.REPS}
 eval_eps = np.nonzero(np.isin(truth['pair_idx'], te))[0]
 models['base_kind'] = [wm_eval.label_baseline(truth, tr, eval_eps, by=('kind',))]
 models['base_kind_branch'] = [wm_eval.label_baseline(truth, tr, eval_eps, by=('kind', 'branch'))]
