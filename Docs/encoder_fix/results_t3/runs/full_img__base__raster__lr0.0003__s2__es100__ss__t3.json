@@ -1,0 +1,342 @@
+{
+ "config": {
+  "rep": "full_img",
+  "enc": "base",
+  "steps": "raster",
+  "lr": 0.0003,
+  "seed": 2,
+  "epochs": 100,
+  "es": true,
+  "patience": 8,
+  "spatial": true,
+  "tag": "t3"
+ },
+ "name": "full_img__base__raster__lr0.0003__s2__es100__ss__t3",
+ "params": 1872139,
+ "train_sec": 128.5,
+ "cache": "C:\\UnityProjects\\PerceptionTestHDRP\\Episodes\\_task3_v1\\_cache\\wm_128x25.h5",
+ "n_train_pairs": 210,
+ "n_val_pairs": 45,
+ "best_epoch": 22,
+ "train_loss": {
+  "pos": 0.12779,
+  "goal": 0.10106,
+  "coll": 0.14147,
+  "mask": 0.01982,
+  "contact": 0.09876,
+  "total": 0.48891
+ },
+ "val_loss": {
+  "pos": 0.17287,
+  "goal": 0.16403,
+  "coll": 0.21525,
+  "mask": 0.02486,
+  "contact": 0.06899,
+  "total": 0.646
+ },
+ "train": {
+  "A": {
+   "pos_err_mm": 26.187768206000328,
+   "goal_auprc": 0.9378991354462,
+   "goal_from_pos_auprc": 0.07058398710273736,
+   "mask_iou": 0.7481108559736218
+  },
+  "B": {
+   "pos_err_mm": 26.187768206000328,
+   "goal_auprc": 0.9378991354462,
+   "goal_from_pos_auprc": 0.07058398710273736,
+   "mask_iou": 0.7481108559736218,
+   "coll_auprc": 0.9443821197578246,
+   "coll_auprc_nonmp": NaN
+  }
+ },
+ "val": {
+  "A": {
+   "pos_err_mm": 34.636616706848145,
+   "goal_auprc": 0.8757305033779387,
+   "goal_from_pos_auprc": 0.085917686803376,
+   "mask_iou": 0.691924724526715
+  },
+  "B": {
+   "pos_err_mm": 34.636616706848145,
+   "goal_auprc": 0.8757305033779387,
+   "goal_from_pos_auprc": 0.085917686803376,
+   "mask_iou": 0.691924724526715,
+   "coll_auprc": 0.8754764388003019,
+   "coll_auprc_nonmp": NaN
+  }
+ },
+ "curve": [
+  {
+   "pos": 0.56252,
+   "goal": 0.55481,
+   "coll": 0.58892,
+   "mask": 0.20339,
+   "contact": 0.41084,
+   "total": 2.32048,
+   "val_total": 1.53336
+  },
+  {
+   "pos": 0.32866,
+   "goal": 0.39461,
+   "coll": 0.48979,
+   "mask": 0.0639,
+   "contact": 0.18828,
+   "total": 1.46524,
+   "val_total": 1.56458
+  },
+  {
+   "pos": 0.31662,
+   "goal": 0.38817,
+   "coll": 0.48669,
+   "mask": 0.06071,
+   "contact": 0.16997,
+   "total": 1.42217,
+   "val_total": 1.55684
+  },
+  {
+   "pos": 0.30343,
+   "goal": 0.38395,
+   "coll": 0.49335,
+   "mask": 0.05827,
+   "contact": 0.17042,
+   "total": 1.40942,
+   "val_total": 1.54335
+  },
+  {
+   "pos": 0.28396,
+   "goal": 0.38241,
+   "coll": 0.48222,
+   "mask": 0.05531,
+   "contact": 0.15723,
+   "total": 1.36114,
+   "val_total": 1.42696
+  },
+  {
+   "pos": 0.23524,
+   "goal": 0.37842,
+   "coll": 0.4983,
+   "mask": 0.05133,
+   "contact": 0.1256,
+   "total": 1.28889,
+   "val_total": 1.41355
+  },
+  {
+   "pos": 0.21843,
+   "goal": 0.37087,
+   "coll": 0.47529,
+   "mask": 0.04319,
+   "contact": 0.10888,
+   "total": 1.21666,
+   "val_total": 1.36844
+  },
+  {
+   "pos": 0.21583,
+   "goal": 0.36836,
+   "coll": 0.47769,
+   "mask": 0.03766,
+   "contact": 0.09623,
+   "total": 1.19576,
+   "val_total": 1.35527
+  },
+  {
+   "pos": 0.2112,
+   "goal": 0.36446,
+   "coll": 0.47582,
+   "mask": 0.03397,
+   "contact": 0.09272,
+   "total": 1.17817,
+   "val_total": 1.34084
+  },
+  {
+   "pos": 0.21503,
+   "goal": 0.3558,
+   "coll": 0.47192,
+   "mask": 0.03233,
+   "contact": 0.09662,
+   "total": 1.17171,
+   "val_total": 1.36648
+  },
+  {
+   "pos": 0.21146,
+   "goal": 0.34913,
+   "coll": 0.46162,
+   "mask": 0.03192,
+   "contact": 0.0985,
+   "total": 1.15263,
+   "val_total": 1.31475
+  },
+  {
+   "pos": 0.20578,
+   "goal": 0.34281,
+   "coll": 0.45638,
+   "mask": 0.03111,
+   "contact": 0.09418,
+   "total": 1.13025,
+   "val_total": 1.40827
+  },
+  {
+   "pos": 0.20241,
+   "goal": 0.33014,
+   "coll": 0.43817,
+   "mask": 0.0302,
+   "contact": 0.09534,
+   "total": 1.09625,
+   "val_total": 1.19143
+  },
+  {
+   "pos": 0.19304,
+   "goal": 0.31165,
+   "coll": 0.41476,
+   "mask": 0.0285,
+   "contact": 0.09472,
+   "total": 1.04268,
+   "val_total": 1.19537
+  },
+  {
+   "pos": 0.1851,
+   "goal": 0.27988,
+   "coll": 0.3789,
+   "mask": 0.02733,
+   "contact": 0.08826,
+   "total": 0.95946,
+   "val_total": 1.13123
+  },
+  {
+   "pos": 0.19339,
+   "goal": 0.23306,
+   "coll": 0.31346,
+   "mask": 0.02788,
+   "contact": 0.10673,
+   "total": 0.87452,
+   "val_total": 0.93474
+  },
+  {
+   "pos": 0.17967,
+   "goal": 0.18175,
+   "coll": 0.24063,
+   "mask": 0.02672,
+   "contact": 0.11352,
+   "total": 0.7423,
+   "val_total": 0.87585
+  },
+  {
+   "pos": 0.16617,
+   "goal": 0.15053,
+   "coll": 0.20036,
+   "mask": 0.02522,
+   "contact": 0.10972,
+   "total": 0.652,
+   "val_total": 0.74639
+  },
+  {
+   "pos": 0.1449,
+   "goal": 0.13795,
+   "coll": 0.18748,
+   "mask": 0.02458,
+   "contact": 0.09438,
+   "total": 0.58929,
+   "val_total": 0.70614
+  },
+  {
+   "pos": 0.1346,
+   "goal": 0.12616,
+   "coll": 0.16476,
+   "mask": 0.02335,
+   "contact": 0.09571,
+   "total": 0.54459,
+   "val_total": 0.82804
+  },
+  {
+   "pos": 0.13326,
+   "goal": 0.12032,
+   "coll": 0.16383,
+   "mask": 0.02236,
+   "contact": 0.09343,
+   "total": 0.5332,
+   "val_total": 0.793
+  },
+  {
+   "pos": 0.12924,
+   "goal": 0.12054,
+   "coll": 0.15561,
+   "mask": 0.02097,
+   "contact": 0.09072,
+   "total": 0.51708,
+   "val_total": 0.646
+  },
+  {
+   "pos": 0.11503,
+   "goal": 0.10469,
+   "coll": 0.14264,
+   "mask": 0.02032,
+   "contact": 0.0853,
+   "total": 0.46799,
+   "val_total": 0.67278
+  },
+  {
+   "pos": 0.1147,
+   "goal": 0.09372,
+   "coll": 0.13603,
+   "mask": 0.01849,
+   "contact": 0.08789,
+   "total": 0.45083,
+   "val_total": 0.75403
+  },
+  {
+   "pos": 0.10376,
+   "goal": 0.08778,
+   "coll": 0.13298,
+   "mask": 0.01819,
+   "contact": 0.07982,
+   "total": 0.42253,
+   "val_total": 0.79036
+  },
+  {
+   "pos": 0.10389,
+   "goal": 0.08152,
+   "coll": 0.13671,
+   "mask": 0.01836,
+   "contact": 0.08607,
+   "total": 0.42655,
+   "val_total": 0.83526
+  },
+  {
+   "pos": 0.10696,
+   "goal": 0.08223,
+   "coll": 0.12704,
+   "mask": 0.01828,
+   "contact": 0.07902,
+   "total": 0.41354,
+   "val_total": 0.72473
+  },
+  {
+   "pos": 0.08904,
+   "goal": 0.06505,
+   "coll": 0.11286,
+   "mask": 0.01601,
+   "contact": 0.08242,
+   "total": 0.36538,
+   "val_total": 0.75116
+  },
+  {
+   "pos": 0.08103,
+   "goal": 0.05898,
+   "coll": 0.11157,
+   "mask": 0.01533,
+   "contact": 0.07612,
+   "total": 0.34303,
+   "val_total": 0.81106
+  },
+  {
+   "pos": 0.0845,
+   "goal": 0.05696,
+   "coll": 0.11077,
+   "mask": 0.01586,
+   "contact": 0.07717,
+   "total": 0.34526,
+   "val_total": 0.79388
+  }
+ ],
+ "goal_tau_mm": 30.0
+}

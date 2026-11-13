@@ -1,0 +1,176 @@
+===== P15 sweep t3_ss5 2026-11-13 21:40:32  device cuda  torch 2.5.1+cu121  runs 20
+cache C:\UnityProjects\PerceptionTestHDRP\Episodes\_task3_v1\_cache\wm_128x25.h5  pairs train 210 / val 45 / test 45  excluded 0
+--- [1/20] eef_img__base__raster__lr0.0003__s0__es100__ss__t3
+  [eef_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch   1  train 2.2418  val 1.5935
+  [eef_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch  10  train 1.1354  val 1.3076
+  [eef_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch  20  train 0.9719  val 1.1860
+  [eef_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch  30  train 0.9057  val 1.2128
+  [eef_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch 31: 8 epoch 改善なしで打ち切り
+  [eef_img__base__raster__lr0.0003__s0__es100__ss__t3] early stopping: best epoch 23（val 1.1656）
+  [eef_img__base__raster__lr0.0003__s0__es100__ss__t3] done 199s params 1,872,139  TRAIN A pos 37.5 goal 0.399 | B pos 37.5 goal 0.399 coll 0.460 | val 1.1656
+--- [2/20] full_img__base__raster__lr0.0003__s0__es100__ss__t3
+  [full_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch   1  train 2.2364  val 1.7971
+  [full_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch  10  train 1.1221  val 1.3328
+  [full_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch  20  train 0.7825  val 0.8302
+  [full_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch  30  train 0.3703  val 0.6457
+  [full_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch  40  train 0.2679  val 0.5828
+  [full_img__base__raster__lr0.0003__s0__es100__ss__t3] epoch 41: 8 epoch 改善なしで打ち切り
+  [full_img__base__raster__lr0.0003__s0__es100__ss__t3] early stopping: best epoch 33（val 0.5278）
+C:\UnityProjects\PerceptionTestHDRP\Learning\wm_encoder_study.py:306: RuntimeWarning: overflow encountered in exp
+  p = np.clip(1 / (1 + np.exp(-(GOAL_RADIUS - d) / tau)), 1e-6, 1 - 1e-6)
+  [full_img__base__raster__lr0.0003__s0__es100__ss__t3] done 198s params 1,872,139  TRAIN A pos 18.7 goal 0.980 | B pos 18.7 goal 0.980 coll 0.983 | val 0.5278
+--- [3/20] eef_num__base__raster__lr0.001__s0__es100__ss__t3
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] epoch   1  train 1.8891  val 1.6722
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  10  train 1.1793  val 1.3502
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  20  train 1.0821  val 1.3494
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  30  train 1.0173  val 1.2405
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  40  train 0.9042  val 1.0768
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  50  train 0.8802  val 1.0585
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  60  train 0.8548  val 1.0537
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] epoch 64: 8 epoch 改善なしで打ち切り
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] early stopping: best epoch 56（val 1.0104）
+  [eef_num__base__raster__lr0.001__s0__es100__ss__t3] done 150s params 1,698,826  TRAIN A pos 35.7 goal 0.486 | B pos 35.7 goal 0.486 coll 0.482 | val 1.0104
+--- [4/20] full_num__base__raster__lr0.001__s0__es100__ss__t3
+  [full_num__base__raster__lr0.001__s0__es100__ss__t3] epoch   1  train 1.8753  val 1.6390
+  [full_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  10  train 0.8708  val 1.0179
+  [full_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  20  train 0.6168  val 0.6445
+  [full_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  30  train 0.3977  val 0.8088
+  [full_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  40  train 0.3317  val 0.5301
+  [full_num__base__raster__lr0.001__s0__es100__ss__t3] epoch  50  train 0.2823  val 0.5330
+  [full_num__base__raster__lr0.001__s0__es100__ss__t3] epoch 51: 8 epoch 改善なしで打ち切り
+  [full_num__base__raster__lr0.001__s0__es100__ss__t3] early stopping: best epoch 43（val 0.4569）
+  [full_num__base__raster__lr0.001__s0__es100__ss__t3] done 114s params 1,718,666  TRAIN A pos 21.3 goal 0.991 | B pos 21.3 goal 0.991 coll 0.984 | val 0.4569
+--- [5/20] eef_img__base__raster__lr0.0003__s1__es100__ss__t3
+  [eef_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch   1  train 2.2730  val 1.5901
+  [eef_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch  10  train 1.0765  val 1.1941
+  [eef_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch  20  train 0.9737  val 1.1953
+  [eef_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch 21: 8 epoch 改善なしで打ち切り
+  [eef_img__base__raster__lr0.0003__s1__es100__ss__t3] early stopping: best epoch 13（val 1.1680）
+  [eef_img__base__raster__lr0.0003__s1__es100__ss__t3] done 88s params 1,872,139  TRAIN A pos 38.3 goal 0.368 | B pos 38.3 goal 0.368 coll 0.441 | val 1.1680
+--- [6/20] full_img__base__raster__lr0.0003__s1__es100__ss__t3
+  [full_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch   1  train 2.2639  val 1.5661
+  [full_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch  10  train 1.0843  val 1.2107
+  [full_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch  20  train 0.4768  val 0.6646
+  [full_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch  30  train 0.3430  val 0.6226
+  [full_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch  40  train 0.2262  val 0.6271
+  [full_img__base__raster__lr0.0003__s1__es100__ss__t3] epoch 42: 8 epoch 改善なしで打ち切り
+  [full_img__base__raster__lr0.0003__s1__es100__ss__t3] early stopping: best epoch 34（val 0.5190）
+  [full_img__base__raster__lr0.0003__s1__es100__ss__t3] done 177s params 1,872,139  TRAIN A pos 18.2 goal 0.993 | B pos 18.2 goal 0.993 coll 0.988 | val 0.5190
+--- [7/20] eef_num__base__raster__lr0.001__s1__es100__ss__t3
+  [eef_num__base__raster__lr0.001__s1__es100__ss__t3] epoch   1  train 1.8864  val 1.5282
+  [eef_num__base__raster__lr0.001__s1__es100__ss__t3] epoch  10  train 1.1916  val 1.4120
+  [eef_num__base__raster__lr0.001__s1__es100__ss__t3] epoch  20  train 1.0858  val 1.3796
+  [eef_num__base__raster__lr0.001__s1__es100__ss__t3] epoch 23: 8 epoch 改善なしで打ち切り
+  [eef_num__base__raster__lr0.001__s1__es100__ss__t3] early stopping: best epoch 15（val 1.2841）
+  [eef_num__base__raster__lr0.001__s1__es100__ss__t3] done 52s params 1,698,826  TRAIN A pos 36.3 goal 0.347 | B pos 36.3 goal 0.347 coll 0.345 | val 1.2841
+--- [8/20] full_num__base__raster__lr0.001__s1__es100__ss__t3
+  [full_num__base__raster__lr0.001__s1__es100__ss__t3] epoch   1  train 1.8463  val 1.6057
+  [full_num__base__raster__lr0.001__s1__es100__ss__t3] epoch  10  train 0.9060  val 1.0751
+  [full_num__base__raster__lr0.001__s1__es100__ss__t3] epoch  20  train 0.7708  val 1.0431
+  [full_num__base__raster__lr0.001__s1__es100__ss__t3] epoch 22: 8 epoch 改善なしで打ち切り
+  [full_num__base__raster__lr0.001__s1__es100__ss__t3] early stopping: best epoch 14（val 0.8824）
+  [full_num__base__raster__lr0.001__s1__es100__ss__t3] done 49s params 1,718,666  TRAIN A pos 34.4 goal 0.768 | B pos 34.4 goal 0.768 coll 0.767 | val 0.8824
+--- [9/20] eef_img__base__raster__lr0.0003__s2__es100__ss__t3
+  [eef_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch   1  train 2.3019  val 1.5689
+  [eef_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch  10  train 1.2074  val 1.3557
+  [eef_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch  20  train 0.9847  val 1.2279
+  [eef_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch  30  train 0.9215  val 1.2048
+  [eef_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch 36: 8 epoch 改善なしで打ち切り
+  [eef_img__base__raster__lr0.0003__s2__es100__ss__t3] early stopping: best epoch 28（val 1.1590）
+  [eef_img__base__raster__lr0.0003__s2__es100__ss__t3] done 153s params 1,872,139  TRAIN A pos 36.5 goal 0.427 | B pos 36.5 goal 0.427 coll 0.474 | val 1.1590
+--- [10/20] full_img__base__raster__lr0.0003__s2__es100__ss__t3
+  [full_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch   1  train 2.3205  val 1.5334
+  [full_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch  10  train 1.1717  val 1.3665
+  [full_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch  20  train 0.5446  val 0.8280
+  [full_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch  30  train 0.3453  val 0.7939
+  [full_img__base__raster__lr0.0003__s2__es100__ss__t3] epoch 30: 8 epoch 改善なしで打ち切り
+  [full_img__base__raster__lr0.0003__s2__es100__ss__t3] early stopping: best epoch 22（val 0.6460）
+  [full_img__base__raster__lr0.0003__s2__es100__ss__t3] done 128s params 1,872,139  TRAIN A pos 26.2 goal 0.938 | B pos 26.2 goal 0.938 coll 0.944 | val 0.6460
+--- [11/20] eef_num__base__raster__lr0.001__s2__es100__ss__t3
+  [eef_num__base__raster__lr0.001__s2__es100__ss__t3] epoch   1  train 1.9202  val 1.7151
+  [eef_num__base__raster__lr0.001__s2__es100__ss__t3] epoch  10  train 1.1923  val 1.3927
+  [eef_num__base__raster__lr0.001__s2__es100__ss__t3] epoch  20  train 1.0837  val 1.3059
+  [eef_num__base__raster__lr0.001__s2__es100__ss__t3] epoch 23: 8 epoch 改善なしで打ち切り
+  [eef_num__base__raster__lr0.001__s2__es100__ss__t3] early stopping: best epoch 15（val 1.2446）
+  [eef_num__base__raster__lr0.001__s2__es100__ss__t3] done 51s params 1,698,826  TRAIN A pos 40.8 goal 0.350 | B pos 40.8 goal 0.350 coll 0.352 | val 1.2446
+--- [12/20] full_num__base__raster__lr0.001__s2__es100__ss__t3
+  [full_num__base__raster__lr0.001__s2__es100__ss__t3] epoch   1  train 1.8633  val 1.4918
+  [full_num__base__raster__lr0.001__s2__es100__ss__t3] epoch  10  train 0.8870  val 1.0078
+  [full_num__base__raster__lr0.001__s2__es100__ss__t3] epoch  20  train 0.7317  val 1.1644
+  [full_num__base__raster__lr0.001__s2__es100__ss__t3] epoch  30  train 0.5891  val 0.6794
+  [full_num__base__raster__lr0.001__s2__es100__ss__t3] epoch  40  train 0.3579  val 0.4759
+  [full_num__base__raster__lr0.001__s2__es100__ss__t3] epoch 46: 8 epoch 改善なしで打ち切り
+  [full_num__base__raster__lr0.001__s2__es100__ss__t3] early stopping: best epoch 38（val 0.4628）
+  [full_num__base__raster__lr0.001__s2__es100__ss__t3] done 108s params 1,718,666  TRAIN A pos 19.0 goal 0.992 | B pos 19.0 goal 0.992 coll 0.969 | val 0.4628
+--- [13/20] eef_img__base__raster__lr0.0003__s3__es100__ss__t3
+  [eef_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch   1  train 2.3249  val 1.5385
+  [eef_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch  10  train 1.1521  val 1.2766
+  [eef_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch  20  train 0.9839  val 1.2060
+  [eef_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch  30  train 0.9145  val 1.1909
+  [eef_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch  40  train 0.8668  val 1.2058
+  [eef_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch  50  train 0.8152  val 1.1613
+  [eef_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch 50: 8 epoch 改善なしで打ち切り
+  [eef_img__base__raster__lr0.0003__s3__es100__ss__t3] early stopping: best epoch 42（val 1.1104）
+  [eef_img__base__raster__lr0.0003__s3__es100__ss__t3] done 230s params 1,872,139  TRAIN A pos 38.0 goal 0.479 | B pos 38.0 goal 0.479 coll 0.485 | val 1.1104
+--- [14/20] full_img__base__raster__lr0.0003__s3__es100__ss__t3
+  [full_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch   1  train 2.3253  val 1.5389
+  [full_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch  10  train 1.0843  val 1.2142
+  [full_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch  20  train 0.8779  val 1.1388
+  [full_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch  30  train 0.4004  val 0.5892
+  [full_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch  40  train 0.2882  val 0.5496
+  [full_img__base__raster__lr0.0003__s3__es100__ss__t3] epoch 43: 8 epoch 改善なしで打ち切り
+  [full_img__base__raster__lr0.0003__s3__es100__ss__t3] early stopping: best epoch 35（val 0.5340）
+  [full_img__base__raster__lr0.0003__s3__es100__ss__t3] done 200s params 1,872,139  TRAIN A pos 19.9 goal 0.988 | B pos 19.9 goal 0.988 coll 0.986 | val 0.5340
+--- [15/20] eef_num__base__raster__lr0.001__s3__es100__ss__t3
+  [eef_num__base__raster__lr0.001__s3__es100__ss__t3] epoch   1  train 1.9276  val 1.6652
+  [eef_num__base__raster__lr0.001__s3__es100__ss__t3] epoch  10  train 1.1837  val 1.3863
+  [eef_num__base__raster__lr0.001__s3__es100__ss__t3] epoch  20  train 1.0127  val 1.1675
+  [eef_num__base__raster__lr0.001__s3__es100__ss__t3] epoch  30  train 0.9171  val 1.1700
+  [eef_num__base__raster__lr0.001__s3__es100__ss__t3] epoch  40  train 0.8875  val 1.2031
+  [eef_num__base__raster__lr0.001__s3__es100__ss__t3] epoch  50  train 0.8557  val 1.0707
+  [eef_num__base__raster__lr0.001__s3__es100__ss__t3] epoch 50: 8 epoch 改善なしで打ち切り
+  [eef_num__base__raster__lr0.001__s3__es100__ss__t3] early stopping: best epoch 42（val 1.0213）
+  [eef_num__base__raster__lr0.001__s3__es100__ss__t3] done 126s params 1,698,826  TRAIN A pos 37.1 goal 0.490 | B pos 37.1 goal 0.490 coll 0.477 | val 1.0213
+--- [16/20] full_num__base__raster__lr0.001__s3__es100__ss__t3
+  [full_num__base__raster__lr0.001__s3__es100__ss__t3] epoch   1  train 1.8679  val 1.7488
+  [full_num__base__raster__lr0.001__s3__es100__ss__t3] epoch  10  train 0.9087  val 0.9620
+  [full_num__base__raster__lr0.001__s3__es100__ss__t3] epoch  20  train 0.7491  val 0.8750
+  [full_num__base__raster__lr0.001__s3__es100__ss__t3] epoch  30  train 0.6665  val 1.1338
+  [full_num__base__raster__lr0.001__s3__es100__ss__t3] epoch  40  train 0.6213  val 0.8092
+  [full_num__base__raster__lr0.001__s3__es100__ss__t3] epoch 42: 8 epoch 改善なしで打ち切り
+  [full_num__base__raster__lr0.001__s3__es100__ss__t3] early stopping: best epoch 34（val 0.6959）
+  [full_num__base__raster__lr0.001__s3__es100__ss__t3] done 108s params 1,718,666  TRAIN A pos 27.6 goal 0.849 | B pos 27.6 goal 0.849 coll 0.818 | val 0.6959
+--- [17/20] eef_img__base__raster__lr0.0003__s4__es100__ss__t3
+  [eef_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch   1  train 2.2775  val 1.5754
+  [eef_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch  10  train 1.1997  val 1.3502
+  [eef_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch  20  train 1.0241  val 1.2243
+  [eef_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch  30  train 0.9056  val 1.2421
+  [eef_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch 37: 8 epoch 改善なしで打ち切り
+  [eef_img__base__raster__lr0.0003__s4__es100__ss__t3] early stopping: best epoch 29（val 1.1570）
+  [eef_img__base__raster__lr0.0003__s4__es100__ss__t3] done 171s params 1,872,139  TRAIN A pos 35.9 goal 0.430 | B pos 35.9 goal 0.430 coll 0.474 | val 1.1570
+--- [18/20] full_img__base__raster__lr0.0003__s4__es100__ss__t3
+  [full_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch   1  train 2.2823  val 1.5027
+  [full_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch  10  train 1.1114  val 1.2612
+  [full_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch  20  train 0.4571  val 0.6390
+  [full_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch  30  train 0.3208  val 0.6500
+  [full_img__base__raster__lr0.0003__s4__es100__ss__t3] epoch 33: 8 epoch 改善なしで打ち切り
+  [full_img__base__raster__lr0.0003__s4__es100__ss__t3] early stopping: best epoch 25（val 0.5956）
+  [full_img__base__raster__lr0.0003__s4__es100__ss__t3] done 146s params 1,872,139  TRAIN A pos 19.4 goal 0.982 | B pos 19.4 goal 0.982 coll 0.952 | val 0.5956
+--- [19/20] eef_num__base__raster__lr0.001__s4__es100__ss__t3
+  [eef_num__base__raster__lr0.001__s4__es100__ss__t3] epoch   1  train 1.8740  val 1.5619
+  [eef_num__base__raster__lr0.001__s4__es100__ss__t3] epoch  10  train 1.2006  val 1.3428
+  [eef_num__base__raster__lr0.001__s4__es100__ss__t3] epoch  20  train 1.0094  val 1.1557
+  [eef_num__base__raster__lr0.001__s4__es100__ss__t3] epoch  30  train 0.9110  val 1.0969
+  [eef_num__base__raster__lr0.001__s4__es100__ss__t3] epoch 36: 8 epoch 改善なしで打ち切り
+  [eef_num__base__raster__lr0.001__s4__es100__ss__t3] early stopping: best epoch 28（val 1.0549）
+  [eef_num__base__raster__lr0.001__s4__es100__ss__t3] done 83s params 1,698,826  TRAIN A pos 38.4 goal 0.451 | B pos 38.4 goal 0.451 coll 0.460 | val 1.0549
+--- [20/20] full_num__base__raster__lr0.001__s4__es100__ss__t3
+  [full_num__base__raster__lr0.001__s4__es100__ss__t3] epoch   1  train 1.8785  val 1.7090
+  [full_num__base__raster__lr0.001__s4__es100__ss__t3] epoch  10  train 0.9217  val 1.6261
+  [full_num__base__raster__lr0.001__s4__es100__ss__t3] epoch  20  train 0.5682  val 0.6465
+  [full_num__base__raster__lr0.001__s4__es100__ss__t3] epoch  30  train 0.4018  val 0.6152
+  [full_num__base__raster__lr0.001__s4__es100__ss__t3] epoch  40  train 0.3715  val 0.5273
+  [full_num__base__raster__lr0.001__s4__es100__ss__t3] epoch 42: 8 epoch 改善なしで打ち切り
+  [full_num__base__raster__lr0.001__s4__es100__ss__t3] early stopping: best epoch 34（val 0.4659）
+  [full_num__base__raster__lr0.001__s4__es100__ss__t3] done 96s params 1,718,666  TRAIN A pos 20.5 goal 0.986 | B pos 20.5 goal 0.986 coll 0.982 | val 0.4659
+===== P15 sweep t3_ss5 finished 2026-11-13 22:25:39
