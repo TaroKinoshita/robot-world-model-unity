@@ -27,6 +27,8 @@ public class Task2Recorder : MonoBehaviour
     public float stopAfterHours = 0f;                  // 0 = 止めない
     public float timeScale = 8f;
     public bool autoRun = true;
+    [Tooltip("説明用の動画のコマ（空 = 撮らない）。プロジェクトからの相対")] public string videoDir = "";
+    [Tooltip("撮る候補、例 c000,c001")] public string videoCands = "";
 
     [Header("配置（一様乱数の範囲）")]
     public Vector2 basketXRange = new Vector2(-0.07f, 0.13f);
@@ -199,7 +201,9 @@ public class Task2Recorder : MonoBehaviour
             Directory.CreateDirectory(cdir);
             ActionRepresentations.Write(kin, c.tr, cam, cdir, raster, sid, c.cid, rr);
             File.WriteAllText(Path.Combine(cdir, "planned_trajectory.json"), PlanJson(c.tr), new UTF8Encoding(false));
+            TaskVideo.Begin(videoDir, videoCands, sid, c.cid);
             yield return Execute(c.tr, cdir, L);
+            TaskVideo.End();
             cj.Append($"    {{\"candidate_id\": \"{c.cid}\", \"matched_pair_id\": \"mp{c.mp}\", \"branch\": \"{c.branch}\", \"approach_dx\": {N(c.dx)}, \"note\": \"matched pair {c.mp}: {c.branch}, same TCP path\"}}");
             cj.Append(k < cands.Count - 1 ? ",\n" : "\n");
         }
@@ -258,14 +262,14 @@ public class Task2Recorder : MonoBehaviour
             ab.jointVelocity = new ArticulationReducedSpace(0f);
             var d = ab.xDrive; d.target = tr.q[0][j] * Mathf.Rad2Deg; d.targetVelocity = 0; ab.xDrive = d;
         }
-        for (int i = 0; i < 10; i++) yield return new WaitForFixedUpdate();
+        for (int i = 0; i < 10; i++) { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); }
         kin.TcpPose(ReadQ(), out var tcp0, out _);
         apple.position = tcp0; apple.rotation = Quaternion.identity;
         appleRb.isKinematic = false; appleRb.linearVelocity = Vector3.zero; appleRb.angularVelocity = Vector3.zero;
         var toolAb = rec.robotRoot.GetComponentsInChildren<ArticulationBody>(true).FirstOrDefault(a => a.name == rec.toolLinkName) ?? kin.JointBodies[kin.Dof - 1];
         var joint = apple.gameObject.AddComponent<FixedJoint>();
         joint.connectedArticulationBody = toolAb;
-        for (int i = 0; i < 5; i++) yield return new WaitForFixedUpdate();
+        for (int i = 0; i < 5; i++) { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); }
         ShelfContactProbe.Hits.Clear();
 
         int stopStep = -1; Vector3 firstContact = new Vector3(float.NaN, float.NaN, float.NaN);
@@ -281,7 +285,7 @@ public class Task2Recorder : MonoBehaviour
                 d.targetVelocity = (tr.q[s][j] - tr.q[s - 1][j]) / tr.dt * Mathf.Rad2Deg;
                 ab.xDrive = d;
             }
-            yield return new WaitForFixedUpdate();
+            { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); }
             kin.TcpPose(ReadQ(), out var tNow, out _);
             maxTcpErr = Mathf.Max(maxTcpErr, Vector3.Distance(tr.tcp[s], tNow));
             if (CheckContacts(armHits, toolHits, ref appleShelf, ref firstContact))
@@ -294,11 +298,11 @@ public class Task2Recorder : MonoBehaviour
         }
         if (stopStep < 0)
         {
-            for (int i = 0; i < 10; i++) yield return new WaitForFixedUpdate();
+            for (int i = 0; i < 10; i++) { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); }
             Destroy(joint); joint = null;
         }
         float t = 0f;
-        while (t < settleSeconds) { yield return new WaitForFixedUpdate(); t += Time.fixedDeltaTime; if (stopStep < 0) CheckContacts(armHits, toolHits, ref appleShelf, ref firstContact); }
+        while (t < settleSeconds) { { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); } t += Time.fixedDeltaTime; if (stopStep < 0) CheckContacts(armHits, toolHits, ref appleShelf, ref firstContact); }
 
         var bb = basketCols[0].bounds; foreach (var bc in basketCols) bb.Encapsulate(bc.bounds); bb.Expand(new Vector3(0f, 0.06f, 0f));
         bool placed = joint == null && bb.Contains(apple.position) && appleRb.linearVelocity.magnitude < 0.02f;
@@ -319,7 +323,7 @@ public class Task2Recorder : MonoBehaviour
             $"  \"max_tcp_err_m\": {N(maxTcpErr)}\n}}\n", new UTF8Encoding(false));
 
         if (joint != null) Destroy(joint);
-        yield return new WaitForFixedUpdate();
+        { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); }
         appleRb.isKinematic = true;
         apple.position = new Vector3(0, -5, 0);
     }

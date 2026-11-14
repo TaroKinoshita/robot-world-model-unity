@@ -22,6 +22,8 @@ public class Task3Recorder : MonoBehaviour
     public int sceneCount = 20;
     public float timeScale = 8f;
     public bool autoRun = true;
+    [Tooltip("説明用の動画のコマ（空 = 撮らない）。プロジェクトからの相対")] public string videoDir = "";
+    [Tooltip("撮る候補、例 c000,c001")] public string videoCands = "";
 
     [Header("配置（一様乱数の範囲）")]
     public Vector2 tcpXRange = new Vector2(-0.07f, 0.13f);
@@ -217,7 +219,9 @@ public class Task3Recorder : MonoBehaviour
             ResetBox(L);
             ActionRepresentations.Write(kin, c.tr, cam, cdir, raster, sid, c.cid, rr);
             File.WriteAllText(Path.Combine(cdir, "planned_trajectory.json"), PlanJson(c.tr), new UTF8Encoding(false));
+            TaskVideo.Begin(videoDir, videoCands, sid, c.cid);
             yield return Execute(c.tr, cdir, L);
+            TaskVideo.End();
             cj.Append($"    {{\"candidate_id\": \"{c.cid}\", \"matched_pair_id\": \"mp{c.mp}\", \"branch\": \"{c.branch}\", \"approach_dx\": {N(c.dx)}, \"note\": \"matched pair {c.mp}: {c.branch}, same TCP path\"}}");
             cj.Append(k < cands.Count - 1 ? ",\n" : "\n");
         }
@@ -282,10 +286,10 @@ public class Task3Recorder : MonoBehaviour
             ab.jointVelocity = new ArticulationReducedSpace(0f);
             var d = ab.xDrive; d.target = tr.q[0][j] * Mathf.Rad2Deg; d.targetVelocity = 0; ab.xDrive = d;
         }
-        for (int i = 0; i < 10; i++) yield return new WaitForFixedUpdate();
+        for (int i = 0; i < 10; i++) { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); }
         ResetBox(L);
         boxRb.isKinematic = false; boxRb.linearVelocity = Vector3.zero; boxRb.angularVelocity = Vector3.zero;
-        for (int i = 0; i < 5; i++) yield return new WaitForFixedUpdate();
+        for (int i = 0; i < 5; i++) { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); }
         ShelfContactProbe.Hits.Clear();
 
         Vector3 firstContact = new Vector3(float.NaN, float.NaN, float.NaN);
@@ -300,7 +304,7 @@ public class Task3Recorder : MonoBehaviour
                 d.targetVelocity = (tr.q[s][j] - tr.q[s - 1][j]) / tr.dt * Mathf.Rad2Deg;
                 ab.xDrive = d;
             }
-            yield return new WaitForFixedUpdate();
+            { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); }
             kin.TcpPose(ReadQ(), out var tNow, out _);
             maxTcpErr = Mathf.Max(maxTcpErr, Vector3.Distance(tr.tcp[s], tNow));
             CheckContacts(armHits, toolHits, ref firstContact);
@@ -311,7 +315,7 @@ public class Task3Recorder : MonoBehaviour
             }
         }
         float t = 0f;
-        while (t < settleSeconds) { yield return new WaitForFixedUpdate(); t += Time.fixedDeltaTime; CheckContacts(armHits, toolHits, ref firstContact); }
+        while (t < settleSeconds) { { yield return new WaitForFixedUpdate(); TaskVideo.Frame(cam); } t += Time.fixedDeltaTime; CheckContacts(armHits, toolHits, ref firstContact); }
 
         var bp = box.position; var q4 = box.rotation;
         float disp = new Vector2(bp.x - L.boxPos.x, bp.z - L.boxPos.z).magnitude;
