@@ -9,6 +9,7 @@
 - **Why the image models are weaker (new, exploratory):** the image input is correct and contains the needed information. One confirmed cause is late fusion: switching to early fusion raised the image model's H5 balanced accuracy by about +0.08 on val and on the H5 set (test not used). See §5.
 - **Second task (new):** H5 replicates on a shelf-placement task for both formats; H2 for numeric only. See §9.
 - **Third task (new):** when the forearm pushes an object, the full-body model also predicts the object's final position better (H1 flips; numeric and image). See §10.
+- **Writing (new):** drafts of the abstract, introduction, related work, methods, results and discussion exist (`Docs/thesis/`), with two summary figures.
 - **Schedule:** about 4 weeks ahead. Data generation and training were planned to finish by 2026-12-04, and evaluation is already done as well. From now on, the time goes to writing.
 
 ## 2. What was done since the last report
@@ -187,9 +188,9 @@ Tasks 1 and 2 only involve *unintended* arm contact (a collision flag), and the 
 
 ## Questions for the meeting
 
-- Is the H5 framing acceptable: balanced accuracy against the wrist-branch baseline, with AUROC as secondary?
-- Is H3 being not supported (numeric beats image even on mask IoU) a reasonable result to report as-is?
-- I plan to report the early-fusion result as an exploratory finding in the discussion, and to leave a redesign of the image model to future work, because the test set has already been used and the research question concerns the scope of the robot representation, not the best input format. Is that acceptable?
-- With three tasks (unintended collision, shelf collision, intended arm pushing), I plan to stop adding experiments and write. Is that acceptable, with the real-robot check left to future work?
-- Should the second task be its own chapter, or a section of the results chapter?
-- Phase 3 (video prediction) is dropped in favour of the second task. Is that acceptable?
+1. **Scope of experiments.** With three tasks (unintended collision, shelf collision, intended arm pushing), I plan to stop adding experiments and write, leaving a real-robot check to future work. Is that acceptable?
+2. **Structure.** I plan to present Tasks 2 and 3 as sections of the results chapter ("validation on further tasks"), not as separate chapters. Is that acceptable?
+3. **H5 metric.** Balanced accuracy against the branch-only baseline, with AUROC as secondary. Is that acceptable?
+4. **H3.** Numeric beats image even on mask IoU, so H3 is not supported. Can I report this as-is?
+5. **Image model.** I will report the early-fusion and bias-correction results as exploratory findings and leave a redesign to future work, because each test set has been used once and the question is about scope, not format. Is that acceptable?
+6. **Practical.** Which thesis template should I use, and when would you like to see a full draft?

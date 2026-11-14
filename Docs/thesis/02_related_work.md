@@ -1,6 +1,6 @@
 # 2 Related Work
 
-*Draft, 2026-11-13. Check each reference's details against the paper before submission.*
+*Draft, 2026-11-15. Cosgun, iMaC, EA-WM and OSCAR were checked against arXiv on 2026-11-15; the three 2026 papers are preprints with no venue listed.*
 
 ## 2.1 Action-conditioned world models
 
@@ -34,9 +34,9 @@
 
 **Recent kinematic conditioning.** Video world models now condition on kinematics rendered into the image:
 
-- iMaC renders robot motion and contact images from the URDF and forward kinematics;
-- EA-WM lifts actions and kinematic states into the camera view;
-- OSCAR conditions on rendered skeletons across embodiments.
+- iMaC (Wu et al. 2026) renders robot motion and contact images from the URDF and forward kinematics;
+- EA-WM (Yang et al. 2026) lifts actions and kinematic states into the camera view;
+- OSCAR (Wu & Gao 2026) conditions on rendered skeletons across embodiments.
 
 These works show that giving the model the whole robot in image form helps large generative models. None of them isolates the effect of scope (end-effector vs. full body) with matched trajectories that share the same end-effector path. That is the contrast this thesis tests.
 
@@ -46,7 +46,7 @@ These works show that giving the model the whole robot in image form helps large
 
 - Salisbury (1987) introduced the idea.
 - Eberman (1989) classified it into pushing, searching, enclosure and exclusion.
-- More recent examples include forearm pushing for sorting objects (Cosgun et al.) and contact-rich whole-arm control (e.g. TACTIC).
+- More recent examples include forearm pushing for sorting objects (Cosgun et al. 2019) and contact-rich whole-arm control (e.g. TACTIC).
 
 Our Task 3 is a pushing task in this sense.
 
@@ -67,16 +67,16 @@ Our Task 3 is a pushing task in this sense.
 - Alzayer et al. (2026). Masked visual actions. arXiv:2607.19343.
 - Bai, Kolter, Koltun (2018). An empirical evaluation of generic convolutional and recurrent networks for sequence modeling. arXiv:1803.01271.
 - Borkman et al. (2021). Unity Perception.
-- Cosgun et al. Forearm-based multi-object pushing (Monash). *Full citation to check.*
+- Cosgun, Ditria, D'Lima, Drummond (2019). Embracing contact: Pushing multiple objects with robot's forearm. arXiv:1906.06866.
 - Eberman (1989). Whole-arm manipulation: kinematics and control. MSc thesis, MIT.
-- EA-WM (2026). arXiv:2605.06192.
+- Yang, Jin, Qi, Huang, Chen (2026). EA-WM: Event-aware generative world model with structured kinematic-to-visual action fields. arXiv:2605.06192 (preprint).
 - Finn, Goodfellow, Levine (2016). Unsupervised learning for physical interaction through video prediction. NeurIPS.
 - Fishman et al. (2022). Motion Policy Networks. CoRL.
 - Ganapathi, Florence, Varley, Burns, Goldberg, Zeng (2022). Implicit kinematic policies. ICRA. arXiv:2203.01983.
-- iMaC (2026). arXiv:2606.09813.
+- Wu, Xu, Zhou, Li, Deng, Wang, Zhu, Yu, Wang, Lu, Yan (2026). iMaC: Translating actions into motion and contact images for embodied world models. arXiv:2606.09813 (preprint).
 - Khansari et al. (2020). Action image representation. arXiv:2005.06594.
 - Kim et al. (2026). Robot-factored world models. arXiv:2607.22535.
-- OSCAR (2026). arXiv:2606.04463.
+- Wu & Gao (2026). OSCAR: Omni-embodiment action-conditioned world model for robotics. arXiv:2606.04463 (preprint).
 - Salisbury (1987). Whole-arm manipulation. Proc. 4th ISRR.
 - Wang et al. (2025). Visual action prompts. ICCV.
 - Yin et al. (2026). PlayWorld. arXiv:2603.09030.
